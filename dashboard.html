@@ -1037,12 +1037,26 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       <div><label class="flabel">Teléfono</label><input type="tel" id="fPhone" placeholder="(704) 555-0100"></div>
     </div>
     <div class="row2">
-      <div><label class="flabel">Plan</label><select id="fPlan"><option>Básico</option><option>Pro</option><option>Premium</option></select></div>
+      <div><label class="flabel">Plan</label><select id="fPlan" onchange="updateMonthly()"><option>Básico</option><option>Pro</option><option>Premium</option></select></div>
       <div><label class="flabel">Mensualidad ($)</label><input type="number" id="fMonthly" value="249"></div>
     </div>
     <div class="row2">
+      <div><label class="flabel">Tipo de negocio</label><select id="fBizType">
+        <option value="restaurante">🍽️ Restaurante</option>
+        <option value="dental">🦷 Clínica dental</option>
+        <option value="taller">🔧 Taller mecánico</option>
+        <option value="belleza">💇 Salón de belleza</option>
+        <option value="hotel">🏨 Hotel</option>
+        <option value="abogado">⚖️ Abogado</option>
+        <option value="veterinaria">🐾 Veterinaria</option>
+        <option value="inmobiliaria">🏠 Inmobiliaria</option>
+        <option value="otro">📦 Otro</option>
+      </select></div>
       <div><label class="flabel">Estado</label><select id="fStatus"><option value="active">Activo</option><option value="trial">Prueba</option><option value="off">Pausado</option></select></div>
+    </div>
+    <div class="row2">
       <div><label class="flabel">Voz del asistente</label><select id="fVoice"><option>Luisa · ES amable</option><option>Carlos · ES neutro</option><option>Sofía · EN/ES</option></select></div>
+      <div></div>
     </div>
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
@@ -1151,7 +1165,7 @@ async function loadClientsFromFirebase(){
         city: d.city || '',
         phone: d.phone || '',
         plan: d.plan === 'basico' ? 'Básico' : (d.plan === 'pro' ? 'Pro' : (d.plan || '')),
-        monthly: d.plan === 'pro' ? 249 : 149,
+        monthly: d.plan === 'pro' ? 249 : (d.plan === 'premium' ? 399 : 149),
         status: d.status || 'trial',
         voice: 'Sofía · ES/EN',
         lang: 'ES/EN',
@@ -1160,6 +1174,7 @@ async function loadClientsFromFirebase(){
         since: d.createdAt ? d.createdAt.toDate().toISOString().slice(0,10) : '',
         greeting: '¡Hola! Gracias por llamar a ' + (d.name || '') + '.',
         email: d.email || '',
+        bizType: d.bizType || 'restaurante',
         _fb: true,
       });
     });
@@ -1536,6 +1551,13 @@ function renderClients(){
       <button class="btn btn-danger btn-sm" onclick="delClient('${c.id}')">Eliminar</button></td>`:'<td></td>'}</tr>`;
   }).join('')||`<tr><td colspan="7"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
 }
+/* Actualiza la mensualidad según el plan elegido */
+function updateMonthly(){
+  const precios={'Básico':149,'Pro':249,'Premium':399};
+  const plan=$('fPlan').value;
+  if(precios[plan]) $('fMonthly').value=precios[plan];
+}
+
 function openClientModal(id){
   const c=id?clients.find(x=>x.id==id):{id:'',name:'',city:'',phone:'',plan:'Pro',monthly:249,status:'active',voice:'Luisa · ES amable'};
   if(id&&!c){toast('Cliente no encontrado: '+id,'warn');return;}
@@ -1550,6 +1572,8 @@ function openClientModal(id){
     $('fPlan').value=planVal;$('fMonthly').value=c.monthly||'';$('fStatus').value=c.status||'trial';$('fVoice').value=c.voice||'';
     const emailField=$('fEmail')||$('fOwnerEmail');
     if(emailField){ emailField.value=c.email||''; emailField.disabled=!!id; }
+    // Tipo de negocio
+    if($('fBizType')) $('fBizType').value=c.bizType||'restaurante';
     $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
   }catch(err){
     toast('Error abriendo: '+err.message,'warn');
@@ -1573,7 +1597,8 @@ async function saveClient(){
         ownerName:name,
         ownerEmail:email,
         ownerPhone:$('fPhone').value,
-        plan:$('fPlan').value==='Pro'?'pro':'basico',
+        plan:$('fPlan').value==='Pro'?'pro':($('fPlan').value==='Premium'?'premium':'basico'),
+        bizType:$('fBizType')?$('fBizType').value:'restaurante',
         tempPassword:tempPw,
       });
       toast('🎉 Cliente creado: '+r.email+' · clave: '+tempPw);
@@ -1590,7 +1615,8 @@ async function saveClient(){
   // EDITAR existente → actualiza en Firebase
   const planMap={'Básico':'basico','Pro':'pro','Premium':'premium','basico':'basico','pro':'pro','premium':'premium'};
   const planKey=planMap[$('fPlan').value]||'basico';
-  const d={name,city:$('fCity').value,phone:$('fPhone').value,plan:planKey,status:$('fStatus').value};
+  const bizType=$('fBizType')?$('fBizType').value:'restaurante';
+  const d={name,city:$('fCity').value,phone:$('fPhone').value,plan:planKey,status:$('fStatus').value,bizType};
   try{
     toast('Guardando en Firebase…');
     await VoxiaDB.updateClient(id,d);
