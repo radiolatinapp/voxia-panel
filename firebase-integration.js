@@ -355,6 +355,112 @@
     },
 
     /**
+     * SISTEMA DE ALERTAS — todo conectado automáticamente.
+     *
+     * Las alertas llegan a:
+     *  1. Panel (campana, tiempo real) — siempre
+     *  2. Correo del cliente — automático
+     *  3. WhatsApp — si el plan lo incluye (Pro/Premium)
+     *
+     * Se crean en: clients/{id}/alerts y se muestran en el panel en vivo.
+     */
+    async createAlert(tipo, titulo, mensaje, datos) {
+      if (!this.clientId) return;
+      const alertRef = await db.collection('clients').doc(this.clientId)
+        .collection('alerts').add({
+          tipo, // 'warning' | 'urgent' | 'info' | 'overage'
+          titulo,
+          mensaje,
+          datos: datos || {},
+          leida: false,
+          creada: firebase.firestore.Timestamp.now(),
+        });
+      // También en actividad general
+      await this.logActivity('alert_' + tipo, { titulo });
+      return alertRef.id;
+    },
+
+    /**
+     * Escucha alertas en tiempo real (para la campana del panel)
+     */
+    onAlerts(callback) {
+      if (!this.clientId) return () => {};
+      return db.collection('clients').doc(this.clientId)
+        .collection('alerts')
+        .where('leida', '==', false)
+        .orderBy('creada', 'desc')
+        .limit(20)
+        .onSnapshot(snap => {
+          const alerts = [];
+          snap.forEach(d => alerts.push({ id: d.id, ...d.data() }));
+          callback(alerts);
+        });
+    },
+
+    /**
+     * Marca alerta como leída
+     */
+    async markAlertRead(alertId) {
+      if (!this.clientId) return;
+      await db.collection('clients').doc(this.clientId)
+        .collection('alerts').doc(alertId).update({ leida: true });
+    },
+
+    /**
+     * Registra minutos y dispara alertas automáticas de uso.
+     * Alertas: 80% (aviso), 95% (urgente), 100% (límite + cobro extra).
+     */
+    async trackUsage(minutos) {
+      if (!this.clientId) throw new Error('Sin cliente');
+      const periodo = new Date().toISOString().slice(0, 7);
+      const ref = db.collection('clients').doc(this.clientId)
+        .collection('usage').doc(periodo);
+
+      const planKey = (this.clientData?.plan || 'basico').toLowerCase();
+      const plan = this.PLANS[planKey] || this.PLANS.basico;
+      const limite = plan.minutos;
+
+      const antes = await ref.get();
+      const usadoAntes = antes.exists ? (antes.data().minutos || 0) : 0;
+
+      await ref.set({
+        minutos: firebase.firestore.FieldValue.increment(minutos),
+        actualizado: firebase.firestore.Timestamp.now(),
+      }, { merge: true });
+
+      const usado = usadoAntes + minutos;
+      const pctAntes = Math.round((usadoAntes / limite) * 100);
+      const pctAhora = Math.round((usado / limite) * 100);
+      const excedido = usado > limite;
+      const minutosExtra = excedido ? Math.round((usado - limite) * 10) / 10 : 0;
+
+      // ALERTAS AUTOMÁTICAS (solo al cruzar el umbral, no en cada llamada)
+      if (pctAntes < 80 && pctAhora >= 80 && pctAhora < 95) {
+        await this.createAlert('warning',
+          '⚠️ Te quedan pocos minutos',
+          `Has usado ${Math.round(usado)} de ${limite} minutos (${pctAhora}%). Te quedan ${Math.round(limite - usado)} minutos este mes.`,
+          { usado, limite, porcentaje: pctAhora });
+      } else if (pctAntes < 95 && pctAhora >= 95 && pctAhora < 100) {
+        await this.createAlert('urgent',
+          '🔴 Casi sin minutos',
+          `Has usado ${pctAhora}% de tus minutos. Te quedan ${Math.round(limite - usado)}. Considera subir de plan.`,
+          { usado, limite, porcentaje: pctAhora });
+      } else if (!excedido && pctAhora >= 100 || (usadoAntes <= limite && excedido)) {
+        await this.createAlert('overage',
+          '💰 Límite alcanzado — cobro por minuto extra',
+          `Superaste tus ${limite} minutos. Cada minuto extra cuesta $0.12 y se suma a tu factura automáticamente. Tu servicio sigue funcionando sin interrupción.`,
+          { usado, limite, minutosExtra, costoExtra: +(minutosExtra * 0.12).toFixed(2) });
+      }
+
+      await this.logActivity(excedido ? 'usage_overage' : 'usage_track',
+        { minutos, usado: Math.round(usado * 10) / 10, limite });
+
+      return { usado: Math.round(usado * 10) / 10, limite,
+               porcentaje: pctAhora, excedido, minutosExtra,
+               costoExtra: +(minutosExtra * 0.12).toFixed(2) };
+    },
+
+    /**
      * Observador de sesión (llamar al cargar la página)
      */
     onAuthChange(callback) {
