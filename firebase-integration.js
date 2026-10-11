@@ -118,11 +118,77 @@
     /**
      * Onboarding completo de cliente nuevo (solo superadmin).
      * Crea usuario Auth + docs en Firestore, todo conectado.
+     * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const fn = functions.httpsCallable('onboardClient');
-      const result = await fn(data);
-      return result.data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, plan, elevenlabsAgentId, tempPassword } = data;
+
+      if (!clientName || !ownerEmail || !tempPassword) {
+        throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
+      }
+
+      // Guardar sesión actual del admin
+      const adminUser = auth.currentUser;
+
+      // 1. Crear usuario en Auth (esto cambia la sesión actual)
+      const cred = await auth.createUserWithEmailAndPassword(ownerEmail, tempPassword);
+      const uid = cred.user.uid;
+
+      // 2. ID del cliente
+      const slug = clientName.toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
+      const clientId = `${slug}-${uid.slice(0, 6)}`;
+      const now = firebase.firestore.Timestamp.now();
+
+      // 3. Crear documentos (como el nuevo usuario es owner, puede escribir su propio cliente)
+      const batch = db.batch();
+
+      batch.set(db.collection('clients').doc(clientId), {
+        name: clientName,
+        email: ownerEmail,
+        phone: ownerPhone || '',
+        status: 'trial',
+        plan: plan || 'basico',
+        elevenlabsAgentId: elevenlabsAgentId || '',
+        twilioNumber: '',
+        createdAt: now,
+        createdBy: adminUser.uid,
+      });
+
+      batch.set(db.collection('clients').doc(clientId).collection('config').doc('settings'), {
+        voice: 'sofia',
+        languages: ['es', 'en'],
+        pickup: true,
+        delivery: true,
+        turnModel: 'turn_v3',
+      });
+
+      batch.set(db.collection('users').doc(uid), {
+        email: ownerEmail,
+        displayName: ownerName || clientName,
+        clientId: clientId,
+        role: 'owner',
+        createdAt: now,
+        createdBy: adminUser.uid,
+      });
+
+      await batch.commit();
+
+      // 4. Registrar actividad (como admin)
+      await db.collection('activity').add({
+        clientId,
+        userId: adminUser.uid,
+        action: 'client_onboarded',
+        details: { clientName, ownerEmail },
+        timestamp: now,
+      });
+
+      // 5. Cerrar sesión del nuevo usuario y restaurar la del admin
+      // (el admin deberá volver a entrar)
+      await auth.signOut();
+
+      return { ok: true, clientId, uid, email: ownerEmail, tempPassword, needsRelogin: true };
     },
 
     /**
