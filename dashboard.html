@@ -682,9 +682,12 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   <section class="view" id="view-clientes">
     <div class="page-head">
       <div><h2>Clientes</h2><p>Tus negocios y sus planes activos</p></div>
+      <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" data-edit onclick="crearDuenoDemo()" title="Crear cuenta dueña para el demo">👤 Dueño demo</button>
       <button class="btn btn-primary" data-edit onclick="openClientModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         Nuevo cliente</button>
+      </div>
     </div>
     <div class="card">
       <div class="toolbar">
@@ -1604,6 +1607,22 @@ function openClientModal(id){
 }
 function closeModal(id){$(id).classList.remove('open');}
 /* Envía correo de recuperación al dueño del cliente */
+/* TEMPORAL: Crear cuenta dueña para cliente demo existente */
+async function crearDuenoDemo(){
+  if(!confirm('¿Crear cuenta restaurante@voxia.ai (D123456789) para el demo?')) return;
+  try{
+    const email='restaurante@voxia.ai', password='D123456789', clientId='demo-restaurante';
+    const app2=firebase.initializeApp(firebase.app().options,'tmp'+Date.now());
+    const cred=await app2.auth().createUserWithEmailAndPassword(email,password);
+    const uid=cred.user.uid;
+    await app2.auth().signOut(); await app2.delete();
+    const db=firebase.firestore();
+    await db.collection('clients').doc(clientId).update({email:email, updatedAt: firebase.firestore.Timestamp.now()});
+    await db.collection('users').doc(uid).set({email:email, displayName:'Cali Colombian Restaurant', clientId:clientId, role:'owner', createdAt: firebase.firestore.Timestamp.now()});
+    toast('✅ Cuenta creada: '+email);
+  }catch(e){ toast('⚠️ '+e.message,'warn'); }
+}
+
 async function sendPasswordReset(){
   const email=($('fEmail')||{}).value||'';
   if(!email){ toast('⚠️ El cliente no tiene correo','warn'); return; }
