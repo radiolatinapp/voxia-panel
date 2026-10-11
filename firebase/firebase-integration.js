@@ -30,6 +30,8 @@
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
+  // Forzar HTTP long-polling en vez de WebSockets (puede estar bloqueado)
+  db.settings({ experimentalForceLongPolling: true });
   const functions = firebase.functions();
 
   // Estado global
