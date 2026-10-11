@@ -1080,6 +1080,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
+      <button class="btn btn-ghost" id="btnResetPw" onclick="sendPasswordReset()" style="display:none">📧 Enviar recuperación</button>
       <button class="btn btn-primary" onclick="saveClient()">Guardar cliente</button>
     </div>
   </div>
@@ -1594,12 +1595,27 @@ function openClientModal(id){
     if(emailField){ emailField.value=c.email||''; emailField.disabled=!!id; }
     // Tipo de negocio
     if($('fBizType')) $('fBizType').value=c.bizType||'restaurante';
+    // Mostrar botón de recuperación solo al editar
+    if($('btnResetPw')) $('btnResetPw').style.display=id?'':'none';
     $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
   }catch(err){
     toast('Error abriendo: '+err.message,'warn');
   }
 }
 function closeModal(id){$(id).classList.remove('open');}
+/* Envía correo de recuperación al dueño del cliente */
+async function sendPasswordReset(){
+  const email=($('fEmail')||{}).value||'';
+  if(!email){ toast('⚠️ El cliente no tiene correo','warn'); return; }
+  if(!confirm('¿Enviar correo de recuperación a '+email+'?')) return;
+  try{
+    await firebase.auth().sendPasswordResetEmail(email);
+    toast('📧 Correo enviado a '+email);
+  }catch(e){
+    toast('⚠️ Error: '+e.message,'warn');
+  }
+}
+
 async function saveClient(){
   if(!canEdit()){toast('🔒 Tu rol no permite crear ni editar negocios','warn');return;}
   const id=$('fId').value,name=$('fName').value.trim();
