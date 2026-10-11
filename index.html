@@ -7,6 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
 <style>
 /* ============ VOXIA PREMIUM · DESIGN SYSTEM ============ */
 :root{
@@ -463,7 +468,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <label class="flabel">Contraseña</label>
     <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
     <div class="login-err" id="loginErr"></div>
-    <button class="btn btn-primary login-btn" onclick="login()">Entrar al panel</button>
+    <button class="btn btn-primary login-btn" id="loginBtn" onclick="login()">Entrar al panel</button>
     <button class="login-link" onclick="toast('📩 Contacta a tu administrador para restablecer tu contraseña','warn')">¿Olvidaste tu contraseña?</button>
     <div class="login-demo">
       <div class="ld-t">Cuentas demo · clic para autocompletar</div>
@@ -1107,6 +1112,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   </div>
 </div>
 
+<script src="firebase-integration.js"></script>
 <script>
 /* ==================== DATOS ==================== */
 const RATE_TWILIO = 0.0085, RATE_ELEVEN = 0.08, RATE_NUM = 1.15;
@@ -1812,23 +1818,38 @@ function curView(){const v=document.querySelector('.view.active');return v?v.id.
 
 /* ---------- autenticación ---------- */
 function fillLogin(e,p){$('loginEmail').value=e;$('loginPass').value=p;$('loginErr').style.display='none';$('loginPass').focus();}
-function login(){
+async function login(){
   const e=$('loginEmail').value.trim().toLowerCase(),p=$('loginPass').value,err=$('loginErr');
-  const u=users.find(x=>x.email.toLowerCase()===e);
-  if(!u||u.pw!==hashPw(p)){
-    err.textContent='⚠ Correo o contraseña incorrectos';err.style.display='block';
-    $('loginCard').classList.remove('shake');void $('loginCard').offsetWidth;$('loginCard').classList.add('shake');return;
+  err.style.display='none';
+  $('loginBtn').textContent='Verificando…';
+  try{
+    // Login con Firebase Auth
+    await VoxiaDB.login(e, p);
+    const ud = VoxiaDB.userData;
+    // Mapear datos de Firestore al formato del panel
+    me = {
+      id: VoxiaDB.user.uid,
+      name: ud.displayName || e,
+      email: ud.email,
+      role: ud.role === 'superadmin' ? 'admin' : (ud.role || 'agente'),
+      active: true,
+      color: '#ffa02e'
+    };
+    $('loginScreen').style.display='none';
+    logActivity(me.name,'🔓','inició sesión');
+    applyPermissions();renderAll();go('dashboard');
+    toast('👋 Hola, '+me.name.split(' ')[0]+' · '+roleLabel(me.role));
+  }catch(ex){
+    err.textContent='⚠ '+(ex.code==='auth/invalid-credential'?'Correo o contraseña incorrectos':ex.message);
+    err.style.display='block';
+    $('loginCard').classList.remove('shake');void $('loginCard').offsetWidth;$('loginCard').classList.add('shake');
   }
-  if(!u.active){err.textContent='⚠ Esta cuenta está desactivada. Contacta a tu administrador.';err.style.display='block';return;}
-  me=u;localStorage.setItem('voxia_session',u.id);err.style.display='none';
-  $('loginScreen').style.display='none';
-  logActivity(u.name,'🔓','inició sesión');
-  applyPermissions();renderAll();go('dashboard');
-  toast('👋 Hola, '+u.name.split(' ')[0]+' · '+roleLabel(u.role));
+  $('loginBtn').textContent='Entrar';
 }
-function logout(){
+async function logout(){
   if(me)logActivity(me.name,'🔒','cerró sesión');
-  me=null;localStorage.removeItem('voxia_session');
+  try{ await VoxiaDB.logout(); }catch(e){}
+  me=null;
   $('loginPass').value='';$('loginErr').style.display='none';
   $('loginScreen').style.display='flex';
 }
@@ -2323,11 +2344,25 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelect
 function renderAll(){renderDashboard();renderClients();renderCalls();renderAssistants();renderFin();renderInvoices();renderNotifs();renderVoices();renderTemplates();renderTeam();renderIntegrations();renderTranscripts();renderNotifCenter();renderCompare();renderReports();renderActivity();renderProfile();updateNotifBadge();}
 /* sesión persistente + skeleton de carga premium */
 (function(){
-  try{const sid=localStorage.getItem('voxia_session');const u=sid&&users.find(x=>x.id===sid&&x.active);if(u)me=u;}catch(e){}
   const sk='<div class="skel" style="height:64px;margin-bottom:14px"></div>'.repeat(3);
   $('dashStats').innerHTML=sk;
-  if(me){$('loginScreen').style.display='none';applyPermissions();}
-  setTimeout(()=>{renderAll();try{restoreConns();}catch(e){}},650);
+  // Firebase Auth: restaura sesión automáticamente
+  VoxiaDB.onAuthChange(async (user)=>{
+    if(user){
+      const ud = VoxiaDB.userData;
+      me = {
+        id: user.uid,
+        name: ud.displayName || user.email,
+        email: ud.email,
+        role: ud.role === 'superadmin' ? 'admin' : (ud.role || 'agente'),
+        active: true,
+        color: '#ffa02e'
+      };
+      $('loginScreen').style.display='none';
+      applyPermissions();
+    }
+    setTimeout(()=>{renderAll();try{restoreConns();}catch(e){}},650);
+  });
 })();
 initShortcuts();
 </script>
