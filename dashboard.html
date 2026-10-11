@@ -1738,6 +1738,19 @@ function switchDemoAgent(agentId){
     }
   });
 }
+/* Probar un agente desde la lista: lo carga en el widget demo y sube */
+function probarAgente(agentId){
+  switchDemoAgent(agentId);
+  const demo=document.getElementById('demoWidget');
+  if(demo){
+    demo.scrollIntoView({behavior:'smooth', block:'center'});
+    // Actualizar el selector si existe
+    document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+      [...sel.options].forEach(opt=>{ if(opt.value===agentId) sel.value=agentId; });
+    });
+  }
+  toast('🎧 Agente cargado en el demo');
+}
 
 function renderAssistants(){
   loadDemoWidget();
@@ -2692,7 +2705,7 @@ function liveAgentsBlock(){
       const dt = a.created_at_unix_secs ? new Date(a.created_at_unix_secs*1000).toLocaleDateString() : '—';
       return `<div class="set-row"><div><div class="st">${a.name || 'Sin nombre'}</div>
         <div class="sd mono">${a.agent_id} · creado ${dt}</div></div>
-        <a class="btn btn-ghost btn-sm" href="https://elevenlabs.io/app/agents/agents/${a.agent_id}" target="_blank" rel="noopener">Abrir ↗</a></div>`;
+        <button class="btn btn-ghost btn-sm" onclick="probarAgente('${a.agent_id}')">🎧 Probar</button></div>`;
     }).join('')}
     ${live.convos.length ? `<div class="csub" style="margin-top:10px">💬 ${live.convos.length} conversación(es) recientes en ElevenLabs (últimos 20 registros)</div>` : ''}
   </div>`;
