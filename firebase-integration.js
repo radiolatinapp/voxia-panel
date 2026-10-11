@@ -236,8 +236,8 @@
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
-      const fecha = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(wb, `Voxia-Clientes-${fecha}.xlsx`);
+      // Nombre fijo: un solo Excel
+      XLSX.writeFile(wb, `Voxia-Clientes.xlsx`);
     },
 
     /**
@@ -298,8 +298,8 @@
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
-      const fecha = new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(wb, `Voxia-Clientes-${fecha}.xlsx`);
+      // Nombre fijo: un solo Excel que se actualiza (el navegador lo sobrescribe o añade (1))
+      XLSX.writeFile(wb, `Voxia-Clientes.xlsx`);
       return clients.length;
     },
     async logActivity(action, details) {
