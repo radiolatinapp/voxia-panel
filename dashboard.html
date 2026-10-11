@@ -627,7 +627,17 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite;flex-shrink:0">🎙️</div>
         <div style="flex:1;min-width:220px">
           <h3 style="margin:0 0 6px;font-size:19px">🎧 Pruébalo en vivo — Habla con tu asistente</h3>
-          <p style="margin:0;color:var(--muted);font-size:13.5px">Haz clic en el micrófono y habla como un cliente real. Pide el menú, haz un pedido, pregunta por delivery.</p>
+          <p style="margin:0;color:var(--muted);font-size:13.5px">Elige el tipo de negocio y habla como un cliente real.</p>
+          <select id="demoAgentSelect" onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
+            <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
+            <option value="dental">🦷 Clínica Dental</option>
+            <option value="taller">🔧 Taller Mecánico</option>
+            <option value="belleza">💅 Salón de Belleza</option>
+            <option value="hotel">🏨 Hotel</option>
+            <option value="abogado">⚖️ Abogado</option>
+            <option value="veterinaria">🐾 Veterinaria</option>
+            <option value="inmobiliaria">🏠 Inmobiliaria</option>
+          </select>
         </div>
         <div id="demoWidgetDash">
           <elevenlabs-convai agent-id="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>
@@ -726,7 +736,17 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite">🎙️</div>
         <div style="flex:1;min-width:200px">
           <h3 style="margin:0 0 6px;font-size:20px">🎧 Pruébalo en vivo</h3>
-          <p style="margin:0;color:var(--muted);font-size:14px">Habla con tu asistente ahora mismo. Pide el menú, haz un pedido, pregunta por delivery — como un cliente real.</p>
+          <p style="margin:0;color:var(--muted);font-size:14px">Elige el tipo de negocio y habla como un cliente real.</p>
+          <select id="demoAgentSelect2" onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
+            <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
+            <option value="dental">🦷 Clínica Dental</option>
+            <option value="taller">🔧 Taller Mecánico</option>
+            <option value="belleza">💅 Salón de Belleza</option>
+            <option value="hotel">🏨 Hotel</option>
+            <option value="abogado">⚖️ Abogado</option>
+            <option value="veterinaria">🐾 Veterinaria</option>
+            <option value="inmobiliaria">🏠 Inmobiliaria</option>
+          </select>
         </div>
         <div id="demoWidget">
           <elevenlabs-convai agent-id="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>
@@ -1785,6 +1805,45 @@ async function loadDemoWidget(){
     <p style="margin-top:8px;font-size:12px;opacity:.6">Si el botón no aparece, verifique su conexión o recargue la página.</p>`;
   }catch(e){ console.warn('Widget:', e.message); }
 }
+
+/* Cambiar agente del demo: carga el ID real desde Firebase biz_agents */
+let bizAgentIds={};
+async function loadBizAgentIds(){
+  try{
+    if(window.VoxiaDB && VoxiaDB.db){
+      const snap=await VoxiaDB.db.collection('biz_agents').get();
+      snap.forEach(doc=>{ bizAgentIds[doc.id]=doc.data().agentId; });
+      // Actualizar las opciones de los selectores con los IDs reales
+      ['demoAgentSelect','demoAgentSelect2'].forEach(selId=>{
+        const sel=$(selId);
+        if(sel){
+          [...sel.options].forEach(opt=>{
+            if(opt.value!=='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev' && bizAgentIds[opt.value]){
+              opt.dataset.biztype=opt.value;
+              opt.value=bizAgentIds[opt.value];
+            }
+          });
+        }
+      });
+    }
+  }catch(e){ console.warn('biz_agents:', e.message); }
+}
+function switchDemoAgent(agentId){
+  const containers=['demoWidgetDash','demoWidget'];
+  containers.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Asistente hablando..."></elevenlabs-convai>`;
+    }
+  });
+  // Sincronizar ambos selectores si existen
+  ['demoAgentSelect','demoAgentSelect2'].forEach(selId=>{
+    const s=document.getElementById(selId);
+    if(s) s.value=agentId;
+  });
+}
+// Cargar IDs al iniciar
+setTimeout(loadBizAgentIds, 3000);
 
 function renderAssistants(){
   loadDemoWidget();
