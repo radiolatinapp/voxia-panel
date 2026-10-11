@@ -116,6 +116,16 @@
     },
 
     /**
+     * Onboarding completo de cliente nuevo (solo superadmin).
+     * Crea usuario Auth + docs en Firestore, todo conectado.
+     */
+    async onboardClient(data) {
+      const fn = functions.httpsCallable('onboardClient');
+      const result = await fn(data);
+      return result.data;
+    },
+
+    /**
      * Registra actividad
      */
     async logActivity(action, details) {
