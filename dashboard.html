@@ -8,16 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
-<script>
-/* DIAGNÓSTICO TEMPORAL: muestra errores JS en pantalla */
-window.addEventListener('error', function(e){
-  var d=document.createElement('div');
-  d.style.cssText='position:fixed;bottom:10px;left:10px;right:10px;background:#ef4444;color:#fff;padding:12px;border-radius:8px;z-index:99999;font-size:13px;';
-  d.textContent='ERROR: '+e.message+' ('+e.filename.split('/').pop()+':'+e.lineno+')';
-  document.body.appendChild(d);
-  setTimeout(()=>d.remove(),8000);
-});
-</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -1547,22 +1537,23 @@ function renderClients(){
   }).join('')||`<tr><td colspan="7"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
 }
 function openClientModal(id){
-  alert('DEBUG: openClientModal llamado con id='+id);
   const c=id?clients.find(x=>x.id==id):{id:'',name:'',city:'',phone:'',plan:'Pro',monthly:249,status:'active',voice:'Luisa · ES amable'};
-  if(id&&!c){toast('Cliente no encontrado','warn');return;}
-  $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
-  $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCity').value=c.city||'';$('fPhone').value=c.phone||'';
-  // Plan: normalizar a los valores del select
-  let planVal = c.plan||'basico';
-  if(typeof planVal==='string'){
-    const pl=planVal.toLowerCase();
-    planVal = pl.includes('premium')?'Premium':pl.includes('pro')?'Pro':'Básico';
+  if(id&&!c){toast('Cliente no encontrado: '+id,'warn');return;}
+  try{
+    $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
+    $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCity').value=c.city||'';$('fPhone').value=c.phone||'';
+    let planVal = c.plan||'basico';
+    if(typeof planVal==='string'){
+      const pl=planVal.toLowerCase();
+      planVal = pl.includes('premium')?'Premium':pl.includes('pro')?'Pro':'Básico';
+    }
+    $('fPlan').value=planVal;$('fMonthly').value=c.monthly||'';$('fStatus').value=c.status||'trial';$('fVoice').value=c.voice||'';
+    const emailField=$('fEmail')||$('fOwnerEmail');
+    if(emailField){ emailField.value=c.email||''; emailField.disabled=!!id; }
+    $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
+  }catch(err){
+    toast('Error abriendo: '+err.message,'warn');
   }
-  $('fPlan').value=planVal;$('fMonthly').value=c.monthly||'';$('fStatus').value=c.status||'trial';$('fVoice').value=c.voice||'';
-  // Email del dueño (solo lectura al editar)
-  const emailField=$('fEmail')||$('fOwnerEmail');
-  if(emailField){ emailField.value=c.email||''; emailField.disabled=!!id; }
-  $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
 }
 function closeModal(id){$(id).classList.remove('open');}
 async function saveClient(){
