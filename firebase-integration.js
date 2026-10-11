@@ -188,12 +188,120 @@
       // (el admin deberá volver a entrar)
       await auth.signOut();
 
+      // 6. AUTOMÁTICO: generar y descargar Excel actualizado
+      try {
+        // Re-autenticar como admin no es posible aquí; el Excel se genera
+        // con los datos que ya tenemos + el nuevo cliente
+        await this._autoDownloadExcelAfterOnboarding({
+          nombre: clientName, correo: ownerEmail, telefono: ownerPhone || '',
+          estado: 'trial', plan: plan || 'basico',
+          agenteElevenLabs: elevenlabsAgentId || '', numeroTwilio: '',
+          creado: new Date().toLocaleDateString('es-CO'), id: clientId,
+          tempPassword: tempPassword,
+        });
+      } catch (e) {
+        console.warn('No se pudo generar Excel automático:', e.message);
+      }
+
       return { ok: true, clientId, uid, email: ownerEmail, tempPassword, needsRelogin: true };
     },
 
     /**
-     * Registra actividad
+     * Genera Excel automáticamente tras onboarding (sin re-login)
      */
+    async _autoDownloadExcelAfterOnboarding(newClient) {
+      if (typeof XLSX === 'undefined') return;
+      // Intentar obtener clientes existentes (puede fallar sin sesión)
+      let rows = [];
+      try {
+        const existing = await this.getAllClients();
+        rows = existing.map(c => ({
+          'Restaurante': c.nombre, 'Correo': c.correo, 'Contraseña temporal': '',
+          'Teléfono': c.telefono, 'Estado': c.estado, 'Plan': c.plan,
+          'Agente ElevenLabs': c.agenteElevenLabs, 'Número Twilio': c.numeroTwilio,
+          'Fecha creación': c.creado, 'ID Cliente': c.id,
+        }));
+      } catch (e) { /* sin sesión, solo el nuevo */ }
+      rows.push({
+        'Restaurante': newClient.nombre, 'Correo': newClient.correo,
+        'Contraseña temporal': newClient.tempPassword || '',
+        'Teléfono': newClient.telefono, 'Estado': newClient.estado, 'Plan': newClient.plan,
+        'Agente ElevenLabs': newClient.agenteElevenLabs, 'Número Twilio': newClient.numeroTwilio,
+        'Fecha creación': newClient.creado, 'ID Cliente': newClient.id,
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 30 }, { wch: 30 }, { wch: 22 }, { wch: 18 }, { wch: 12 },
+        { wch: 12 }, { wch: 35 }, { wch: 18 }, { wch: 15 }, { wch: 25 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+      const fecha = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `Voxia-Clientes-${fecha}.xlsx`);
+    },
+
+    /**
+     * Obtiene todos los clientes (solo superadmin) para el Excel
+     */
+    async getAllClients() {
+      const snap = await db.collection('clients').get();
+      const clients = [];
+      for (const doc of snap.docs) {
+        const data = doc.data();
+        // Buscar el usuario owner de este cliente
+        const usersSnap = await db.collection('users')
+          .where('clientId', '==', doc.id).limit(1).get();
+        let ownerEmail = data.email || '';
+        let tempPw = '';
+        if (!usersSnap.empty) {
+          ownerEmail = usersSnap.docs[0].data().email || ownerEmail;
+        }
+        clients.push({
+          id: doc.id,
+          nombre: data.name || '',
+          correo: ownerEmail,
+          telefono: data.phone || '',
+          estado: data.status || '',
+          plan: data.plan || '',
+          agenteElevenLabs: data.elevenlabsAgentId || '',
+          numeroTwilio: data.twilioNumber || '',
+          creado: data.createdAt ? data.createdAt.toDate().toLocaleDateString('es-CO') : '',
+        });
+      }
+      return clients;
+    },
+
+    /**
+     * Genera y descarga el Excel de clientes automáticamente
+     * Usa SheetJS (debe estar cargado en la página)
+     */
+    async downloadClientsExcel() {
+      if (typeof XLSX === 'undefined') {
+        throw new Error('Librería Excel no cargada');
+      }
+      const clients = await this.getAllClients();
+      const ws = XLSX.utils.json_to_sheet(clients.map(c => ({
+        'Restaurante': c.nombre,
+        'Correo': c.correo,
+        'Contraseña temporal': '(ver onboarding)',
+        'Teléfono': c.telefono,
+        'Estado': c.estado,
+        'Plan': c.plan,
+        'Agente ElevenLabs': c.agenteElevenLabs,
+        'Número Twilio': c.numeroTwilio,
+        'Fecha creación': c.creado,
+        'ID Cliente': c.id,
+      })));
+      ws['!cols'] = [
+        { wch: 30 }, { wch: 30 }, { wch: 22 }, { wch: 18 }, { wch: 12 },
+        { wch: 12 }, { wch: 35 }, { wch: 18 }, { wch: 15 }, { wch: 25 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+      const fecha = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `Voxia-Clientes-${fecha}.xlsx`);
+      return clients.length;
+    },
     async logActivity(action, details) {
       if (!this.user || !this.clientId) return;
       try {
