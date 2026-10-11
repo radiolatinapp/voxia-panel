@@ -1855,7 +1855,7 @@ function renderAssistants(){
         <div class="cell-sub">${c.voice} · ${c.lang} · ${c.menu} platos en el menú</div></div></div>
       <div style="display:flex;align-items:center;gap:10px">
         ${c.status==='off'?'<span class="badge b-off">Pausado</span>':'<span class="badge b-act"><span class="pdot"></span>En línea</span>'}
-        ${canEdit()?`<span class="switch ${c.status!=='off'?'on':''}" onclick="toggleAgent(${c.id},this)"></span>`:`<span class="switch ${c.status!=='off'?'on':''}" style="opacity:.5;cursor:not-allowed" title="Sin permiso"></span>`}
+        ${canEdit()?`<span class="switch ${c.status!=='off'?'on':''}" onclick="toggleAgent('${c.id}',this)"></span>`:`<span class="switch ${c.status!=='off'?'on':''}" style="opacity:.5;cursor:not-allowed" title="Sin permiso"></span>`}
       </div>
     </div>
     <div class="voice-card" style="margin-top:16px">
@@ -1889,12 +1889,20 @@ function previewVoice(btn){
   setTimeout(()=>{clearInterval(pvTimer);btn.dataset.p='';btn.querySelector('svg').innerHTML='<path d="M8 5v14l11-7z"/>';
     w.forEach(i=>{i.style.transform='scaleY(1)';i.style.opacity=.85;});},3200);
 }
-function toggleAgent(id,el){
+async function toggleAgent(id,el){
   if(!canEdit()){toast('🔒 Tu rol no permite cambiar asistentes','warn');return;}
-  const c=clients.find(x=>x.id===id);
-  logActivity(me.name,c.status==='off'?'▶':'⏸',(c.status==='off'?'activó':'pausó')+' el asistente de “'+c.name+'”');
-  c.status=c.status==='off'?'active':'off'; el.classList.toggle('on');
-  toast(c.status==='off'?'⏸ Asistente pausado':'▶ Asistente activado · en línea');
+  const c=clients.find(x=>String(x.id)===String(id));
+  if(!c){toast('⚠️ Cliente no encontrado','warn');return;}
+  const newStatus=c.status==='off'?'active':'off';
+  logActivity(me.name,newStatus==='off'?'⏸':'▶',(newStatus==='off'?'pausó':'activó')+' el asistente de "'+c.name+'"');
+  c.status=newStatus; el.classList.toggle('on', newStatus!=='off');
+  // Guardar en Firebase para que persista
+  try{
+    if(window.VoxiaDB && VoxiaDB.db){
+      await VoxiaDB.db.collection('clients').doc(String(id)).update({status:newStatus});
+    }
+  }catch(e){ console.warn('toggleAgent Firebase:', e.message); }
+  toast(newStatus==='off'?'⏸ Asistente pausado':'▶ Asistente activado · en línea');
   renderAll();
 }
 function upd(id,k,v){if(!canEdit()){toast('🔒 Tu rol no permite editar','warn');renderAssistants();return;}clients.find(c=>c.id===id)[k]=v;toast('✓ Guardado y publicado');}
