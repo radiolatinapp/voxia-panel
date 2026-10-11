@@ -1026,6 +1026,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <div class="msub">Datos del negocio y su plan</div>
     <input type="hidden" id="fId">
     <label class="flabel">Nombre del negocio *</label><input type="text" id="fName" placeholder="Ej: Cali Colombian Restaurant">
+    <label class="flabel">Correo del dueño * (se crea su usuario automáticamente)</label><input type="email" id="fEmail" placeholder="dueno@restaurante.com">
     <div class="row2">
       <div><label class="flabel">Ciudad</label><input type="text" id="fCity" placeholder="Charlotte, NC"></div>
       <div><label class="flabel">Teléfono</label><input type="tel" id="fPhone" placeholder="(704) 555-0100"></div>
@@ -1120,12 +1121,50 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
 const RATE_TWILIO = 0.0085, RATE_ELEVEN = 0.08, RATE_NUM = 1.15;
 const RATE = RATE_TWILIO + RATE_ELEVEN;
 const AVC = ['#7c6cff','#38d6f5','#ffa02e','#34d399','#f472b6','#fbbf24','#60a5fa','#a78bfa'];
-let clients = [
-  {id:1, name:'Cali Colombian Restaurant', city:'Charlotte, NC', phone:'(704) 555-0142', plan:'Pro', monthly:249, status:'active', voice:'Luisa · ES amable', lang:'ES/EN', menu:84, hours:'8:00 AM – 11:00 PM', since:'2026-09-12', greeting:'¡Hola! Gracias por llamar a Cali Colombian Restaurant. ¿Su pedido es para recoger o delivery?'},
-  {id:2, name:'Sabor Paisa', city:'Charlotte, NC', phone:'(980) 555-0117', plan:'Básico', monthly:149, status:'active', voice:'Carlos · ES neutro', lang:'ES', menu:46, hours:'10:00 AM – 9:00 PM', since:'2026-09-28', greeting:'¡Hola! Bienvenido a Sabor Paisa. ¿En qué le puedo ayudar?'},
-  {id:3, name:'La Caleñita', city:'Monroe, NC', phone:'(704) 555-0198', plan:'Pro', monthly:249, status:'trial', voice:'Sofía · EN/ES', lang:'ES/EN', menu:62, hours:'9:00 AM – 10:00 PM', since:'2026-10-05', greeting:'Hello! Gracias por llamar a La Caleñita. ¿Desea ordenar en español o English?'},
-  {id:4, name:'El Buen Gusto', city:'Gastonia, NC', phone:'(704) 555-0163', plan:'Básico', monthly:149, status:'off', voice:'Luisa · ES amable', lang:'ES', menu:38, hours:'11:00 AM – 8:00 PM', since:'2026-08-20', greeting:'¡Hola! Gracias por llamar a El Buen Gusto.'},
-];
+/* Clientes: cargados desde Firestore (datos reales). */
+let clients = [];
+let clientsLoading = false;
+
+/**
+ * Carga los clientes reales desde Firestore.
+ * Solo superadmin ve todos; otros ven su propio cliente.
+ */
+async function loadClientsFromFirebase(){
+  if (typeof VoxiaDB === 'undefined' || !VoxiaDB.user) return;
+  clientsLoading = true;
+  try {
+    const snap = await VoxiaDB.db.collection('clients').get();
+    clients = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      // Superadmin ve todos; owner/admin solo su cliente
+      const ud = VoxiaDB.userData;
+      if (ud.role !== 'superadmin' && ud.clientId !== doc.id) return;
+      clients.push({
+        id: doc.id,
+        name: d.name || 'Sin nombre',
+        city: d.city || '',
+        phone: d.phone || '',
+        plan: d.plan === 'basico' ? 'Básico' : (d.plan === 'pro' ? 'Pro' : (d.plan || '')),
+        monthly: d.plan === 'pro' ? 249 : 149,
+        status: d.status || 'trial',
+        voice: 'Sofía · ES/EN',
+        lang: 'ES/EN',
+        menu: 0,
+        hours: '9:00 AM – 9:00 PM',
+        since: d.createdAt ? d.createdAt.toDate().toISOString().slice(0,10) : '',
+        greeting: '¡Hola! Gracias por llamar a ' + (d.name || '') + '.',
+        email: d.email || '',
+        _fb: true,
+      });
+    });
+  } catch(e) {
+    console.warn('No se pudieron cargar clientes de Firebase:', e.message);
+  }
+  clientsLoading = false;
+  try { renderClients(); } catch(e) {}
+}
+/* Datos de ejemplo ELIMINADOS — ahora todo es real desde Firebase. */
 let calls = [
   {id:101, d:'2026-10-11 02:41 PM', c:1, min:2.4, lang:'ES', order:'Bandeja paisa ×2', res:'ok', cost:0.22, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant. ¿Su pedido es para recoger o delivery?'],['cl','Para recoger, por favor. Quiero dos bandejas paisas.'],['ia','Perfecto, dos bandejas paisas para recoger. Serían $39.98. ¿Algo más?'],['cl','No, eso es todo.'],['ia','Listo, su pedido estará en 20 minutos a nombre de… ¿me confirma su nombre?']]},
   {id:102, d:'2026-10-11 02:18 PM', c:1, min:1.8, lang:'EN', order:'Chicken tacos ×3', res:'ok', cost:0.16, tr:[['ia','Hello! Thanks for calling Cali Colombian Restaurant. Pickup or delivery?'],['cl','Pickup. Three chicken tacos please.'],['ia','Three chicken tacos for pickup, $8.97. Anything else?'],['cl','That is all.']]},
@@ -1439,15 +1478,41 @@ function openClientModal(id){
   $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
 }
 function closeModal(id){$(id).classList.remove('open');}
-function saveClient(){
+async function saveClient(){
   if(!canEdit()){toast('🔒 Tu rol no permite crear ni editar negocios','warn');return;}
   const id=$('fId').value,name=$('fName').value.trim();
   if(!name){toast('Pon el nombre del negocio','warn');return;}
+
+  // NUEVO CLIENTE → onboarding automático en Firebase (crea usuario + todo conectado)
+  if(!id){
+    const email=$('fEmail')?$('fEmail').value.trim():($('fOwnerEmail')?$('fOwnerEmail').value.trim():'');
+    if(!email){toast('Pon el correo del dueño para crear su usuario','warn');return;}
+    const tempPw='D123456789'; // contraseña genérica demo
+    toast('Creando cliente en Firebase…');
+    try{
+      const r=await VoxiaDB.onboardClient({
+        clientName:name,
+        ownerName:name,
+        ownerEmail:email,
+        ownerPhone:$('fPhone').value,
+        plan:$('fPlan').value==='Pro'?'pro':'basico',
+        tempPassword:tempPw,
+      });
+      toast('🎉 Cliente creado: '+r.email+' · clave: '+tempPw);
+      logActivity(me.name,'🎉','creó el negocio "'+name+'" en Firebase');
+      // El onboarding cierra la sesión; recargar para volver a entrar
+      setTimeout(()=>location.reload(), 2500);
+    }catch(e){
+      toast('⚠ '+e.message,'warn');
+    }
+    closeModal('clientModal');
+    return;
+  }
+
+  // EDITAR existente (solo local por ahora)
   const d={name,city:$('fCity').value,phone:$('fPhone').value,plan:$('fPlan').value,monthly:+$('fMonthly').value||0,status:$('fStatus').value,voice:$('fVoice').value};
-  if(id){Object.assign(clients.find(c=>c.id==id),d);toast('Cliente actualizado ✓');}
-  else{clients.push({id:Date.now(),lang:'ES/EN',menu:0,hours:'9:00 AM – 9:00 PM',since:'2026-10-11',greeting:'¡Hola! Gracias por llamar a '+name+'.',...d});
-    notifs.unshift({i:'🎉',t:'Nuevo cliente',d:name+' agregado al panel.',tm:'ahora'});renderNotifs();toast('🎉 Cliente agregado');}
-  logActivity(me.name,id?'✏️':'🎉',(id?'actualizó el negocio ':'creó el negocio ')+'“'+name+'”');
+  Object.assign(clients.find(c=>c.id==id),d);toast('Cliente actualizado ✓');
+  logActivity(me.name,'✏️','actualizó el negocio "'+name+'"');
   closeModal('clientModal');renderAll();
 }
 function delClient(id){
@@ -1839,7 +1904,10 @@ async function login(){
     };
     $('loginScreen').style.display='none';
     logActivity(me.name,'🔓','inició sesión');
-    applyPermissions();renderAll();go('dashboard');
+    applyPermissions();
+    // Cargar clientes reales de Firebase
+    try { await loadClientsFromFirebase(); } catch(e) {}
+    renderAll();go('dashboard');
     toast('👋 Hola, '+me.name.split(' ')[0]+' · '+roleLabel(me.role));
   }catch(ex){
     err.textContent='⚠ '+(ex.code==='auth/invalid-credential'?'Correo o contraseña incorrectos':ex.message);
@@ -2362,6 +2430,7 @@ function renderAll(){renderDashboard();renderClients();renderCalls();renderAssis
       };
       $('loginScreen').style.display='none';
       applyPermissions();
+      try { await loadClientsFromFirebase(); } catch(e) {}
     }
     setTimeout(()=>{renderAll();try{restoreConns();}catch(e){}},650);
   });
