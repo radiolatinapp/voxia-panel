@@ -152,6 +152,10 @@
         plan: plan || 'basico',
         elevenlabsAgentId: elevenlabsAgentId || '',
         twilioNumber: '',
+        // NOTA: contraseña temporal guardada para registro del admin
+        // Solo visible para superadmin vía reglas
+        _tempPassword: tempPassword,
+        _tempPasswordSetAt: now,
         createdAt: now,
         createdBy: adminUser.uid,
       });
@@ -260,6 +264,7 @@
           id: doc.id,
           nombre: data.name || '',
           correo: ownerEmail,
+          contrasena: data._tempPassword || '',
           telefono: data.phone || '',
           estado: data.status || '',
           plan: data.plan || '',
@@ -283,7 +288,7 @@
       const ws = XLSX.utils.json_to_sheet(clients.map(c => ({
         'Restaurante': c.nombre,
         'Correo': c.correo,
-        'Contraseña temporal': '(ver onboarding)',
+        'Contraseña': c.contrasena || '',
         'Teléfono': c.telefono,
         'Estado': c.estado,
         'Plan': c.plan,
@@ -293,7 +298,7 @@
         'ID Cliente': c.id,
       })));
       ws['!cols'] = [
-        { wch: 30 }, { wch: 30 }, { wch: 22 }, { wch: 18 }, { wch: 12 },
+        { wch: 30 }, { wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 12 },
         { wch: 12 }, { wch: 35 }, { wch: 18 }, { wch: 15 }, { wch: 25 },
       ];
       const wb = XLSX.utils.book_new();
