@@ -251,10 +251,9 @@
       const clientId = `${slug}-${uid.slice(0, 6)}`;
       const now = firebase.firestore.Timestamp.now();
 
-      // 3. Crear documentos (como el nuevo usuario es owner, puede escribir su propio cliente)
-      const batch = db.batch();
-
-      batch.set(db.collection('clients').doc(clientId), {
+      // 3. Crear documentos secuencialmente (no en batch, para mejor manejo de errores)
+      // Cliente
+      await db.collection('clients').doc(clientId).set({
         name: clientName,
         email: ownerEmail,
         phone: ownerPhone || '',
@@ -270,7 +269,7 @@
       // Plantilla según tipo de negocio + config según plan
       const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
-      batch.set(db.collection('clients').doc(clientId).collection('config').doc('settings'), {
+      await db.collection('clients').doc(clientId).collection('config').doc('settings').set({
         voice: 'sofia',
         // Config automática según el plan elegido
         languages: planCfg.idiomasLista,
@@ -291,7 +290,8 @@
         turnModel: 'turn_v3',
       });
 
-      batch.set(db.collection('users').doc(uid), {
+      // Usuario dueño
+      await db.collection('users').doc(uid).set({
         email: ownerEmail,
         displayName: ownerName || clientName,
         clientId: clientId,
@@ -299,8 +299,6 @@
         createdAt: now,
         createdBy: adminUid,
       });
-
-      await batch.commit();
 
       // 4. Registrar actividad (como admin)
       await db.collection('activity').add({
