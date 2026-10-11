@@ -2404,7 +2404,18 @@ function renderIntegrations(){
 }
 function toggleIntegration(id){
   const g=integrations.find(x=>x.id===id);
-  if(g.status==='on'){toast('⚙️ Abriendo configuración de '+g.name+'…');}
+  if(g.status==='on'){
+    // Ir a Configuración donde está el campo de la API key
+    if(id==='eleven'||id==='twilio'){
+      showView('config');
+      setTimeout(()=>{
+        const target = id==='eleven' ? $('elKey') : $('twSid');
+        if(target){ target.scrollIntoView({behavior:'smooth',block:'center'}); target.focus(); }
+      }, 400);
+    } else {
+      toast('⚙️ '+g.name+' · configuración próximamente');
+    }
+  }
   else{g.status='on';g.detail='Conectado hoy · configura tus credenciales';toast('🔌 '+g.name+' conectado');renderIntegrations();}
 }
 
