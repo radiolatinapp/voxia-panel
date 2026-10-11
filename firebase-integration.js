@@ -397,6 +397,31 @@
         });
       }
 
+      // 3. CORREO AUTOMÁTICO al cliente (vía extensión Trigger Email)
+      try {
+        const clientEmail = this.clientData?.email;
+        if (clientEmail) {
+          await db.collection('mail').add({
+            to: clientEmail,
+            message: {
+              subject: `Voxia: ${titulo}`,
+              html: `<h2>${titulo}</h2><p>${mensaje}</p><p><a href="https://radiolatinapp.github.io/voxia-panel/">Ver en el panel</a></p>`,
+            },
+          });
+        }
+        // Correo al admin también
+        const adminEmail = 'ricomoralesjeremy@gmail.com';
+        await db.collection('mail').add({
+          to: adminEmail,
+          message: {
+            subject: `Voxia Admin: ${titulo} (${alertData.clientName})`,
+            html: `<h2>${titulo}</h2><p>Cliente: ${alertData.clientName}</p><p>${mensaje}</p>`,
+          },
+        });
+      } catch (e) {
+        console.warn('No se pudo encolar correo:', e.message);
+      }
+
       // 3. También en actividad general
       await this.logActivity('alert_' + tipo, { titulo });
       return alertRef.id;
