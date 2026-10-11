@@ -621,6 +621,20 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       <h3>⏱️ Consumo de minutos <span class="tag" id="minutesPeriod"></span></h3>
       <div id="minutesContent"></div>
     </div>
+    <div class="card" style="background:linear-gradient(135deg,rgba(255,158,46,.12),rgba(255,107,53,.06));border:1px solid rgba(255,158,46,.25);position:relative;overflow:hidden">
+      <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,158,46,.2),transparent);border-radius:50%"></div>
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite;flex-shrink:0">🎙️</div>
+        <div style="flex:1;min-width:220px">
+          <h3 style="margin:0 0 6px;font-size:19px">🎧 Pruébalo en vivo — Habla con tu asistente</h3>
+          <p style="margin:0;color:var(--muted);font-size:13.5px">Haz clic en el micrófono y habla como un cliente real. Pide el menú, haz un pedido, pregunta por delivery.</p>
+        </div>
+        <div id="demoWidgetDash">
+          <elevenlabs-convai agent-id="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>
+        </div>
+      </div>
+      <div class="csub" style="margin-top:10px">💡 Usa audífonos para mejor experiencia · Funciona en español e inglés</div>
+    </div>
     <div class="grid2">
       <div class="card">
         <h3>Llamadas atendidas <span class="tag">14 días</span></h3>
