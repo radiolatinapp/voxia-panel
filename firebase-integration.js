@@ -118,9 +118,74 @@
     },
 
     /**
-     * Definición de planes Voxia.
-     * Al crear un cliente, su config se ajusta automáticamente al plan elegido.
+     * Plantillas por tipo de negocio.
+     * Al crear un cliente, su asistente se configura automáticamente.
      */
+    BIZ_TEMPLATES: {
+        nombre: 'Restaurante', icono: '🍽️',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿Su pedido es para recoger o delivery?',
+        servicios: ['Tomar pedidos', 'Confirmar dirección', 'Tiempos de entrega'],
+        preguntas: ['¿Para recoger o delivery?', '¿Algo más?', '¿A nombre de quién?'],
+        pickup: true, delivery: true, citas: false,
+      },
+      dental: {
+        nombre: 'Clínica dental', icono: '🦷',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿Desea agendar una cita?',
+        servicios: ['Agendar citas', 'Confirmar seguros', 'Recordatorios'],
+        preguntas: ['¿Qué día prefiere?', '¿Es paciente nuevo?', '¿Tiene seguro dental?'],
+        pickup: false, delivery: false, citas: true,
+      },
+      taller: {
+        nombre: 'Taller mecánico', icono: '🔧',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿En qué le ayudamos con su vehículo?',
+        servicios: ['Diagnósticos', 'Cotizar servicios', 'Agendar citas'],
+        preguntas: ['¿Qué marca y modelo?', '¿Qué falla presenta?', '¿Cuándo puede traerlo?'],
+        pickup: false, delivery: false, citas: true,
+      },
+      belleza: {
+        nombre: 'Salón de belleza', icono: '💇',
+        saludo: '¡Hola! Bienvenido a {negocio}. ¿Desea reservar un servicio?',
+        servicios: ['Reservar servicios', 'Confirmar estilista', 'Promociones'],
+        preguntas: ['¿Qué servicio desea?', '¿Con qué estilista?', '¿Qué día y hora?'],
+        pickup: false, delivery: false, citas: true,
+      },
+      hotel: {
+        nombre: 'Hotel', icono: '🏨',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿Desea hacer una reserva?',
+        servicios: ['Reservas', 'Info check-in', 'Servicios 24/7'],
+        preguntas: ['¿Para qué fechas?', '¿Cuántas personas?', '¿Tipo de habitación?'],
+        pickup: false, delivery: false, citas: false,
+      },
+      abogado: {
+        nombre: 'Abogado', icono: '⚖️',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿En qué caso le ayudamos?',
+        servicios: ['Agendar consultas', 'Tomar datos del caso', 'Seguimiento'],
+        preguntas: ['¿Qué tipo de caso?', '¿Desea agendar consulta?', '¿Su nombre y teléfono?'],
+        pickup: false, delivery: false, citas: true,
+      },
+      veterinaria: {
+        nombre: 'Veterinaria', icono: '🐾',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿Su mascota necesita atención?',
+        servicios: ['Agendar citas', 'Emergencias', 'Recordatorios vacunas'],
+        preguntas: ['¿Qué mascota es?', '¿Qué síntomas tiene?', '¿Es emergencia?'],
+        pickup: false, delivery: false, citas: true,
+      },
+      inmobiliaria: {
+        nombre: 'Inmobiliaria', icono: '🏠',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿Busca comprar, vender o rentar?',
+        servicios: ['Agendar visitas', 'Info propiedades', 'Seguimiento'],
+        preguntas: ['¿Compra, venta o renta?', '¿En qué zona?', '¿Presupuesto?'],
+        pickup: false, delivery: false, citas: true,
+      },
+      otro: {
+        nombre: 'Personalizado', icono: '📦',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿En qué le ayudamos?',
+        servicios: ['Atención general'],
+        preguntas: ['¿En qué le ayudamos?'],
+        pickup: false, delivery: false, citas: false,
+        personalizable: true,
+      },
+    },
     PLANS: {
       basico: {
         nombre: 'Básico', precio: 149, minutos: 1000,
@@ -191,18 +256,27 @@
         createdBy: adminUser.uid,
       });
 
+      // Plantilla según tipo de negocio + config según plan
+      const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
+      const planCfg = this.PLANS[plan] || this.PLANS.basico;
       batch.set(db.collection('clients').doc(clientId).collection('config').doc('settings'), {
         voice: 'sofia',
         // Config automática según el plan elegido
-        languages: (this.PLANS[plan] || this.PLANS.basico).idiomasLista,
-        minutosIncluidos: (this.PLANS[plan] || this.PLANS.basico).minutos,
-        ubicaciones: (this.PLANS[plan] || this.PLANS.basico).ubicaciones,
-        whatsapp: (this.PLANS[plan] || this.PLANS.basico).whatsapp,
-        gcalendar: (this.PLANS[plan] || this.PLANS.basico).gcalendar,
+        languages: planCfg.idiomasLista,
+        minutosIncluidos: planCfg.minutos,
+        ubicaciones: planCfg.ubicaciones,
+        whatsapp: planCfg.whatsapp,
+        gcalendar: planCfg.gcalendar,
         soporte: 'prioritario',
         menuIlimitado: true,
-        pickup: true,
-        delivery: true,
+        // Config automática según tipo de negocio
+        bizType: bizType || 'restaurante',
+        saludo: tpl.saludo.replace('{negocio}', clientName),
+        servicios: tpl.servicios,
+        preguntas: tpl.preguntas,
+        pickup: tpl.pickup,
+        delivery: tpl.delivery,
+        citas: tpl.citas,
         turnModel: 'turn_v3',
       });
 
