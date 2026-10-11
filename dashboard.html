@@ -627,7 +627,17 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite;flex-shrink:0">🎙️</div>
         <div style="flex:1;min-width:220px">
           <h3 style="margin:0 0 6px;font-size:19px">🎧 Pruébalo en vivo — Habla con tu asistente</h3>
-          <p style="margin:0;color:var(--muted);font-size:13.5px">Haz clic en el micrófono y habla como un cliente real. Pide el menú, haz un pedido, pregunta por delivery.</p>
+          <p style="margin:0;color:var(--muted);font-size:13.5px">Elige el asistente y habla como un cliente real.</p>
+          <select onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:300px">
+            <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
+            <option value="agent_1101m4pf8v9fecza0eyg1e1vyyvm">🦷 Clínica Dental</option>
+            <option value="agent_0001m4pf8x1eemdsV2yqmct01q34">🔧 Taller Mecánico</option>
+            <option value="agent_5801m4pf8ys5fkj8hesrd65n3nw4">💅 Salón de Belleza</option>
+            <option value="agent_5801m4pf909cf1hbymd6x71s93yh">🏨 Hotel</option>
+            <option value="agent_3001m4pf924ves8b63125gafqexd">⚖️ Abogado</option>
+            <option value="agent_4801m4pf93w2e4qt8yhp63xhta54">🐾 Veterinaria</option>
+            <option value="agent_7301m4pf95npfxqssrtax5h5kt4d">🏠 Inmobiliaria</option>
+          </select>
         </div>
         <div id="demoWidgetDash"></div>
       </div>
@@ -723,7 +733,17 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite">🎙️</div>
         <div style="flex:1;min-width:200px">
           <h3 style="margin:0 0 6px;font-size:20px">🎧 Pruébalo en vivo</h3>
-          <p style="margin:0;color:var(--muted);font-size:14px">Habla con tu asistente ahora mismo. Pide el menú, haz un pedido, pregunta por delivery — como un cliente real.</p>
+          <p style="margin:0;color:var(--muted);font-size:14px">Elige el asistente y habla como un cliente real.</p>
+          <select onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:300px">
+            <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
+            <option value="agent_1101m4pf8v9fecza0eyg1e1vyyvm">🦷 Clínica Dental</option>
+            <option value="agent_0001m4pf8x1eemdsV2yqmct01q34">🔧 Taller Mecánico</option>
+            <option value="agent_5801m4pf8ys5fkj8hesrd65n3nw4">💅 Salón de Belleza</option>
+            <option value="agent_5801m4pf909cf1hbymd6x71s93yh">🏨 Hotel</option>
+            <option value="agent_3001m4pf924ves8b63125gafqexd">⚖️ Abogado</option>
+            <option value="agent_4801m4pf93w2e4qt8yhp63xhta54">🐾 Veterinaria</option>
+            <option value="agent_7301m4pf95npfxqssrtax5h5kt4d">🏠 Inmobiliaria</option>
+          </select>
         </div>
         <div id="demoWidget"></div>
       </div>
@@ -1707,6 +1727,16 @@ function loadDemoWidget(){
       }
     });
   }catch(e){ console.warn('Widget:', e.message); }
+}
+/* Cambiar el agente del widget demo */
+function switchDemoAgent(agentId){
+  if(!agentId || !agentId.startsWith('agent_')) return;
+  ['demoWidget','demoWidgetDash'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Asistente hablando..."></elevenlabs-convai>`;
+    }
+  });
 }
 
 function renderAssistants(){
