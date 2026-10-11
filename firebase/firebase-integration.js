@@ -216,6 +216,21 @@
      * Crea usuario Auth + docs en Firestore, todo conectado.
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
+    // Función de prueba mínima para debug
+    async testWrite() {
+      try {
+        const testId = 'test-' + Date.now();
+        await db.collection('clients').doc(testId).set({
+          name: 'Test',
+          createdAt: firebase.firestore.Timestamp.now(),
+        });
+        await db.collection('clients').doc(testId).delete();
+        return { ok: true, msg: 'Escritura OK' };
+      } catch (e) {
+        return { ok: false, msg: e.message, code: e.code };
+      }
+    },
+
     async onboardClient(data) {
       const { clientName, ownerName, ownerEmail, ownerPhone, plan, elevenlabsAgentId, tempPassword, bizType } = data;
 
