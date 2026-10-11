@@ -499,6 +499,51 @@
     },
 
     /**
+     * Obtiene el uso actual del período (cliente actual)
+     */
+    async getUsage() {
+      if (!this.clientId) return null;
+      const periodo = new Date().toISOString().slice(0, 7);
+      const snap = await db.collection('clients').doc(this.clientId)
+        .collection('usage').doc(periodo).get();
+      const planKey = (this.clientData?.plan || 'basico').toLowerCase();
+      const plan = this.PLANS[planKey] || this.PLANS.basico;
+      const usado = snap.exists ? (snap.data().minutos || 0) : 0;
+      return {
+        usado: Math.round(usado * 10) / 10,
+        limite: plan.minutos,
+        disponible: Math.max(0, Math.round((plan.minutos - usado) * 10) / 10),
+        porcentaje: Math.round((usado / plan.minutos) * 100),
+        excedido: usado > plan.minutos,
+        costoExtra: +Math.max(0, (usado - plan.minutos) * 0.12).toFixed(2),
+        periodo,
+      };
+    },
+
+    /**
+     * Obtiene el uso de un cliente específico (para admin)
+     */
+    async getUsageFor(clientId) {
+      const periodo = new Date().toISOString().slice(0, 7);
+      const clientSnap = await db.collection('clients').doc(clientId).get();
+      if (!clientSnap.exists) return null;
+      const planKey = (clientSnap.data().plan || 'basico').toLowerCase();
+      const plan = this.PLANS[planKey] || this.PLANS.basico;
+      const snap = await db.collection('clients').doc(clientId)
+        .collection('usage').doc(periodo).get();
+      const usado = snap.exists ? (snap.data().minutos || 0) : 0;
+      return {
+        usado: Math.round(usado * 10) / 10,
+        limite: plan.minutos,
+        disponible: Math.max(0, Math.round((plan.minutos - usado) * 10) / 10),
+        porcentaje: Math.round((usado / plan.minutos) * 100),
+        excedido: usado > plan.minutos,
+        costoExtra: +Math.max(0, (usado - plan.minutos) * 0.12).toFixed(2),
+        periodo,
+      };
+    },
+
+    /**
      * Observador de sesión (llamar al cargar la página)
      */
     onAuthChange(callback) {
