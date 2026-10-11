@@ -223,41 +223,24 @@
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
       }
 
-      // Guardar sesión actual del admin (verificar que existe)
+      // Verificar sesión del admin
       const adminUser = auth.currentUser;
       if (!adminUser) {
         throw new Error('Sesión expirada. Por favor, cierre sesión y vuelva a entrar.');
       }
       const adminUid = adminUser.uid;
 
-      // 1. Crear usuario en Auth via REST API (NO cambia la sesión del admin)
-      // Usamos la API REST directamente para evitar el cambio de sesión
-      const apiKey = firebase.app().options.apiKey;
-      const signUpUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`;
-      const signUpResp = await fetch(signUpUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: ownerEmail,
-          password: tempPassword,
-          returnSecureToken: true
-        })
-      });
-      const signUpData = await signUpResp.json();
-      if (!signUpResp.ok) {
-        throw new Error(signUpData.error?.message || 'Error creando usuario');
-      }
-      const uid = signUpData.localId;
-
-      // 2. ID del cliente
+      // Generar ID del cliente (sin depender del UID de Auth)
       const slug = clientName.toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
-      const clientId = `${slug}-${uid.slice(0, 6)}`;
+      const clientId = `${slug}-${Date.now().toString(36)}`;
       const now = firebase.firestore.Timestamp.now();
 
-      // 3. Crear documentos secuencialmente (no en batch, para mejor manejo de errores)
-      // Cliente
+      // 1. Crear documentos de Firestore PRIMERO (como admin)
+      const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
+      const planCfg = this.PLANS[plan] || this.PLANS.basico;
+      
       await db.collection('clients').doc(clientId).set({
         name: clientName,
         email: ownerEmail,
@@ -271,12 +254,8 @@
         createdBy: adminUid,
       });
 
-      // Plantilla según tipo de negocio + config según plan
-      const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
-      const planCfg = this.PLANS[plan] || this.PLANS.basico;
       await db.collection('clients').doc(clientId).collection('config').doc('settings').set({
         voice: 'sofia',
-        // Config automática según el plan elegido
         languages: planCfg.idiomasLista,
         minutosIncluidos: planCfg.minutos,
         ubicaciones: planCfg.ubicaciones,
@@ -284,7 +263,6 @@
         gcalendar: planCfg.gcalendar,
         soporte: 'prioritario',
         menuIlimitado: true,
-        // Config automática según tipo de negocio
         bizType: bizType || 'restaurante',
         saludo: tpl.saludo.replace('{negocio}', clientName),
         servicios: tpl.servicios,
@@ -295,33 +273,52 @@
         turnModel: 'turn_v3',
       });
 
-      // Usuario dueño
-      await db.collection('users').doc(uid).set({
-        email: ownerEmail,
-        displayName: ownerName || clientName,
-        clientId: clientId,
-        role: 'owner',
-        createdAt: now,
-        createdBy: adminUid,
-      });
-
-      // 4. Registrar actividad (como admin)
-      await db.collection('activity').add({
-        clientId,
-        userId: adminUid,
-        action: 'client_onboarded',
-        details: { clientName, ownerEmail },
-        timestamp: now,
-      });
-
-      // 5. Cerrar sesión del nuevo usuario y restaurar la del admin
-      // (el admin deberá volver a entrar)
-      await auth.signOut();
-
-      // 6. AUTOMÁTICO: generar y descargar Excel actualizado
+      // 2. Crear usuario en Auth via REST API (no cambia la sesión)
+      let uid = null;
       try {
-        // Re-autenticar como admin no es posible aquí; el Excel se genera
-        // con los datos que ya tenemos + el nuevo cliente
+        const apiKey = firebase.app().options.apiKey;
+        const signUpUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`;
+        const signUpResp = await fetch(signUpUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: ownerEmail,
+            password: tempPassword,
+            returnSecureToken: false
+          })
+        });
+        const signUpData = await signUpResp.json();
+        if (signUpResp.ok) {
+          uid = signUpData.localId;
+          // Crear documento de usuario en Firestore
+          await db.collection('users').doc(uid).set({
+            email: ownerEmail,
+            displayName: ownerName || clientName,
+            clientId: clientId,
+            role: 'owner',
+            createdAt: now,
+            createdBy: adminUid,
+          });
+        } else {
+          console.warn('No se pudo crear usuario Auth:', signUpData.error?.message);
+        }
+      } catch (authErr) {
+        console.warn('Error creando usuario Auth (cliente Firestore ya creado):', authErr.message);
+      }
+
+      // 3. Registrar actividad
+      try {
+        await db.collection('activity').add({
+          clientId,
+          userId: adminUid,
+          action: 'client_onboarded',
+          details: { clientName, ownerEmail },
+          timestamp: now,
+        });
+      } catch(e) { console.warn('Activity:', e.message); }
+
+      // 4. Generar Excel
+      try {
         await this._autoDownloadExcelAfterOnboarding({
           nombre: clientName, correo: ownerEmail, telefono: ownerPhone || '',
           estado: 'trial', plan: plan || 'basico',
@@ -333,7 +330,7 @@
         console.warn('No se pudo generar Excel automático:', e.message);
       }
 
-      return { ok: true, clientId, uid, email: ownerEmail, tempPassword, needsRelogin: true };
+      return { ok: true, clientId, uid, email: ownerEmail, tempPassword, needsRelogin: false };
     },
 
     /**
