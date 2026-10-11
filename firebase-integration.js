@@ -611,10 +611,6 @@
         ...data,
         updatedAt: firebase.firestore.Timestamp.now(),
       });
-      // Recargar datos locales
-      if (esPropio || esAdmin) {
-        await this.loadClients();
-      }
     },
 
     /**
@@ -630,7 +626,6 @@
       configDocs.forEach(d => batch.delete(d.ref));
       batch.delete(db.collection('clients').doc(clientId));
       await batch.commit();
-      await this.loadClients();
     },
 
     /**
