@@ -223,12 +223,26 @@
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
       }
 
-      // Guardar sesión actual del admin
+      // Guardar sesión actual del admin (verificar que existe)
       const adminUser = auth.currentUser;
+      if (!adminUser) {
+        throw new Error('Sesión expirada. Por favor, cierre sesión y vuelva a entrar.');
+      }
+      const adminUid = adminUser.uid;
+      const adminEmail = adminUser.email;
 
-      // 1. Crear usuario en Auth (esto cambia la sesión actual)
-      const cred = await auth.createUserWithEmailAndPassword(ownerEmail, tempPassword);
+      // 1. Crear usuario en Auth usando app secundaria (no cambia la sesión del admin)
+      // Esto evita que la sesión cambie al nuevo usuario
+      let secondaryApp;
+      try {
+        secondaryApp = firebase.initializeApp(firebase.app().options, 'secondary');
+      } catch(e) {
+        secondaryApp = firebase.app('secondary');
+      }
+      const secondaryAuth = secondaryApp.auth();
+      const cred = await secondaryAuth.createUserWithEmailAndPassword(ownerEmail, tempPassword);
       const uid = cred.user.uid;
+      await secondaryAuth.signOut();
 
       // 2. ID del cliente
       const slug = clientName.toLowerCase()
@@ -250,7 +264,7 @@
         elevenlabsAgentId: elevenlabsAgentId || '',
         twilioNumber: '',
         createdAt: now,
-        createdBy: adminUser.uid,
+        createdBy: adminUid,
       });
 
       // Plantilla según tipo de negocio + config según plan
@@ -283,7 +297,7 @@
         clientId: clientId,
         role: 'owner',
         createdAt: now,
-        createdBy: adminUser.uid,
+        createdBy: adminUid,
       });
 
       await batch.commit();
@@ -291,7 +305,7 @@
       // 4. Registrar actividad (como admin)
       await db.collection('activity').add({
         clientId,
-        userId: adminUser.uid,
+        userId: adminUid,
         action: 'client_onboarded',
         details: { clientName, ownerEmail },
         timestamp: now,
