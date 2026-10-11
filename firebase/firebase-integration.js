@@ -229,20 +229,25 @@
         throw new Error('Sesión expirada. Por favor, cierre sesión y vuelva a entrar.');
       }
       const adminUid = adminUser.uid;
-      const adminEmail = adminUser.email;
 
-      // 1. Crear usuario en Auth usando app secundaria (no cambia la sesión del admin)
-      // Esto evita que la sesión cambie al nuevo usuario
-      let secondaryApp;
-      try {
-        secondaryApp = firebase.initializeApp(firebase.app().options, 'secondary');
-      } catch(e) {
-        secondaryApp = firebase.app('secondary');
+      // 1. Crear usuario en Auth via REST API (NO cambia la sesión del admin)
+      // Usamos la API REST directamente para evitar el cambio de sesión
+      const apiKey = firebase.app().options.apiKey;
+      const signUpUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`;
+      const signUpResp = await fetch(signUpUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: ownerEmail,
+          password: tempPassword,
+          returnSecureToken: true
+        })
+      });
+      const signUpData = await signUpResp.json();
+      if (!signUpResp.ok) {
+        throw new Error(signUpData.error?.message || 'Error creando usuario');
       }
-      const secondaryAuth = secondaryApp.auth();
-      const cred = await secondaryAuth.createUserWithEmailAndPassword(ownerEmail, tempPassword);
-      const uid = cred.user.uid;
-      await secondaryAuth.signOut();
+      const uid = signUpData.localId;
 
       // 2. ID del cliente
       const slug = clientName.toLowerCase()
@@ -253,7 +258,6 @@
 
       // 3. Crear documentos secuencialmente (no en batch, para mejor manejo de errores)
       // Cliente
-      console.log('Creando cliente:', clientId);
       await db.collection('clients').doc(clientId).set({
         name: clientName,
         email: ownerEmail,
@@ -266,12 +270,10 @@
         createdAt: now,
         createdBy: adminUid,
       });
-      console.log('Cliente creado');
 
       // Plantilla según tipo de negocio + config según plan
       const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
-      console.log('Creando config...');
       await db.collection('clients').doc(clientId).collection('config').doc('settings').set({
         voice: 'sofia',
         // Config automática según el plan elegido
@@ -293,16 +295,15 @@
         turnModel: 'turn_v3',
       });
 
-      // Usuario dueño - TEMPORALMENTE DESACTIVADO para debug de permisos
-      // await db.collection('users').doc(uid).set({
-      //   email: ownerEmail,
-      //   displayName: ownerName || clientName,
-      //   clientId: clientId,
-      //   role: 'owner',
-      //   createdAt: now,
-      //   createdBy: adminUid,
-      // });
-      console.log('Usuario Auth creado:', uid, '- doc Firestore omitido por debug');
+      // Usuario dueño
+      await db.collection('users').doc(uid).set({
+        email: ownerEmail,
+        displayName: ownerName || clientName,
+        clientId: clientId,
+        role: 'owner',
+        createdAt: now,
+        createdBy: adminUid,
+      });
 
       // 4. Registrar actividad (como admin)
       await db.collection('activity').add({
