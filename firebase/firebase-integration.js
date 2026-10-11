@@ -238,57 +238,83 @@
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
       }
 
-      // Verificar sesión del admin
+      // Verificar sesión del admin y obtener token
       const adminUser = auth.currentUser;
       if (!adminUser) {
         throw new Error('Sesión expirada. Por favor, cierre sesión y vuelva a entrar.');
       }
       const adminUid = adminUser.uid;
+      const idToken = await adminUser.getIdToken();
 
-      // Generar ID del cliente (sin depender del UID de Auth)
+      // Generar ID del cliente
       const slug = clientName.toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
       const clientId = `${slug}-${Date.now().toString(36)}`;
-      const now = firebase.firestore.Timestamp.now();
+      const nowIso = new Date().toISOString();
 
-      // 1. Crear documentos de Firestore PRIMERO (como admin)
       const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
-      
-      await db.collection('clients').doc(clientId).set({
-        name: clientName,
-        email: ownerEmail,
-        phone: ownerPhone || '',
-        status: 'trial',
-        plan: plan || 'basico',
-        bizType: bizType || 'restaurante',
-        elevenlabsAgentId: elevenlabsAgentId || '',
-        twilioNumber: '',
-        createdAt: now,
-        createdBy: adminUid,
+
+      // Helper para escribir via REST API
+      const fsWrite = async (path, fields) => {
+        const url = `https://firestore.googleapis.com/v1/projects/voxia-49c2e/databases/(default)/documents/${path}`;
+        const resp = await fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ fields })
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(`Firestore ${path}: ${err.error?.message || resp.status}`);
+        }
+        return resp.json();
+      };
+
+      const S = v => ({ stringValue: v || '' });
+      const N = v => ({ integerValue: String(v || 0) });
+      const B = v => ({ booleanValue: !!v });
+      const T = v => ({ timestampValue: v });
+      const A = arr => ({ arrayValue: { values: (arr || []).map(x => S(x)) } });
+
+      // 1. Crear cliente via REST
+      await fsWrite(`clients/${clientId}`, {
+        name: S(clientName),
+        email: S(ownerEmail),
+        phone: S(ownerPhone),
+        status: S('trial'),
+        plan: S(plan || 'basico'),
+        bizType: S(bizType || 'restaurante'),
+        elevenlabsAgentId: S(elevenlabsAgentId),
+        twilioNumber: S(''),
+        createdAt: T(nowIso),
+        createdBy: S(adminUid),
       });
 
-      await db.collection('clients').doc(clientId).collection('config').doc('settings').set({
-        voice: 'sofia',
-        languages: planCfg.idiomasLista,
-        minutosIncluidos: planCfg.minutos,
-        ubicaciones: planCfg.ubicaciones,
-        whatsapp: planCfg.whatsapp,
-        gcalendar: planCfg.gcalendar,
-        soporte: 'prioritario',
-        menuIlimitado: true,
-        bizType: bizType || 'restaurante',
-        saludo: tpl.saludo.replace('{negocio}', clientName),
-        servicios: tpl.servicios,
-        preguntas: tpl.preguntas,
-        pickup: tpl.pickup,
-        delivery: tpl.delivery,
-        citas: tpl.citas,
-        turnModel: 'turn_v3',
+      // 2. Config via REST
+      await fsWrite(`clients/${clientId}/config/settings`, {
+        voice: S('sofia'),
+        languages: A(planCfg.idiomasLista),
+        minutosIncluidos: N(planCfg.minutos),
+        ubicaciones: N(planCfg.ubicaciones),
+        whatsapp: B(planCfg.whatsapp),
+        gcalendar: B(planCfg.gcalendar),
+        soporte: S('prioritario'),
+        menuIlimitado: B(true),
+        bizType: S(bizType || 'restaurante'),
+        saludo: S(tpl.saludo.replace('{negocio}', clientName)),
+        servicios: S(tpl.servicios),
+        preguntas: S(tpl.preguntas),
+        pickup: B(tpl.pickup),
+        delivery: B(tpl.delivery),
+        citas: B(tpl.citas),
+        turnModel: S('turn_v3'),
       });
 
-      // 2. Crear usuario en Auth via REST API (no cambia la sesión)
+      // 3. Crear usuario Auth via REST (no cambia sesión)
       let uid = null;
       try {
         const apiKey = firebase.app().options.apiKey;
@@ -296,43 +322,38 @@
         const signUpResp = await fetch(signUpUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: ownerEmail,
-            password: tempPassword,
-            returnSecureToken: false
-          })
+          body: JSON.stringify({ email: ownerEmail, password: tempPassword, returnSecureToken: false })
         });
         const signUpData = await signUpResp.json();
         if (signUpResp.ok) {
           uid = signUpData.localId;
-          // Crear documento de usuario en Firestore
-          await db.collection('users').doc(uid).set({
-            email: ownerEmail,
-            displayName: ownerName || clientName,
-            clientId: clientId,
-            role: 'owner',
-            createdAt: now,
-            createdBy: adminUid,
+          await fsWrite(`users/${uid}`, {
+            email: S(ownerEmail),
+            displayName: S(ownerName || clientName),
+            clientId: S(clientId),
+            role: S('owner'),
+            createdAt: T(nowIso),
+            createdBy: S(adminUid),
           });
-        } else {
-          console.warn('No se pudo crear usuario Auth:', signUpData.error?.message);
         }
-      } catch (authErr) {
-        console.warn('Error creando usuario Auth (cliente Firestore ya creado):', authErr.message);
-      }
+      } catch (e) { console.warn('Auth:', e.message); }
 
-      // 3. Registrar actividad
+      // 4. Actividad via REST
       try {
-        await db.collection('activity').add({
-          clientId,
-          userId: adminUid,
-          action: 'client_onboarded',
-          details: { clientName, ownerEmail },
-          timestamp: now,
+        const url = `https://firestore.googleapis.com/v1/projects/voxia-49c2e/databases/(default)/documents/activity`;
+        await fetch(url, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: {
+            clientId: S(clientId),
+            userId: S(adminUid),
+            action: S('client_onboarded'),
+            timestamp: T(nowIso),
+          }})
         });
-      } catch(e) { console.warn('Activity:', e.message); }
+      } catch(e) {}
 
-      // 4. Generar Excel
+      // 5. Excel
       try {
         await this._autoDownloadExcelAfterOnboarding({
           nombre: clientName, correo: ownerEmail, telefono: ownerPhone || '',
@@ -341,9 +362,7 @@
           creado: new Date().toLocaleDateString('es-CO'), id: clientId,
           tempPassword: tempPassword,
         });
-      } catch (e) {
-        console.warn('No se pudo generar Excel automático:', e.message);
-      }
+      } catch (e) {}
 
       return { ok: true, clientId, uid, email: ownerEmail, tempPassword, needsRelogin: false };
     },
