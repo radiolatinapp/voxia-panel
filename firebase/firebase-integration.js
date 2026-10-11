@@ -239,38 +239,56 @@
       const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
 
-      // 1. Crear documentos Firestore con SDK (sesión admin intacta)
-      await db.collection('clients').doc(clientId).set({
-        name: clientName,
-        email: ownerEmail,
-        phone: ownerPhone || '',
-        status: 'trial',
-        plan: plan || 'basico',
-        bizType: bizType || 'restaurante',
-        elevenlabsAgentId: elevenlabsAgentId || '',
-        twilioNumber: '',
-        createdAt: now,
-        createdBy: adminUid,
-      });
+      // Helper con timeout para detectar cuelgues
+      const withTimeout = (promise, ms, name) => {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`Timeout en ${name} (${ms}ms)`)), ms)
+          )
+        ]);
+      };
 
-      await db.collection('clients').doc(clientId).collection('config').doc('settings').set({
-        voice: 'sofia',
-        languages: planCfg.idiomasLista,
-        minutosIncluidos: planCfg.minutos,
-        ubicaciones: planCfg.ubicaciones,
-        whatsapp: planCfg.whatsapp,
-        gcalendar: planCfg.gcalendar,
-        soporte: 'prioritario',
-        menuIlimitado: true,
-        bizType: bizType || 'restaurante',
-        saludo: tpl.saludo.replace('{negocio}', clientName),
-        servicios: tpl.servicios,
-        preguntas: tpl.preguntas,
-        pickup: tpl.pickup,
-        delivery: tpl.delivery,
-        citas: tpl.citas,
-        turnModel: 'turn_v3',
-      });
+      // 1. Crear documentos Firestore con SDK (sesión admin intacta)
+      await withTimeout(
+        db.collection('clients').doc(clientId).set({
+          name: clientName,
+          email: ownerEmail,
+          phone: ownerPhone || '',
+          status: 'trial',
+          plan: plan || 'basico',
+          bizType: bizType || 'restaurante',
+          elevenlabsAgentId: elevenlabsAgentId || '',
+          twilioNumber: '',
+          createdAt: now,
+          createdBy: adminUid,
+        }),
+        10000,
+        'crear cliente'
+      );
+
+      await withTimeout(
+        db.collection('clients').doc(clientId).collection('config').doc('settings').set({
+          voice: 'sofia',
+          languages: planCfg.idiomasLista,
+          minutosIncluidos: planCfg.minutos,
+          ubicaciones: planCfg.ubicaciones,
+          whatsapp: planCfg.whatsapp,
+          gcalendar: planCfg.gcalendar,
+          soporte: 'prioritario',
+          menuIlimitado: true,
+          bizType: bizType || 'restaurante',
+          saludo: tpl.saludo.replace('{negocio}', clientName),
+          servicios: tpl.servicios,
+          preguntas: tpl.preguntas,
+          pickup: tpl.pickup,
+          delivery: tpl.delivery,
+          citas: tpl.citas,
+          turnModel: 'turn_v3',
+        }),
+        10000,
+        'crear config'
+      );
 
       // 2. Crear usuario Auth via REST (no cambia sesión)
       let uid = null;
