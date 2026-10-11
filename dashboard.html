@@ -1746,23 +1746,28 @@ function vwaveHTML(){let s='';for(let i=0;i<26;i++){s+=`<i style="height:${18+Ma
 /* Widget demo ElevenLabs: carga el agente según tipo de negocio del cliente */
 async function loadDemoWidget(){
   try{
-    if(!window.VoxiaDB || !VoxiaDB.currentUser || !VoxiaDB.db) return;
     const el=document.getElementById('demoWidget');
-    if(!el || el.innerHTML.trim()) return;
-    const clientId=VoxiaDB.currentUser.clientId||'demo-restaurante';
-    const snap=await VoxiaDB.db.collection('clients').doc(clientId).get();
+    if(!el) return;
+    // Si ya tiene el widget, no recargar
+    if(el.querySelector('elevenlabs-convai')) return;
     let agentId='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev'; // default restaurante
-    if(snap.exists){
-      const d=snap.data();
-      if(d.elevenlabsAgentId){ agentId=d.elevenlabsAgentId; }
-      else if(d.bizType && d.bizType!=='restaurante'){
-        // Buscar agente del tipo de negocio
-        const bizSnap=await VoxiaDB.db.collection('biz_agents').doc(d.bizType).get();
-        if(bizSnap.exists) agentId=bizSnap.data().agentId;
+    try{
+      if(window.VoxiaDB && VoxiaDB.currentUser && VoxiaDB.db){
+        const clientId=VoxiaDB.currentUser.clientId||'demo-restaurante';
+        const snap=await VoxiaDB.db.collection('clients').doc(clientId).get();
+        if(snap.exists){
+          const d=snap.data();
+          if(d.elevenlabsAgentId){ agentId=d.elevenlabsAgentId; }
+          else if(d.bizType && d.bizType!=='restaurante'){
+            const bizSnap=await VoxiaDB.db.collection('biz_agents').doc(d.bizType).get();
+            if(bizSnap.exists) agentId=bizSnap.data().agentId;
+          }
+        }
       }
-    }
-    el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>`;
-  }catch(e){}
+    }catch(e){ /* usar default */ }
+    el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>
+    <p style="margin-top:8px;font-size:12px;opacity:.6">Si el botón no aparece, verifique su conexión o recargue la página.</p>`;
+  }catch(e){ console.warn('Widget:', e.message); }
 }
 
 function renderAssistants(){
