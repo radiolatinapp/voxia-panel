@@ -366,18 +366,56 @@
      */
     async createAlert(tipo, titulo, mensaje, datos) {
       if (!this.clientId) return;
+      const alertData = {
+        tipo, // 'warning' | 'urgent' | 'info' | 'overage'
+        titulo,
+        mensaje,
+        datos: datos || {},
+        leida: false,
+        clientId: this.clientId,
+        clientName: this.clientData?.name || '',
+        creada: firebase.firestore.Timestamp.now(),
+      };
+      // 1. Alerta para el cliente (la ve en su panel)
       const alertRef = await db.collection('clients').doc(this.clientId)
-        .collection('alerts').add({
-          tipo, // 'warning' | 'urgent' | 'info' | 'overage'
-          titulo,
-          mensaje,
-          datos: datos || {},
-          leida: false,
-          creada: firebase.firestore.Timestamp.now(),
+        .collection('alerts').add(alertData);
+
+      // 2. ALERTA PARA NOSOTROS (admin) — para estar pendientes del cliente
+      // Solo si quien genera la alerta NO es superadmin (evita duplicados)
+      const esAdmin = this.userData?.role === 'superadmin';
+      if (!esAdmin) {
+        await db.collection('admin_alerts').add({
+          ...alertData,
+          paraAdmin: true,
         });
-      // También en actividad general
+      } else {
+        // Si es el admin viendo su propio demo, igual registra para seguimiento
+        await db.collection('admin_alerts').add({
+          ...alertData,
+          paraAdmin: true,
+          nota: 'Generada en cliente propio/demo',
+        });
+      }
+
+      // 3. También en actividad general
       await this.logActivity('alert_' + tipo, { titulo });
       return alertRef.id;
+    },
+
+    /**
+     * Escucha alertas de ADMIN en tiempo real (todos los clientes)
+     * Solo superadmin.
+     */
+    onAdminAlerts(callback) {
+      return db.collection('admin_alerts')
+        .where('leida', '==', false)
+        .orderBy('creada', 'desc')
+        .limit(50)
+        .onSnapshot(snap => {
+          const alerts = [];
+          snap.forEach(d => alerts.push({ id: d.id, ...d.data() }));
+          callback(alerts);
+        });
     },
 
     /**
