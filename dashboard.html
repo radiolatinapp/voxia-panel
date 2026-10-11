@@ -1608,6 +1608,48 @@ function openClientModal(id){
 function closeModal(id){$(id).classList.remove('open');}
 /* Envía correo de recuperación al dueño del cliente */
 /* TEMPORAL: Crear cuenta dueña para cliente demo existente */
+/* TEMPORAL: Ver config del agente */
+async function verAgente(){
+  try{
+    const agentId='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev';
+    const key=getElKey();
+    if(!key){ toast('⚠️ No hay API key','warn'); return; }
+    const r=await fetch('https://api.elevenlabs.io/v1/convai/agents/'+agentId, {headers:{'xi-api-key':key}});
+    const j=await r.json();
+    console.log('AGENTE:', JSON.stringify(j, null, 2).slice(0, 3000));
+    toast('✅ Ver consola (F12) para la config');
+  }catch(e){ toast('⚠️ '+e.message,'warn'); }
+}
+
+/* TEMPORAL: Hacer agente público para widget */
+async function hacerAgentePublico(){
+  if(!confirm('¿Hacer público el agente del restaurante demo para el widget?')) return;
+  try{
+    const agentId='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev';
+    const key=getElKey();
+    if(!key){ toast('⚠️ No hay API key de ElevenLabs','warn'); return; }
+    // Obtener config actual
+    let r=await fetch('https://api.elevenlabs.io/v1/convai/agents/'+agentId, {headers:{'xi-api-key':key}});
+    if(!r.ok){ toast('⚠️ Error: '+r.status,'warn'); return; }
+    const agent=await r.json();
+    // Actualizar para acceso público (sin autenticación requerida)
+    r=await fetch('https://api.elevenlabs.io/v1/convai/agents/'+agentId, {
+      method:'PATCH',
+      headers:{'xi-api-key':key,'Content-Type':'application/json'},
+      body:JSON.stringify({
+        conversation_config:{
+          ...(agent.conversation_config||{}),
+          asr:{...(agent.conversation_config?.asr||{})},
+        },
+        // Permitir acceso sin autenticación para widget
+        access_info:{is_creator:false}
+      })
+    });
+    if(r.ok){ toast('✅ Agente actualizado. Verifique el widget.'); }
+    else{ const t=await r.text(); toast('⚠️ '+r.status+': '+t.slice(0,100),'warn'); }
+  }catch(e){ toast('⚠️ '+e.message,'warn'); }
+}
+
 async function crearDuenoDemo(){
   if(!confirm('¿Crear cuenta restaurante@voxia.ai (D123456789) para el demo?')) return;
   try{
