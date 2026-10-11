@@ -628,15 +628,15 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="flex:1;min-width:220px">
           <h3 style="margin:0 0 6px;font-size:19px">🎧 Pruébalo en vivo — Habla con tu asistente</h3>
           <p style="margin:0;color:var(--muted);font-size:13.5px">Elige el tipo de negocio y habla como un cliente real.</p>
-          <select id="demoAgentSelect" onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
+          <select id="demoAgentSelect" onchange="switchDemoAgent(this.value)" disabled title="Cargando agentes..." style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
             <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
-            <option value="dental">🦷 Clínica Dental</option>
-            <option value="taller">🔧 Taller Mecánico</option>
-            <option value="belleza">💅 Salón de Belleza</option>
-            <option value="hotel">🏨 Hotel</option>
-            <option value="abogado">⚖️ Abogado</option>
-            <option value="veterinaria">🐾 Veterinaria</option>
-            <option value="inmobiliaria">🏠 Inmobiliaria</option>
+            <option value="dental" data-biztype="dental">🦷 Clínica Dental</option>
+            <option value="taller" data-biztype="taller">🔧 Taller Mecánico</option>
+            <option value="belleza" data-biztype="belleza">💅 Salón de Belleza</option>
+            <option value="hotel" data-biztype="hotel">🏨 Hotel</option>
+            <option value="abogado" data-biztype="abogado">⚖️ Abogado</option>
+            <option value="veterinaria" data-biztype="veterinaria">🐾 Veterinaria</option>
+            <option value="inmobiliaria" data-biztype="inmobiliaria">🏠 Inmobiliaria</option>
           </select>
         </div>
         <div id="demoWidgetDash">
@@ -736,15 +736,15 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="flex:1;min-width:200px">
           <h3 style="margin:0 0 6px;font-size:20px">🎧 Pruébalo en vivo</h3>
           <p style="margin:0;color:var(--muted);font-size:14px">Elige el tipo de negocio y habla como un cliente real.</p>
-          <select id="demoAgentSelect2" onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
+          <select id="demoAgentSelect2" onchange="switchDemoAgent(this.value)" disabled title="Cargando agentes..." style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
             <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
-            <option value="dental">🦷 Clínica Dental</option>
-            <option value="taller">🔧 Taller Mecánico</option>
-            <option value="belleza">💅 Salón de Belleza</option>
-            <option value="hotel">🏨 Hotel</option>
-            <option value="abogado">⚖️ Abogado</option>
-            <option value="veterinaria">🐾 Veterinaria</option>
-            <option value="inmobiliaria">🏠 Inmobiliaria</option>
+            <option value="dental" data-biztype="dental">🦷 Clínica Dental</option>
+            <option value="taller" data-biztype="taller">🔧 Taller Mecánico</option>
+            <option value="belleza" data-biztype="belleza">💅 Salón de Belleza</option>
+            <option value="hotel" data-biztype="hotel">🏨 Hotel</option>
+            <option value="abogado" data-biztype="abogado">⚖️ Abogado</option>
+            <option value="veterinaria" data-biztype="veterinaria">🐾 Veterinaria</option>
+            <option value="inmobiliaria" data-biztype="inmobiliaria">🏠 Inmobiliaria</option>
           </select>
         </div>
         <div id="demoWidget">
@@ -1756,16 +1756,22 @@ async function loadBizAgentIds(){
       snap.forEach(doc=>{ bizAgentIds[doc.id]=doc.data().agentId; });
       // Actualizar las opciones de los selectores con los IDs reales
       ['demoAgentSelect','demoAgentSelect2'].forEach(selId=>{
-        const sel=$(selId);
+        const sel=document.getElementById(selId);
         if(sel){
           [...sel.options].forEach(opt=>{
-            if(opt.value!=='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev' && bizAgentIds[opt.value]){
-              opt.dataset.biztype=opt.value;
-              opt.value=bizAgentIds[opt.value];
+            const bizType=opt.dataset.biztype||opt.value;
+            if(bizType!=='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev' && bizAgentIds[bizType]){
+              if(!opt.dataset.biztype) opt.dataset.biztype=bizType;
+              opt.value=bizAgentIds[bizType];
             }
           });
+          sel.disabled=false;
+          sel.title='';
         }
       });
+      console.log('✅ IDs de agentes cargados:', Object.keys(bizAgentIds).length);
+    } else {
+      console.warn('VoxiaDB no disponible para cargar biz_agents');
     }
   }catch(e){ console.warn('biz_agents:', e.message); }
 }
@@ -1783,8 +1789,15 @@ function switchDemoAgent(agentId){
     if(s) s.value=agentId;
   });
 }
-// Cargar IDs al iniciar
-setTimeout(loadBizAgentIds, 3000);
+// Cargar IDs al iniciar (reintenta si VoxiaDB no está listo)
+function tryLoadBizIds(attempts){
+  if(window.VoxiaDB && VoxiaDB.db){
+    loadBizAgentIds();
+  } else if(attempts>0){
+    setTimeout(()=>tryLoadBizIds(attempts-1), 2000);
+  }
+}
+setTimeout(()=>tryLoadBizIds(10), 2000);
 
 function renderAssistants(){
   loadDemoWidget();
