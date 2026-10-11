@@ -256,7 +256,24 @@
       const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
 
-      // Helper para escribir via REST API
+      // Helper para escribir via REST API (POST para crear, PATCH para actualizar)
+      const fsCreate = async (collectionPath, documentId, fields) => {
+        const url = `https://firestore.googleapis.com/v1/projects/voxia-49c2e/databases/(default)/documents/${collectionPath}?documentId=${documentId}`;
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ fields })
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(`Firestore ${collectionPath}/${documentId}: ${err.error?.message || resp.status}`);
+        }
+        return resp.json();
+      };
+
       const fsWrite = async (path, fields) => {
         const url = `https://firestore.googleapis.com/v1/projects/voxia-49c2e/databases/(default)/documents/${path}`;
         const resp = await fetch(url, {
@@ -280,8 +297,8 @@
       const T = v => ({ timestampValue: v });
       const A = arr => ({ arrayValue: { values: (arr || []).map(x => S(x)) } });
 
-      // 1. Crear cliente via REST
-      await fsWrite(`clients/${clientId}`, {
+      // 1. Crear cliente via REST (POST para documento nuevo)
+      await fsCreate('clients', clientId, {
         name: S(clientName),
         email: S(ownerEmail),
         phone: S(ownerPhone),
@@ -294,8 +311,8 @@
         createdBy: S(adminUid),
       });
 
-      // 2. Config via REST
-      await fsWrite(`clients/${clientId}/config/settings`, {
+      // 2. Config via REST (POST para documento nuevo en subcolección)
+      await fsCreate(`clients/${clientId}/config`, 'settings', {
         voice: S('sofia'),
         languages: A(planCfg.idiomasLista),
         minutosIncluidos: N(planCfg.minutos),
@@ -327,7 +344,7 @@
         const signUpData = await signUpResp.json();
         if (signUpResp.ok) {
           uid = signUpData.localId;
-          await fsWrite(`users/${uid}`, {
+          await fsCreate('users', uid, {
             email: S(ownerEmail),
             displayName: S(ownerName || clientName),
             clientId: S(clientId),
