@@ -38,6 +38,8 @@
     userData: null,   // doc de users/{uid}
     clientId: null,
     clientData: null, // doc de clients/{clientId}
+    db: db,           // Firestore expuesto para consultas
+    auth: auth,       // Auth expuesto
 
     /**
      * Login con email/password
