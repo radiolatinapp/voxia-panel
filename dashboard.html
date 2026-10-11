@@ -8,6 +8,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
+<script>
+/* DIAGNÓSTICO TEMPORAL: muestra errores JS en pantalla */
+window.addEventListener('error', function(e){
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;bottom:10px;left:10px;right:10px;background:#ef4444;color:#fff;padding:12px;border-radius:8px;z-index:99999;font-size:13px;';
+  d.textContent='ERROR: '+e.message+' ('+e.filename.split('/').pop()+':'+e.lineno+')';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(),8000);
+});
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
