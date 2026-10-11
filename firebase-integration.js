@@ -151,7 +151,7 @@
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const { clientName, ownerName, ownerEmail, ownerPhone, plan, elevenlabsAgentId, tempPassword } = data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, plan, elevenlabsAgentId, tempPassword, bizType } = data;
 
       if (!clientName || !ownerEmail || !tempPassword) {
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
@@ -180,6 +180,7 @@
         phone: ownerPhone || '',
         status: 'trial',
         plan: plan || 'basico',
+        bizType: bizType || 'restaurante',
         elevenlabsAgentId: elevenlabsAgentId || '',
         twilioNumber: '',
         // NOTA: contraseña temporal guardada para registro del admin
