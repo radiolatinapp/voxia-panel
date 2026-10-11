@@ -1547,6 +1547,7 @@ function renderClients(){
   }).join('')||`<tr><td colspan="7"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
 }
 function openClientModal(id){
+  alert('DEBUG: openClientModal llamado con id='+id);
   const c=id?clients.find(x=>x.id==id):{id:'',name:'',city:'',phone:'',plan:'Pro',monthly:249,status:'active',voice:'Luisa · ES amable'};
   if(id&&!c){toast('Cliente no encontrado','warn');return;}
   $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
