@@ -1532,15 +1532,25 @@ function renderClients(){
     <td><b class="mono">$${c.monthly}</b><span style="color:var(--faint);font-size:11.5px">/mes</span></td>
     <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td>
     ${canEdit()?`<td style="text-align:right;white-space:nowrap">
-      <button class="btn btn-ghost btn-sm" onclick="openClientModal(${c.id})">Editar</button>
-      <button class="btn btn-danger btn-sm" onclick="delClient(${c.id})">Eliminar</button></td>`:'<td></td>'}</tr>`;
+      <button class="btn btn-ghost btn-sm" onclick="openClientModal('${c.id}')">Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="delClient('${c.id}')">Eliminar</button></td>`:'<td></td>'}</tr>`;
   }).join('')||`<tr><td colspan="7"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
 }
 function openClientModal(id){
-  const c=id?clients.find(x=>x.id===id):{id:'',name:'',city:'',phone:'',plan:'Pro',monthly:249,status:'active',voice:'Luisa · ES amable'};
+  const c=id?clients.find(x=>x.id==id):{id:'',name:'',city:'',phone:'',plan:'Pro',monthly:249,status:'active',voice:'Luisa · ES amable'};
+  if(id&&!c){toast('Cliente no encontrado','warn');return;}
   $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
-  $('fId').value=c.id||'';$('fName').value=c.name;$('fCity').value=c.city;$('fPhone').value=c.phone;
-  $('fPlan').value=c.plan;$('fMonthly').value=c.monthly;$('fStatus').value=c.status;$('fVoice').value=c.voice;
+  $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCity').value=c.city||'';$('fPhone').value=c.phone||'';
+  // Plan: normalizar a los valores del select
+  let planVal = c.plan||'basico';
+  if(typeof planVal==='string'){
+    const pl=planVal.toLowerCase();
+    planVal = pl.includes('premium')?'Premium':pl.includes('pro')?'Pro':'Básico';
+  }
+  $('fPlan').value=planVal;$('fMonthly').value=c.monthly||'';$('fStatus').value=c.status||'trial';$('fVoice').value=c.voice||'';
+  // Email del dueño (solo lectura al editar)
+  const emailField=$('fEmail')||$('fOwnerEmail');
+  if(emailField){ emailField.value=c.email||''; emailField.disabled=!!id; }
   $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
 }
 function closeModal(id){$(id).classList.remove('open');}
@@ -1575,20 +1585,35 @@ async function saveClient(){
     return;
   }
 
-  // EDITAR existente (solo local por ahora)
-  const d={name,city:$('fCity').value,phone:$('fPhone').value,plan:$('fPlan').value,monthly:+$('fMonthly').value||0,status:$('fStatus').value,voice:$('fVoice').value};
-  Object.assign(clients.find(c=>c.id==id),d);toast('Cliente actualizado ✓');
-  logActivity(me.name,'✏️','actualizó el negocio "'+name+'"');
+  // EDITAR existente → actualiza en Firebase
+  const planMap={'Básico':'basico','Pro':'pro','Premium':'premium','basico':'basico','pro':'pro','premium':'premium'};
+  const planKey=planMap[$('fPlan').value]||'basico';
+  const d={name,city:$('fCity').value,phone:$('fPhone').value,plan:planKey,status:$('fStatus').value};
+  try{
+    toast('Guardando en Firebase…');
+    await VoxiaDB.updateClient(id,d);
+    Object.assign(clients.find(c=>c.id==id),d);
+    toast('Cliente actualizado ✓');
+    logActivity(me.name,'✏️','actualizó el negocio "'+name+'"');
+  }catch(e){
+    toast('⚠ '+e.message,'warn');
+  }
   closeModal('clientModal');renderAll();
 }
-function delClient(id){
+async function delClient(id){
   if(!canEdit()){toast('🔒 Tu rol no permite eliminar negocios','warn');return;}
-  const c=clients.find(x=>x.id===id);
-  if(!confirm(`¿Eliminar “${c.name}” del panel?`))return;
-  logActivity(me.name,'🗑','eliminó el negocio “'+c.name+'”');
-  if(!confirm(`¿Eliminar “${c.name}” del panel?`))return;
-  clients=clients.filter(x=>x.id!==id);calls=calls.filter(x=>x.c!==id);
-  toast('Cliente eliminado','warn');renderAll();
+  const c=clients.find(x=>x.id==id);
+  if(!c){toast('Cliente no encontrado','warn');return;}
+  if(!confirm(`¿Eliminar "${c.name}" de Firebase? Esta acción no se puede deshacer.`))return;
+  try{
+    toast('Eliminando de Firebase…');
+    await VoxiaDB.deleteClient(id);
+    clients=clients.filter(x=>x.id!=id);
+    logActivity(me.name,'🗑','eliminó el negocio "'+c.name+'" de Firebase');
+    toast('Cliente eliminado','warn');renderAll();
+  }catch(e){
+    toast('⚠ '+e.message,'warn');
+  }
 }
 
 /* ==================== ASISTENTES ==================== */
