@@ -228,66 +228,38 @@
         throw new Error('Sesión expirada. Por favor, cierre sesión y vuelva a entrar.');
       }
       const adminUid = adminUser.uid;
-      // Forzar refresh del token para REST API
-      const idToken = await adminUser.getIdToken(true);
 
       const slug = clientName.toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
       const clientId = `${slug}-${Date.now().toString(36)}`;
-      const nowIso = new Date().toISOString();
+      const now = firebase.firestore.Timestamp.now();
 
       const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
 
-      const S = v => ({ stringValue: String(v || '') });
-      const N = v => ({ integerValue: String(v || 0) });
-      const B = v => ({ booleanValue: !!v });
-      const T = v => ({ timestampValue: v });
-      const A = arr => ({ arrayValue: { values: (arr || []).map(x => S(x)) } });
-
-      const restHeaders = {
-        'Authorization': `Bearer ${idToken}`,
-        'Content-Type': 'application/json'
-      };
-      const baseUrl = 'https://firestore.googleapis.com/v1/projects/voxia-49c2e/databases/(default)/documents';
-
-      // 1. Crear cliente via REST POST
-      let resp = await fetch(`${baseUrl}/clients?documentId=${clientId}`, {
-        method: 'POST', headers: restHeaders,
-        body: JSON.stringify({ fields: {
-          name: S(clientName), email: S(ownerEmail), phone: S(ownerPhone),
-          status: S('trial'), plan: S(plan || 'basico'), bizType: S(bizType || 'restaurante'),
-          elevenlabsAgentId: S(elevenlabsAgentId), twilioNumber: S(''),
-          createdAt: T(nowIso), createdBy: S(adminUid),
-        }})
+      // 1. Crear cliente
+      await db.collection('clients').doc(clientId).set({
+        name: clientName, email: ownerEmail, phone: ownerPhone || '',
+        status: 'trial', plan: plan || 'basico', bizType: bizType || 'restaurante',
+        elevenlabsAgentId: elevenlabsAgentId || '', twilioNumber: '',
+        createdAt: now, createdBy: adminUid,
       });
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(`Crear cliente: ${err.error?.message || resp.status}`);
-      }
 
-      // 2. Config via REST POST
-      resp = await fetch(`${baseUrl}/clients/${clientId}/config?documentId=settings`, {
-        method: 'POST', headers: restHeaders,
-        body: JSON.stringify({ fields: {
-          voice: S('sofia'), languages: A(planCfg.idiomasLista),
-          minutosIncluidos: N(planCfg.minutos), ubicaciones: N(planCfg.ubicaciones),
-          whatsapp: B(planCfg.whatsapp), gcalendar: B(planCfg.gcalendar),
-          soporte: S('prioritario'), menuIlimitado: B(true),
-          bizType: S(bizType || 'restaurante'),
-          saludo: S(tpl.saludo.replace('{negocio}', clientName)),
-          servicios: S(tpl.servicios), preguntas: S(tpl.preguntas),
-          pickup: B(tpl.pickup), delivery: B(tpl.delivery), citas: B(tpl.citas),
-          turnModel: S('turn_v3'),
-        }})
+      // 2. Config
+      await db.collection('clients').doc(clientId).collection('config').doc('settings').set({
+        voice: 'sofia', languages: planCfg.idiomasLista,
+        minutosIncluidos: planCfg.minutos, ubicaciones: planCfg.ubicaciones,
+        whatsapp: planCfg.whatsapp, gcalendar: planCfg.gcalendar,
+        soporte: 'prioritario', menuIlimitado: true,
+        bizType: bizType || 'restaurante',
+        saludo: tpl.saludo.replace('{negocio}', clientName),
+        servicios: tpl.servicios, preguntas: tpl.preguntas,
+        pickup: tpl.pickup, delivery: tpl.delivery, citas: tpl.citas,
+        turnModel: 'turn_v3',
       });
-      if (!resp.ok) {
-        const err = await resp.json();
-        throw new Error(`Crear config: ${err.error?.message || resp.status}`);
-      }
 
-      // 3. Crear usuario Auth via REST (no cambia sesión)
+      // 3. Usuario Auth via REST (no cambia sesión)
       let uid = null;
       try {
         const apiKey = firebase.app().options.apiKey;
@@ -298,19 +270,11 @@
         const signUpData = await signUpResp.json();
         if (signUpResp.ok) {
           uid = signUpData.localId;
-          // Crear users doc via REST
-          resp = await fetch(`${baseUrl}/users?documentId=${uid}`, {
-            method: 'POST', headers: restHeaders,
-            body: JSON.stringify({ fields: {
-              email: S(ownerEmail), displayName: S(ownerName || clientName),
-              clientId: S(clientId), role: S('owner'),
-              createdAt: T(nowIso), createdBy: S(adminUid),
-            }})
+          await db.collection('users').doc(uid).set({
+            email: ownerEmail, displayName: ownerName || clientName,
+            clientId: clientId, role: 'owner',
+            createdAt: now, createdBy: adminUid,
           });
-          if (!resp.ok) {
-            const err = await resp.json();
-            console.warn('Users doc:', err.error?.message);
-          }
         }
       } catch (e) { console.warn('Auth:', e.message); }
 
