@@ -1595,7 +1595,7 @@ function renderClients(){
   const list=clients.filter(c=>c.name.toLowerCase().includes(q)&&(!fs||c.status===fs));
   $('clientCount').textContent=list.length+' negocios';
   $('clientsBody').innerHTML=list.map(c=>{
-    const cm=calls.filter(x=>x.c===c.id).length+ (c.id===1?312:c.id===2?148:c.id===3?61:44);
+    const cm=calls.filter(x=>x.c===c.id).length;
     return `<tr>
     <td><div class="row-client">${cavatar(c.name)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
     <td class="mono">${c.phone}</td><td>${planBadge(c.plan)}</td>
@@ -1976,11 +1976,7 @@ if(!users||!users.length){
 let activity=[];
 try{activity=JSON.parse(localStorage.getItem('voxia_activity'))||[];}catch(e){activity=[];}
 if(!activity.length){
-  activity=[
-    {t:'2026-10-11 03:12',who:'María González',icon:'🏪',tx:'creó el negocio “La Caleñita”'},
-    {t:'2026-10-10 18:40',who:'Jeremy Rico',icon:'🔑',tx:'restableció la contraseña de Carlos Ruiz'},
-    {t:'2026-10-10 09:05',who:'Carlos Ruiz',icon:'🔓',tx:'inició sesión'},
-  ];
+  activity=[];
   localStorage.setItem('voxia_activity',JSON.stringify(activity));
 }
 let me=null;
@@ -1991,58 +1987,12 @@ let integrations=[
   {id:'stripe',icon:'💳',name:'Stripe',desc:'Cobros automáticos a tus clientes',status:'off',detail:'Conecta tu cuenta para facturar'},
   {id:'gcal',icon:'📅',name:'Google Calendar',desc:'Sincroniza citas agendadas por la IA',status:'off',detail:'OAuth con tu cuenta de Google'}
 ];
-let transcripts=[
-  {cid:1,dt:'11 oct · 1:42 PM',dur:'2:34',cost:2.27,lang:'ES',result:'Pedido tomado · $32.50',
-   lines:[['IA','¡Hola! Gracias por llamar a Cali Colombian Restaurant. ¿Su pedido es para recoger o delivery?'],
-   ['Cliente','Para recoger, por favor.'],
-   ['IA','Perfecto. ¿Qué desea ordenar?'],
-   ['Cliente','Una bandeja paisa y dos jugos de maracuyá.'],
-   ['IA','Anotado: una bandeja paisa a $16.99 y dos jugos de maracuyá a $4.50 cada uno. Su total es $32.50. ¿Algo más?'],
-   ['Cliente','No, eso es todo.'],
-   ['IA','Su pedido estará listo en 25 minutos. ¿A nombre de quién?'],
-   ['Cliente','De Andrés.'],
-   ['IA','Gracias Andrés. Lo esperamos. ¡Buen provecho!']]},
-  {cid:3,dt:'11 oct · 11:15 AM',dur:'1:58',cost:1.74,lang:'EN',result:'Pedido tomado · $24.00',
-   lines:[['IA','Hello! Thank you for calling La Caleñita. Would you like to order in English or español?'],
-   ['Cliente','English please.'],
-   ['IA','Of course! What would you like to order today?'],
-   ['Cliente','Two chicken empanadas and a cheese arepa.'],
-   ['IA','Got it: two chicken empanadas and one cheese arepa. Your total is $24.00. Pickup or delivery?'],
-   ['Cliente','Pickup.'],
-   ['IA','It will be ready in 20 minutes. Thank you!']]},
-  {cid:2,dt:'10 oct · 7:03 PM',dur:'3:12',cost:2.83,lang:'ES',result:'Pedido tomado · $45.75',
-   lines:[['IA','¡Hola! Bienvenido a Sabor Paisa. ¿En qué le puedo ayudar?'],
-   ['Cliente','Quiero hacer un pedido grande para una fiesta.'],
-   ['IA','¡Con gusto! ¿Para cuántas personas?'],
-   ['Cliente','Como para 8 personas.'],
-   ['IA','Le recomiendo 2 bandejas paisas familiares y una jarra de jugo. ¿Le parece?'],
-   ['Cliente','Sí, perfecto.'],
-   ['IA','Su total es $45.75. ¿Para recoger o delivery?'],
-   ['Cliente','Delivery, por favor.'],
-   ['IA','Anoto su dirección para el delivery…']]},
-  {cid:1,dt:'10 oct · 12:20 PM',dur:'0:45',cost:0.66,lang:'ES',result:'Sin pedido',
-   lines:[['IA','¡Hola! Gracias por llamar a Cali Colombian Restaurant. ¿Su pedido es para recoger o delivery?'],
-   ['Cliente','¿A qué hora cierran?'],
-   ['IA','Cerramos a las 11:00 PM. ¿Desea hacer un pedido?'],
-   ['Cliente','No, solo preguntaba. Gracias.'],
-   ['IA','¡Con gusto! Que tenga buen día.']]}
-];
+let transcripts=[];
 /* Normaliza costos de transcripciones desde RATE (dur 'M:SS' → min × RATE) */
 transcripts.forEach(t=>{const p=t.dur.split(':'),m=+p[0]+(+p[1])/60;t.cost=+((m*RATE).toFixed(2));});
-/* notificaciones extendidas (reemplaza render del dropdown) */
-notifs=[
-  {i:'🎉',t:'Nuevo cliente en prueba',d:'La Caleñita activó su asistente bilingüe.',tm:'hace 2 h',type:'info',read:false},
-  {i:'💰',t:'Factura pagada',d:'Cali Colombian Restaurant pagó INV-2026-1035 ($249).',tm:'ayer',type:'money',read:false},
-  {i:'⚠️',t:'Llamada sin contestar',d:'Sabor Paisa tuvo 1 llamada que la IA no pudo atender (línea ocupada).',tm:'ayer',type:'alert',read:false},
-  {i:'⏰',t:'Factura por vencer',d:'INV-2026-1038 de Tacos El Primo vence en 3 días ($149).',tm:'hace 2 días',type:'money',read:true},
-  {i:'📊',t:'Reporte semanal listo',d:'Tu resumen del 5–11 oct ya está disponible en Reportes.',tm:'hace 3 días',type:'info',read:true},
-  {i:'😴',t:'Cliente inactivo',d:'Sabor Paisa no recibe llamadas hace 5 días. Revisa su línea.',tm:'hace 4 días',type:'alert',read:true}
-];
-let recentReps=[
-  {n:'Reporte_Octubre2026_Cali.csv',d:'Generado hoy · 2.1 KB'},
-  {n:'Reporte_Septiembre2026_Todos.json',d:'Generado 3 oct · 14 KB'},
-  {n:'Resumen_Q3_2026.txt',d:'Generado 1 oct · 4.8 KB'}
-];
+/* notificaciones: solo datos reales de Firebase (sin ficticios) */
+notifs=[];
+let recentReps=[];
 
 /* ==================== RENDER: NUEVAS VISTAS ==================== */
 function clientName(id){const c=clients.find(x=>x.id===id);return c?c.name:'—';}
