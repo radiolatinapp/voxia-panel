@@ -118,6 +118,34 @@
     },
 
     /**
+     * Definición de planes Voxia.
+     * Al crear un cliente, su config se ajusta automáticamente al plan elegido.
+     */
+    PLANS: {
+      basico: {
+        nombre: 'Básico', precio: 149, minutos: 1000,
+        idiomas: 2, idiomasLista: ['es', 'en'],
+        menuIlimitado: true, ubicaciones: 1,
+        whatsapp: false, gcalendar: false,
+        soporte: 'prioritario',
+      },
+      pro: {
+        nombre: 'Pro', precio: 249, minutos: 2000,
+        idiomas: 2, idiomasLista: ['es', 'en'],
+        menuIlimitado: true, ubicaciones: 1,
+        whatsapp: true, gcalendar: false,
+        soporte: 'prioritario',
+      },
+      premium: {
+        nombre: 'Premium', precio: 399, minutos: 5000,
+        idiomas: 3, idiomasLista: ['es', 'en', 'pt'],
+        menuIlimitado: true, ubicaciones: 3,
+        whatsapp: true, gcalendar: true,
+        soporte: 'prioritario',
+      },
+    },
+
+    /**
      * Onboarding completo de cliente nuevo (solo superadmin).
      * Crea usuario Auth + docs en Firestore, todo conectado.
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
@@ -164,7 +192,14 @@
 
       batch.set(db.collection('clients').doc(clientId).collection('config').doc('settings'), {
         voice: 'sofia',
-        languages: ['es', 'en'],
+        // Config automática según el plan elegido
+        languages: (this.PLANS[plan] || this.PLANS.basico).idiomasLista,
+        minutosIncluidos: (this.PLANS[plan] || this.PLANS.basico).minutos,
+        ubicaciones: (this.PLANS[plan] || this.PLANS.basico).ubicaciones,
+        whatsapp: (this.PLANS[plan] || this.PLANS.basico).whatsapp,
+        gcalendar: (this.PLANS[plan] || this.PLANS.basico).gcalendar,
+        soporte: 'prioritario',
+        menuIlimitado: true,
         pickup: true,
         delivery: true,
         turnModel: 'turn_v3',
