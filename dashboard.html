@@ -898,7 +898,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   <section class="view" id="view-plantillas">
     <div class="page-head">
       <div><h2>Plantillas de asistentes</h2><p>Configuraciones listas por tipo de negocio · un clic para empezar</p></div>
+      <button class="btn btn-primary" onclick="createAllBizAgents()" id="btnCreateAgents">🤖 Crear agentes en ElevenLabs</button>
     </div>
+    <div id="agentsStatus" style="margin-bottom:16px"></div>
     <div id="templatesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:20px"></div>
     <div class="card" id="templateDetail" style="display:none">
       <h3 id="tplName"></h3>
@@ -1661,7 +1663,7 @@ async function delClient(id){
 
 /* ==================== ASISTENTES ==================== */
 function vwaveHTML(){let s='';for(let i=0;i<26;i++){s+=`<i style="height:${18+Math.round(Math.abs(Math.sin(i*1.3))*70)}%"></i>`;}return s;}
-/* Widget demo ElevenLabs: carga el agente del cliente actual */
+/* Widget demo ElevenLabs: carga el agente según tipo de negocio del cliente */
 async function loadDemoWidget(){
   try{
     if(!window.VoxiaDB || !VoxiaDB.currentUser || !VoxiaDB.db) return;
@@ -1669,7 +1671,16 @@ async function loadDemoWidget(){
     if(!el || el.innerHTML.trim()) return;
     const clientId=VoxiaDB.currentUser.clientId||'demo-restaurante';
     const snap=await VoxiaDB.db.collection('clients').doc(clientId).get();
-    const agentId=(snap.exists&&snap.data().elevenlabsAgentId)||'agent_0901m4mrx5xqfe0t2vcnz7zvr7ev';
+    let agentId='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev'; // default restaurante
+    if(snap.exists){
+      const d=snap.data();
+      if(d.elevenlabsAgentId){ agentId=d.elevenlabsAgentId; }
+      else if(d.bizType && d.bizType!=='restaurante'){
+        // Buscar agente del tipo de negocio
+        const bizSnap=await VoxiaDB.db.collection('biz_agents').doc(d.bizType).get();
+        if(bizSnap.exists) agentId=bizSnap.data().agentId;
+      }
+    }
     el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>`;
   }catch(e){}
 }
@@ -2003,6 +2014,66 @@ function showTemplate(id){
   $('templateDetail').style.display='block';
   $('templateDetail').scrollIntoView({behavior:'smooth'});
 }
+/* Crea agentes ElevenLabs para cada tipo de negocio */
+const BIZ_AGENTS = {
+  dental: {nombre:'Asistente Clínica Dental', saludo:'¡Hola! Gracias por llamar a su clínica dental. ¿Desea agendar una cita?', prompt:'Eres el asistente de una clínica dental. Agendas citas, confirmas seguros dentales y envías recordatorios. Pregunta: día preferido, si es paciente nuevo, y tipo de seguro.'},
+  taller: {nombre:'Asistente Taller Mecánico', saludo:'¡Hola! Gracias por llamar al taller. ¿En qué le ayudamos con su vehículo?', prompt:'Eres el asistente de un taller mecánico. Recibes diagnósticos, cotizas servicios y agendas citas. Pregunta: marca y modelo, falla que presenta, cuándo puede traerlo.'},
+  belleza: {nombre:'Asistente Salón de Belleza', saludo:'¡Hola! Bienvenido al salón. ¿Desea reservar un servicio?', prompt:'Eres el asistente de un salón de belleza. Reservas servicios, confirmas estilista y envías promociones. Pregunta: servicio deseado, estilista preferido, día y hora.'},
+  hotel: {nombre:'Asistente Hotel', saludo:'¡Hola! Gracias por llamar al hotel. ¿Desea hacer una reserva?', prompt:'Eres el asistente de un hotel. Manejas reservas, info de check-in y servicios 24/7. Pregunta: fechas, número de personas, tipo de habitación.'},
+  abogado: {nombre:'Asistente Abogado', saludo:'¡Hola! Gracias por llamar. ¿En qué caso le ayudamos?', prompt:'Eres el asistente de un abogado. Agendas consultas, tomas datos del caso y haces seguimiento. Pregunta: tipo de caso, si desea agendar consulta, nombre y teléfono.'},
+  veterinaria: {nombre:'Asistente Veterinaria', saludo:'¡Hola! Gracias por llamar a la veterinaria. ¿Su mascota necesita atención?', prompt:'Eres el asistente de una veterinaria. Agendas citas, atiendes emergencias y envías recordatorios de vacunas. Pregunta: tipo de mascota, síntomas, si es emergencia.'},
+  inmobiliaria: {nombre:'Asistente Inmobiliaria', saludo:'¡Hola! Gracias por llamar. ¿Busca comprar, vender o rentar?', prompt:'Eres el asistente de una inmobiliaria. Agendas visitas, das info de propiedades y haces seguimiento. Pregunta: compra/venta/renta, zona de interés, presupuesto.'},
+};
+
+async function createAllBizAgents(){
+  const key = getElKey();
+  if(!key){ toast('⚠️ Conecta ElevenLabs primero en Integraciones','warn'); return; }
+  const btn = $('btnCreateAgents');
+  const status = $('agentsStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ Creando agentes...';
+
+  const results = [];
+  for(const [bizType, cfg] of Object.entries(BIZ_AGENTS)){
+    try{
+      status.innerHTML = `<div class="csub">Creando ${cfg.nombre}...</div>`;
+      const r = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Voxia - ' + cfg.nombre,
+          conversation_config: {
+            agent: {
+              first_message: cfg.saludo,
+              language: 'es',
+              prompt: { prompt: cfg.prompt, llm: 'gpt-4o-mini', temperature: 0.5 },
+            },
+            tts: { voice_id: 'EXAVITQu4vr4xnSDxMaL', model_id: 'eleven_turbo_v2_5' },
+          },
+        }),
+      });
+      const data = await r.json();
+      if(data.agent_id){
+        results.push({bizType, agentId: data.agent_id, nombre: cfg.nombre});
+        // Guardar en Firebase para uso automático
+        if(window.VoxiaDB && VoxiaDB.db){
+          await VoxiaDB.db.collection('biz_agents').doc(bizType).set({
+            agentId: data.agent_id, nombre: cfg.nombre, createdAt: new Date(),
+          });
+        }
+      }
+    }catch(e){
+      results.push({bizType, error: e.message});
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🤖 Crear agentes en ElevenLabs';
+  const ok = results.filter(r=>r.agentId).length;
+  status.innerHTML = `<div class="note" style="color:#22c55e">✅ ${ok} agentes creados. Ya están listos para asignarse automáticamente.</div>`;
+  toast(`✅ ${ok} agentes creados en ElevenLabs`);
+}
+
 function useTemplate(){
   toast('📋 Plantilla "'+activeTpl.name+'" aplicada · créala como cliente nuevo');
   openClientModal();
