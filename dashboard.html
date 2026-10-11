@@ -707,7 +707,6 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <div class="page-head">
       <div><h2>Clientes</h2><p>Tus negocios y sus planes activos</p></div>
       <div style="display:flex;gap:10px">
-      <button class="btn btn-ghost" data-edit onclick="crearDuenoDemo()" title="Crear cuenta dueña para el demo">👤 Dueño demo</button>
       <button class="btn btn-primary" data-edit onclick="openClientModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         Nuevo cliente</button>
@@ -1643,64 +1642,6 @@ function openClientModal(id){
 }
 function closeModal(id){$(id).classList.remove('open');}
 /* Envía correo de recuperación al dueño del cliente */
-/* TEMPORAL: Crear cuenta dueña para cliente demo existente */
-/* TEMPORAL: Ver config del agente */
-async function verAgente(){
-  try{
-    const agentId='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev';
-    const key=getElKey();
-    if(!key){ toast('⚠️ No hay API key','warn'); return; }
-    const r=await fetch('https://api.elevenlabs.io/v1/convai/agents/'+agentId, {headers:{'xi-api-key':key}});
-    const j=await r.json();
-    console.log('AGENTE:', JSON.stringify(j, null, 2).slice(0, 3000));
-    toast('✅ Ver consola (F12) para la config');
-  }catch(e){ toast('⚠️ '+e.message,'warn'); }
-}
-
-/* TEMPORAL: Hacer agente público para widget */
-async function hacerAgentePublico(){
-  if(!confirm('¿Hacer público el agente del restaurante demo para el widget?')) return;
-  try{
-    const agentId='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev';
-    const key=getElKey();
-    if(!key){ toast('⚠️ No hay API key de ElevenLabs','warn'); return; }
-    // Obtener config actual
-    let r=await fetch('https://api.elevenlabs.io/v1/convai/agents/'+agentId, {headers:{'xi-api-key':key}});
-    if(!r.ok){ toast('⚠️ Error: '+r.status,'warn'); return; }
-    const agent=await r.json();
-    // Actualizar para acceso público (sin autenticación requerida)
-    r=await fetch('https://api.elevenlabs.io/v1/convai/agents/'+agentId, {
-      method:'PATCH',
-      headers:{'xi-api-key':key,'Content-Type':'application/json'},
-      body:JSON.stringify({
-        conversation_config:{
-          ...(agent.conversation_config||{}),
-          asr:{...(agent.conversation_config?.asr||{})},
-        },
-        // Permitir acceso sin autenticación para widget
-        access_info:{is_creator:false}
-      })
-    });
-    if(r.ok){ toast('✅ Agente actualizado. Verifique el widget.'); }
-    else{ const t=await r.text(); toast('⚠️ '+r.status+': '+t.slice(0,100),'warn'); }
-  }catch(e){ toast('⚠️ '+e.message,'warn'); }
-}
-
-async function crearDuenoDemo(){
-  if(!confirm('¿Crear cuenta restaurante@voxia.ai (D123456789) para el demo?')) return;
-  try{
-    const email='restaurante@voxia.ai', password='D123456789', clientId='demo-restaurante';
-    const app2=firebase.initializeApp(firebase.app().options,'tmp'+Date.now());
-    const cred=await app2.auth().createUserWithEmailAndPassword(email,password);
-    const uid=cred.user.uid;
-    await app2.auth().signOut(); await app2.delete();
-    const db=firebase.firestore();
-    await db.collection('clients').doc(clientId).update({email:email, updatedAt: firebase.firestore.Timestamp.now()});
-    await db.collection('users').doc(uid).set({email:email, displayName:'Cali Colombian Restaurant', clientId:clientId, role:'owner', createdAt: firebase.firestore.Timestamp.now()});
-    toast('✅ Cuenta creada: '+email);
-  }catch(e){ toast('⚠️ '+e.message,'warn'); }
-}
-
 async function sendPasswordReset(){
   const email=($('fEmail')||{}).value||'';
   if(!email){ toast('⚠️ El cliente no tiene correo','warn'); return; }
@@ -1865,13 +1806,17 @@ function renderAssistants(){
         <div class="vwave">${vwaveHTML()}</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:6px">
-      <div><label class="flabel">Mensaje de bienvenida</label><textarea ${_dis} onchange="upd(${c.id},'greeting',this.value)">${c.greeting}</textarea></div>
-      <div><label class="flabel">Horario de atención</label><input ${_dis} type="text" value="${c.hours}" onchange="upd(${c.id},'hours',this.value)">
+      <div><label class="flabel">Mensaje de bienvenida</label><textarea ${_dis} onchange="upd('${c.id}','greeting',this.value)">${c.greeting||''}</textarea></div>
+      <div><label class="flabel">Horario de atención</label><input ${_dis} type="text" value="${c.hours||''}" onchange="upd('${c.id}','hours',this.value)">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:2px">
-          <div><label class="flabel">Voz</label><select ${_dis} onchange="upd(${c.id},'voice',this.value)">${['Luisa · ES amable','Carlos · ES neutro','Sofía · EN/ES'].map(v=>`<option ${v===c.voice?'selected':''}>${v}</option>`).join('')}</select></div>
-          <div><label class="flabel">Idiomas</label><select ${_dis} onchange="upd(${c.id},'lang',this.value)">${['ES','EN','ES/EN'].map(v=>`<option ${v===c.lang?'selected':''}>${v}</option>`).join('')}</select></div>
+          <div><label class="flabel">Voz</label><select ${_dis} onchange="upd('${c.id}','voice',this.value)">${['Luisa · ES amable','Carlos · ES neutro','Sofía · EN/ES'].map(v=>`<option ${v===c.voice?'selected':''}>${v}</option>`).join('')}</select></div>
+          <div><label class="flabel">Idiomas</label><select ${_dis} onchange="upd('${c.id}','lang',this.value)">${['ES','EN','ES/EN'].map(v=>`<option ${v===c.lang?'selected':''}>${v}</option>`).join('')}</select></div>
         </div>
       </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:10px">
+      <div><label class="flabel">🛎️ Servicios que ofrece</label><textarea ${_dis} rows="3" placeholder="Ej: Pedidos a domicilio, reservas, catering..." onchange="upd('${c.id}','services',this.value)">${c.services||''}</textarea></div>
+      <div><label class="flabel">❓ Preguntas frecuentes</label><textarea ${_dis} rows="3" placeholder="Ej: ¿Tienen parqueadero? ¿Aceptan tarjetas?..." onchange="upd('${c.id}','questions',this.value)">${c.questions||''}</textarea></div>
     </div>
   </div>`).join('');
 }
@@ -1905,7 +1850,18 @@ async function toggleAgent(id,el){
   toast(newStatus==='off'?'⏸ Asistente pausado':'▶ Asistente activado · en línea');
   renderAll();
 }
-function upd(id,k,v){if(!canEdit()){toast('🔒 Tu rol no permite editar','warn');renderAssistants();return;}clients.find(c=>c.id===id)[k]=v;toast('✓ Guardado y publicado');}
+async function upd(id,k,v){
+  if(!canEdit()){toast('🔒 Tu rol no permite editar','warn');renderAssistants();return;}
+  const c=clients.find(x=>String(x.id)===String(id));
+  if(!c) return;
+  c[k]=v;
+  try{
+    if(window.VoxiaDB && VoxiaDB.db){
+      await VoxiaDB.db.collection('clients').doc(String(id)).update({[k]:v});
+    }
+  }catch(e){ console.warn('upd Firebase:', e.message); }
+  toast('✓ Guardado y publicado');
+}
 
 /* ==================== FINANZAS ==================== */
 function clientMinutes(id){return calls.filter(c=>c.c===id).reduce((a,c)=>a+c.min,0)+(id===1?412:id===2?188:id===3?96:40);}
