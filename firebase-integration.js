@@ -122,6 +122,7 @@
      * Al crear un cliente, su asistente se configura automáticamente.
      */
     BIZ_TEMPLATES: {
+      restaurante: {
         nombre: 'Restaurante', icono: '🍽️',
         saludo: '¡Hola! Gracias por llamar a {negocio}. ¿Su pedido es para recoger o delivery?',
         servicios: ['Tomar pedidos', 'Confirmar dirección', 'Tiempos de entrega'],
