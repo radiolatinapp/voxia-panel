@@ -2773,15 +2773,6 @@ function renderAll(){renderDashboard();renderClients();renderCalls();renderAssis
   });
 })();
 initShortcuts();
-// Auto-trigger para crear agentes vía URL ?crear_agentes=1
-if(new URLSearchParams(location.search).get('crear_agentes')){
-  setTimeout(()=>{ 
-    try{ 
-      if(typeof showView==='function') showView('plantillas');
-      setTimeout(()=>{ try{ createAllBizAgents(); }catch(e){ console.warn(e); } }, 1500);
-    }catch(e){ console.warn(e); } 
-  }, 2000);
-}
 </script>
 </body>
 </html>
