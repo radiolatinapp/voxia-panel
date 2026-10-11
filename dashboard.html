@@ -628,7 +628,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="flex:1;min-width:220px">
           <h3 style="margin:0 0 6px;font-size:19px">🎧 Pruébalo en vivo — Habla con tu asistente</h3>
           <p style="margin:0;color:var(--muted);font-size:13.5px">Elige el tipo de negocio y habla como un cliente real.</p>
-          <select id="demoAgentSelect" onchange="switchDemoAgent(this.value)" disabled title="Cargando agentes..." style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
+          <select id="demoAgentSelect" onchange="switchDemoAgent(this.value, this)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
             <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
             <option value="dental" data-biztype="dental">🦷 Clínica Dental</option>
             <option value="taller" data-biztype="taller">🔧 Taller Mecánico</option>
@@ -736,7 +736,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="flex:1;min-width:200px">
           <h3 style="margin:0 0 6px;font-size:20px">🎧 Pruébalo en vivo</h3>
           <p style="margin:0;color:var(--muted);font-size:14px">Elige el tipo de negocio y habla como un cliente real.</p>
-          <select id="demoAgentSelect2" onchange="switchDemoAgent(this.value)" disabled title="Cargando agentes..." style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
+          <select id="demoAgentSelect2" onchange="switchDemoAgent(this.value, this)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
             <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
             <option value="dental" data-biztype="dental">🦷 Clínica Dental</option>
             <option value="taller" data-biztype="taller">🔧 Taller Mecánico</option>
@@ -1765,8 +1765,6 @@ async function loadBizAgentIds(){
               opt.value=bizAgentIds[bizType];
             }
           });
-          sel.disabled=false;
-          sel.title='';
         }
       });
       console.log('✅ IDs de agentes cargados:', Object.keys(bizAgentIds).length);
@@ -1775,18 +1773,27 @@ async function loadBizAgentIds(){
     }
   }catch(e){ console.warn('biz_agents:', e.message); }
 }
-function switchDemoAgent(agentId){
+function switchDemoAgent(agentId, selEl){
+  // Si el valor es un bizType sin ID real cargado, avisar
+  if(agentId && !agentId.startsWith('agent_') && !bizAgentIds[agentId]){
+    toast('⏳ El ID de este agente aún no se ha cargado. Espere unos segundos.','warn');
+    // Volver a la opción del restaurante
+    if(selEl) selEl.value='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev';
+    return;
+  }
+  // Si es bizType con ID cargado, usar el ID real
+  const realId = bizAgentIds[agentId] || agentId;
   const containers=['demoWidgetDash','demoWidget'];
   containers.forEach(id=>{
     const el=document.getElementById(id);
     if(el){
-      el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Asistente hablando..."></elevenlabs-convai>`;
+      el.innerHTML=`<elevenlabs-convai agent-id="${realId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Asistente hablando..."></elevenlabs-convai>`;
     }
   });
   // Sincronizar ambos selectores si existen
   ['demoAgentSelect','demoAgentSelect2'].forEach(selId=>{
     const s=document.getElementById(selId);
-    if(s) s.value=agentId;
+    if(s && s!==selEl) s.value=agentId;
   });
 }
 // Cargar IDs al iniciar (reintenta si VoxiaDB no está listo)
