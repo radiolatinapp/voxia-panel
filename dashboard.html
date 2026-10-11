@@ -2407,7 +2407,7 @@ function toggleIntegration(id){
   if(g.status==='on'){
     // Ir a Configuración donde está el campo de la API key
     if(id==='eleven'||id==='twilio'){
-      showView('config');
+      go('config');
       setTimeout(()=>{
         const target = id==='eleven' ? $('elKey') : $('twSid');
         if(target){ target.scrollIntoView({behavior:'smooth',block:'center'}); target.focus(); }
