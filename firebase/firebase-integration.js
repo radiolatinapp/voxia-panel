@@ -253,6 +253,7 @@
 
       // 3. Crear documentos secuencialmente (no en batch, para mejor manejo de errores)
       // Cliente
+      console.log('Creando cliente:', clientId);
       await db.collection('clients').doc(clientId).set({
         name: clientName,
         email: ownerEmail,
@@ -265,10 +266,12 @@
         createdAt: now,
         createdBy: adminUid,
       });
+      console.log('Cliente creado');
 
       // Plantilla según tipo de negocio + config según plan
       const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
+      console.log('Creando config...');
       await db.collection('clients').doc(clientId).collection('config').doc('settings').set({
         voice: 'sofia',
         // Config automática según el plan elegido
@@ -290,15 +293,16 @@
         turnModel: 'turn_v3',
       });
 
-      // Usuario dueño
-      await db.collection('users').doc(uid).set({
-        email: ownerEmail,
-        displayName: ownerName || clientName,
-        clientId: clientId,
-        role: 'owner',
-        createdAt: now,
-        createdBy: adminUid,
-      });
+      // Usuario dueño - TEMPORALMENTE DESACTIVADO para debug de permisos
+      // await db.collection('users').doc(uid).set({
+      //   email: ownerEmail,
+      //   displayName: ownerName || clientName,
+      //   clientId: clientId,
+      //   role: 'owner',
+      //   createdAt: now,
+      //   createdBy: adminUid,
+      // });
+      console.log('Usuario Auth creado:', uid, '- doc Firestore omitido por debug');
 
       // 4. Registrar actividad (como admin)
       await db.collection('activity').add({
