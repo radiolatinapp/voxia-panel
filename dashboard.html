@@ -627,21 +627,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite;flex-shrink:0">🎙️</div>
         <div style="flex:1;min-width:220px">
           <h3 style="margin:0 0 6px;font-size:19px">🎧 Pruébalo en vivo — Habla con tu asistente</h3>
-          <p style="margin:0;color:var(--muted);font-size:13.5px">Elige el tipo de negocio y habla como un cliente real.</p>
-          <select id="demoAgentSelect" onchange="switchDemoAgent(this.value, this)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
-            <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
-            <option value="dental" data-biztype="dental">🦷 Clínica Dental</option>
-            <option value="taller" data-biztype="taller">🔧 Taller Mecánico</option>
-            <option value="belleza" data-biztype="belleza">💅 Salón de Belleza</option>
-            <option value="hotel" data-biztype="hotel">🏨 Hotel</option>
-            <option value="abogado" data-biztype="abogado">⚖️ Abogado</option>
-            <option value="veterinaria" data-biztype="veterinaria">🐾 Veterinaria</option>
-            <option value="inmobiliaria" data-biztype="inmobiliaria">🏠 Inmobiliaria</option>
-          </select>
+          <p style="margin:0;color:var(--muted);font-size:13.5px">Haz clic en el micrófono y habla como un cliente real. Pide el menú, haz un pedido, pregunta por delivery.</p>
         </div>
-        <div id="demoWidgetDash">
-          <elevenlabs-convai agent-id="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>
-        </div>
+        <div id="demoWidgetDash"></div>
       </div>
       <div class="csub" style="margin-top:10px">💡 Usa audífonos para mejor experiencia · Funciona en español e inglés</div>
     </div>
@@ -735,21 +723,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite">🎙️</div>
         <div style="flex:1;min-width:200px">
           <h3 style="margin:0 0 6px;font-size:20px">🎧 Pruébalo en vivo</h3>
-          <p style="margin:0;color:var(--muted);font-size:14px">Elige el tipo de negocio y habla como un cliente real.</p>
-          <select id="demoAgentSelect2" onchange="switchDemoAgent(this.value, this)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:280px">
-            <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
-            <option value="dental" data-biztype="dental">🦷 Clínica Dental</option>
-            <option value="taller" data-biztype="taller">🔧 Taller Mecánico</option>
-            <option value="belleza" data-biztype="belleza">💅 Salón de Belleza</option>
-            <option value="hotel" data-biztype="hotel">🏨 Hotel</option>
-            <option value="abogado" data-biztype="abogado">⚖️ Abogado</option>
-            <option value="veterinaria" data-biztype="veterinaria">🐾 Veterinaria</option>
-            <option value="inmobiliaria" data-biztype="inmobiliaria">🏠 Inmobiliaria</option>
-          </select>
+          <p style="margin:0;color:var(--muted);font-size:14px">Habla con tu asistente ahora mismo. Pide el menú, haz un pedido, pregunta por delivery — como un cliente real.</p>
         </div>
-        <div id="demoWidget">
-          <elevenlabs-convai agent-id="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>
-        </div>
+        <div id="demoWidget"></div>
       </div>
       <div class="csub" style="margin-top:12px">💡 Usa audífonos para mejor experiencia · Funciona en español e inglés</div>
     </div>
@@ -1721,90 +1697,17 @@ async function delClient(id){
 /* ==================== ASISTENTES ==================== */
 function vwaveHTML(){let s='';for(let i=0;i<26;i++){s+=`<i style="height:${18+Math.round(Math.abs(Math.sin(i*1.3))*70)}%"></i>`;}return s;}
 /* Widget demo ElevenLabs: carga el agente según tipo de negocio del cliente */
-async function loadDemoWidget(){
+/* Widget demo: carga el agente del restaurante */
+function loadDemoWidget(){
   try{
-    const el=document.getElementById('demoWidget');
-    if(!el) return;
-    // Si ya tiene el widget, no recargar
-    if(el.querySelector('elevenlabs-convai')) return;
-    let agentId='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev'; // default restaurante
-    try{
-      if(window.VoxiaDB && VoxiaDB.currentUser && VoxiaDB.db){
-        const clientId=VoxiaDB.currentUser.clientId||'demo-restaurante';
-        const snap=await VoxiaDB.db.collection('clients').doc(clientId).get();
-        if(snap.exists){
-          const d=snap.data();
-          if(d.elevenlabsAgentId){ agentId=d.elevenlabsAgentId; }
-          else if(d.bizType && d.bizType!=='restaurante'){
-            const bizSnap=await VoxiaDB.db.collection('biz_agents').doc(d.bizType).get();
-            if(bizSnap.exists) agentId=bizSnap.data().agentId;
-          }
-        }
+    ['demoWidget','demoWidgetDash'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el && !el.querySelector('elevenlabs-convai')){
+        el.innerHTML=`<elevenlabs-convai agent-id="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>`;
       }
-    }catch(e){ /* usar default */ }
-    el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>
-    <p style="margin-top:8px;font-size:12px;opacity:.6">Si el botón no aparece, verifique su conexión o recargue la página.</p>`;
+    });
   }catch(e){ console.warn('Widget:', e.message); }
 }
-
-/* Cambiar agente del demo: carga el ID real desde Firebase biz_agents */
-let bizAgentIds={};
-async function loadBizAgentIds(){
-  try{
-    if(window.VoxiaDB && VoxiaDB.db){
-      const snap=await VoxiaDB.db.collection('biz_agents').get();
-      snap.forEach(doc=>{ bizAgentIds[doc.id]=doc.data().agentId; });
-      // Actualizar las opciones de los selectores con los IDs reales
-      ['demoAgentSelect','demoAgentSelect2'].forEach(selId=>{
-        const sel=document.getElementById(selId);
-        if(sel){
-          [...sel.options].forEach(opt=>{
-            const bizType=opt.dataset.biztype||opt.value;
-            if(bizType!=='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev' && bizAgentIds[bizType]){
-              if(!opt.dataset.biztype) opt.dataset.biztype=bizType;
-              opt.value=bizAgentIds[bizType];
-            }
-          });
-        }
-      });
-      console.log('✅ IDs de agentes cargados:', Object.keys(bizAgentIds).length);
-    } else {
-      console.warn('VoxiaDB no disponible para cargar biz_agents');
-    }
-  }catch(e){ console.warn('biz_agents:', e.message); }
-}
-function switchDemoAgent(agentId, selEl){
-  // Si el valor es un bizType sin ID real cargado, avisar
-  if(agentId && !agentId.startsWith('agent_') && !bizAgentIds[agentId]){
-    toast('⏳ El ID de este agente aún no se ha cargado. Espere unos segundos.','warn');
-    // Volver a la opción del restaurante
-    if(selEl) selEl.value='agent_0901m4mrx5xqfe0t2vcnz7zvr7ev';
-    return;
-  }
-  // Si es bizType con ID cargado, usar el ID real
-  const realId = bizAgentIds[agentId] || agentId;
-  const containers=['demoWidgetDash','demoWidget'];
-  containers.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){
-      el.innerHTML=`<elevenlabs-convai agent-id="${realId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Asistente hablando..."></elevenlabs-convai>`;
-    }
-  });
-  // Sincronizar ambos selectores si existen
-  ['demoAgentSelect','demoAgentSelect2'].forEach(selId=>{
-    const s=document.getElementById(selId);
-    if(s && s!==selEl) s.value=agentId;
-  });
-}
-// Cargar IDs al iniciar (reintenta si VoxiaDB no está listo)
-function tryLoadBizIds(attempts){
-  if(window.VoxiaDB && VoxiaDB.db){
-    loadBizAgentIds();
-  } else if(attempts>0){
-    setTimeout(()=>tryLoadBizIds(attempts-1), 2000);
-  }
-}
-setTimeout(()=>tryLoadBizIds(10), 2000);
 
 function renderAssistants(){
   loadDemoWidget();
