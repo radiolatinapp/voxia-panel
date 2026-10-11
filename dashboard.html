@@ -613,6 +613,11 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       </div>
     </div>
     <div class="stats" id="dashStats"></div>
+    <!-- Medidor de minutos: admin ve todo, cliente solo su consumo -->
+    <div class="card" id="minutesMeter" style="margin-bottom:18px;display:none">
+      <h3>⏱️ Consumo de minutos <span class="tag" id="minutesPeriod"></span></h3>
+      <div id="minutesContent"></div>
+    </div>
     <div class="grid2">
       <div class="card">
         <h3>Llamadas atendidas <span class="tag">14 días</span></h3>
@@ -1164,34 +1169,10 @@ async function loadClientsFromFirebase(){
   clientsLoading = false;
   try { renderClients(); } catch(e) {}
 }
-/* Datos de ejemplo ELIMINADOS — ahora todo es real desde Firebase. */
-let calls = [
-  {id:101, d:'2026-10-11 02:41 PM', c:1, min:2.4, lang:'ES', order:'Bandeja paisa ×2', res:'ok', cost:0.22, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant. ¿Su pedido es para recoger o delivery?'],['cl','Para recoger, por favor. Quiero dos bandejas paisas.'],['ia','Perfecto, dos bandejas paisas para recoger. Serían $39.98. ¿Algo más?'],['cl','No, eso es todo.'],['ia','Listo, su pedido estará en 20 minutos a nombre de… ¿me confirma su nombre?']]},
-  {id:102, d:'2026-10-11 02:18 PM', c:1, min:1.8, lang:'EN', order:'Chicken tacos ×3', res:'ok', cost:0.16, tr:[['ia','Hello! Thanks for calling Cali Colombian Restaurant. Pickup or delivery?'],['cl','Pickup. Three chicken tacos please.'],['ia','Three chicken tacos for pickup, $8.97. Anything else?'],['cl','That is all.']]},
-  {id:103, d:'2026-10-11 01:52 PM', c:2, min:3.1, lang:'ES', order:'Ajiaco ×1, jugo ×2', res:'ok', cost:0.28, tr:[['ia','¡Hola! Bienvenido a Sabor Paisa. ¿En qué le puedo ayudar?'],['cl','¿Tienen ajiaco hoy?'],['ia','Sí, tenemos ajiaco a $15.95. ¿Le anoto uno?'],['cl','Sí, y dos jugos de mango.'],['ia','Anotado: un ajiaco y dos jugos de mango, $20.95. ¿Para recoger?']]},
-  {id:104, d:'2026-10-11 01:20 PM', c:1, min:0.9, lang:'ES', order:'—', res:'miss', cost:0.08, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant.'],['cl','Aló… aló…'],['ia','¿Me escucha? ¿Desea hacer un pedido?']]},
-  {id:105, d:'2026-10-11 12:44 PM', c:3, min:2.2, lang:'ES', order:'Sancocho ×2', res:'ok', cost:0.20, tr:[['ia','Gracias por llamar a La Caleñita. ¿En español o English?'],['cl','Español. Dos sancochos de gallina.'],['ia','Dos sancochos, $35.90. ¿Recoger o domicilio?']]},
-  {id:106, d:'2026-10-11 12:05 PM', c:1, min:2.7, lang:'ES', order:'Picada ×1, Pony Malta ×2', res:'ok', cost:0.24, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant.'],['cl','Una picada y dos Pony Malta.'],['ia','Picada $20.99 y dos Pony Malta $5.98. Total $26.97.']]},
-  {id:107, d:'2026-10-11 11:31 AM', c:2, min:1.5, lang:'ES', order:'Empanadas ×6', res:'ok', cost:0.14, tr:[['ia','¡Hola! Bienvenido a Sabor Paisa.'],['cl','Seis empanadas de carne.'],['ia','Seis empanadas, $10.80. ¿Algo de tomar?']]},
-  {id:108, d:'2026-10-10 08:12 PM', c:1, min:3.4, lang:'EN', order:'Bandeja paisa ×1, flan ×1', res:'ok', cost:0.31, tr:[['ia','Hello! Thanks for calling Cali Colombian Restaurant.'],['cl','One bandeja paisa and one flan, please.'],['ia','Bandeja paisa and flan, $24.98. Pickup or delivery?']]},
-  {id:109, d:'2026-10-10 07:48 PM', c:3, min:2.0, lang:'ES', order:'Arroz con pollo ×2', res:'ok', cost:0.18, tr:[['ia','Gracias por llamar a La Caleñita.'],['cl','Dos arroz con pollo para llevar.'],['ia','Dos arroz con pollo, $31.98. Listo en 15 minutos.']]},
-  {id:110, d:'2026-10-10 07:02 PM', c:1, min:1.2, lang:'ES', order:'—', res:'miss', cost:0.11, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant.'],['cl','¿A qué hora cierran?'],['ia','Cerramos a las 11:00 PM. ¿Le ayudo con un pedido?']]},
-];
-/* Normaliza costos desde la tarifa única RATE: min × (Twilio $0.0085 + ElevenLabs $0.08) */
-calls.forEach(c=>{c.cost=+(c.min*RATE).toFixed(2);});
-let invoices = [
-  {id:'INV-2026-1042', c:1, period:'Octubre 2026', amount:249, due:'2026-11-01', status:'pending', lines:[['Plan Pro · Asistente de voz IA','249.00'],['Minutos incluidos (2,000)','—'],['Minutos extra (0)','0.00']]},
-  {id:'INV-2026-1041', c:2, period:'Octubre 2026', amount:149, due:'2026-11-01', status:'pending', lines:[['Plan Básico · Asistente de voz IA','149.00'],['Minutos incluidos (1,000)','—']]},
-  {id:'INV-2026-1040', c:3, period:'Octubre 2026', amount:0, due:'2026-10-20', status:'trial', lines:[['Período de prueba · 14 días','0.00']]},
-  {id:'INV-2026-1035', c:1, period:'Septiembre 2026', amount:249, due:'2026-10-01', status:'paid', lines:[['Plan Pro · Asistente de voz IA','249.00']]},
-  {id:'INV-2026-1034', c:2, period:'Septiembre 2026', amount:149, due:'2026-10-01', status:'paid', lines:[['Plan Básico · Asistente de voz IA','149.00']]},
-  {id:'INV-2026-1028', c:4, period:'Agosto 2026', amount:149, due:'2026-09-01', status:'overdue', lines:[['Plan Básico · Asistente de voz IA','149.00']]},
-];
-let notifs = [
-  {i:'🎉', t:'Nuevo cliente en prueba', d:'La Caleñita activó su asistente bilingüe.', tm:'hace 2 h'},
-  {i:'💰', t:'Factura pagada', d:'Cali Colombian Restaurant pagó INV-2026-1035 ($249).', tm:'ayer'},
-  {i:'⚠️', t:'Factura vencida', d:'El Buen Gusto tiene INV-2026-1028 vencida ($149).', tm:'hace 3 días'},
-];
+/* Datos reales desde Firebase — sin ejemplos falsos. */
+let calls = [];
+let invoices = [];
+let notifs = [];
 
 /* ==================== UTILS ==================== */
 const $ = id => document.getElementById(id);
@@ -1238,9 +1219,94 @@ $('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');
 /* notificaciones */
 $('notifBtn').onclick=e=>{e.stopPropagation();$('notifDD').classList.toggle('open');};
 document.addEventListener('click',e=>{ if(!$('notifDD').contains(e.target)) $('notifDD').classList.remove('open'); if(!$('userDD').contains(e.target)) $('userDD').classList.remove('open'); });
+/* Alertas en tiempo real desde Firebase */
+let firebaseAlerts = [];
 function renderNotifs(){
-  $('notifList').innerHTML=notifs.map(n=>`<div class="notif"><div class="ni" style="background:rgba(255,158,46,.1)">${n.i}</div>
-    <div><div class="nt">${n.t}</div><div class="nd">${n.d}</div><div class="ntm">${n.tm}</div></div></div>`).join('');
+  const list = firebaseAlerts.length ? firebaseAlerts : notifs;
+  $('notifList').innerHTML = list.map(n=>{
+    const icon = n.tipo==='warning'?'⚠️':n.tipo==='urgent'?'🔴':n.tipo==='overage'?'💰':'🔔';
+    const titulo = n.titulo || n.t;
+    const msg = n.mensaje || n.d;
+    const tiempo = n.creada ? new Date(n.creada.seconds*1000).toLocaleString() : (n.tm||'');
+    return `<div class="notif"><div class="ni" style="background:rgba(255,158,46,.1)">${n.i||icon}</div>
+      <div><div class="nt">${titulo}</div><div class="nd">${msg}</div><div class="ntm">${tiempo}</div></div></div>`;
+  }).join('') || '<div class="notif"><div class="nd">Sin notificaciones</div></div>';
+}
+
+/* Conectar campana a Firebase (llamar después del login) */
+function connectAlerts(){
+  if(typeof VoxiaDB==='undefined'||!VoxiaDB.clientId) return;
+  const esAdmin = VoxiaDB.userData?.role==='superadmin';
+  const unsub = esAdmin ? VoxiaDB.onAdminAlerts(alerts=>{
+    firebaseAlerts = alerts;
+    renderNotifs(); renderNotifCenter(); updateNotifBadge();
+  }) : VoxiaDB.onAlerts(alerts=>{
+    firebaseAlerts = alerts;
+    renderNotifs(); renderNotifCenter(); updateNotifBadge();
+  });
+  return unsub;
+}
+
+/* MEDIDOR DE MINUTOS
+ * Admin: ve minutos, costo, extra y total por cliente.
+ * Cliente: solo ve sus minutos consumidos.
+ */
+async function renderMinutesMeter(){
+  const el = $('minutesMeter');
+  if(!el || typeof VoxiaDB==='undefined' || !VoxiaDB.clientId) { if(el) el.style.display='none'; return; }
+  const esAdmin = VoxiaDB.userData?.role==='superadmin';
+
+  if(esAdmin){
+    // Admin: resumen de todos los clientes
+    el.style.display='block';
+    $('minutesPeriod').textContent = new Date().toISOString().slice(0,7);
+    let rows = '';
+    for(const c of clients){
+      const plan = (VoxiaDB.PLANS||{})[(c.plan||'basico').toLowerCase()] || {minutos:1000, precio:149};
+      // Uso real desde Firebase si está disponible
+      let usado = 0, costoExtra = 0;
+      try{
+        const u = await VoxiaDB.getUsageFor(c.id);
+        if(u){ usado = u.usado; costoExtra = u.costoExtra; }
+      }catch(e){}
+      const pct = Math.min(100, Math.round(usado/plan.minutos*100));
+      const color = pct>=95?'#ef4444':pct>=80?'#f59e0b':'#34d399';
+      rows += `<div style="margin:10px 0;padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <strong>${c.name||c.id}</strong>
+          <span>${Math.round(usado)} / ${plan.minutos} min</span>
+        </div>
+        <div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};transition:width .5s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:#888">
+          <span>Plan: $${plan.precio}/mes</span>
+          <span>Extra: $${costoExtra.toFixed(2)}</span>
+          <span><strong>Total: $${(plan.precio+costoExtra).toFixed(2)}</strong></span>
+        </div>
+      </div>`;
+    }
+    $('minutesContent').innerHTML = rows || '<p>Sin clientes aún.</p>';
+  } else {
+    // Cliente: solo sus minutos
+    try{
+      const u = await VoxiaDB.getUsage();
+      if(!u){ el.style.display='none'; return; }
+      el.style.display='block';
+      $('minutesPeriod').textContent = u.periodo;
+      const pct = Math.min(100, u.porcentaje);
+      const color = pct>=95?'#ef4444':pct>=80?'#f59e0b':'#34d399';
+      $('minutesContent').innerHTML = `
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span>Minutos usados este mes</span>
+          <strong>${u.usado} / ${u.limite}</strong>
+        </div>
+        <div style="height:12px;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};transition:width .5s"></div>
+        </div>
+        <div style="margin-top:8px;font-size:13px;color:#888">Te quedan ${u.disponible} minutos</div>`;
+    }catch(e){ el.style.display='none'; }
+  }
 }
 /* búsqueda global */
 function globalGo(){
@@ -1339,15 +1405,15 @@ function sparkSVG(vals,color){
   return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/></svg>`;
 }
 function renderDashboard(anim=true){
-  const totCalls=1247+calls.length;
-  const mins=calls.reduce((a,c)=>a+c.min,0)+2318;
+  const totCalls=calls.length;
+  const mins=calls.reduce((a,c)=>a+(c.min||0),0);
   const act=clients.filter(c=>c.status!=='off');
-  const mrr=act.reduce((a,c)=>a+c.monthly,0);
+  const mrr=act.reduce((a,c)=>a+(c.monthly||0),0);
   const cards=[
-    {l:'Llamadas · 30 días', v:totCalls, d:'▲ 18% vs anterior', c:'up', ic:'📞', bg:'rgba(255,158,46,.12)', sp:[12,18,15,22,19,26,24], sc:'#ffa02e'},
-    {l:'Minutos de voz', v:Math.round(mins), d:'≈ $'+(mins*RATE).toFixed(2)+' · ▲ 12% vs anterior', c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[8,11,9,14,12,16,15], sc:'#9d8fff'},
-    {l:'Clientes activos', v:act.length, d:'+2 este mes', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[1,1,2,2,3,3,4], sc:'#34d399'},
-    {l:'Ingresos mensuales', v:mrr, d:'▲ 24% vs anterior', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[320,380,410,470,540,610,mrr], sc:'#38d6f5', pre:'$'},
+    {l:'Llamadas · 30 días', v:totCalls, d:totCalls?'':'Sin llamadas aún', c:'up', ic:'📞', bg:'rgba(255,158,46,.12)', sp:[0,0,0,0,0,0,0], sc:'#ffa02e'},
+    {l:'Minutos de voz', v:Math.round(mins), d:'≈ $'+(mins*RATE).toFixed(2), c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[0,0,0,0,0,0,0], sc:'#9d8fff'},
+    {l:'Clientes activos', v:act.length, d:act.length?'':'Sin clientes aún', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'},
+    {l:'Ingresos mensuales', v:mrr, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'},
   ];
   $('dashStats').innerHTML=cards.map((k,i)=>`
     <div class="stat"><div class="top"><div class="label">${k.l}</div><div class="sic" style="background:${k.bg}">${k.ic}</div></div>
