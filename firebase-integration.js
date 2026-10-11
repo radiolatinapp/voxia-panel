@@ -524,6 +524,40 @@
     },
 
     /**
+     * Actualiza un cliente en Firebase
+     */
+    async updateClient(clientId, data) {
+      if (!this.user) throw new Error('Sin sesión');
+      const esAdmin = this.userData?.role === 'superadmin';
+      const esPropio = this.clientId === clientId;
+      if (!esAdmin && !esPropio) throw new Error('Sin permiso');
+      await db.collection('clients').doc(clientId).update({
+        ...data,
+        updatedAt: firebase.firestore.Timestamp.now(),
+      });
+      // Recargar datos locales
+      if (esPropio || esAdmin) {
+        await this.loadClients();
+      }
+    },
+
+    /**
+     * Elimina un cliente de Firebase (solo superadmin)
+     */
+    async deleteClient(clientId) {
+      if (!this.user) throw new Error('Sin sesión');
+      if (this.userData?.role !== 'superadmin') throw new Error('Solo el admin puede eliminar');
+      // Eliminar config primero
+      const configDocs = await db.collection('clients').doc(clientId)
+        .collection('config').get();
+      const batch = db.batch();
+      configDocs.forEach(d => batch.delete(d.ref));
+      batch.delete(db.collection('clients').doc(clientId));
+      await batch.commit();
+      await this.loadClients();
+    },
+
+    /**
      * Obtiene el uso actual del período (cliente actual)
      */
     async getUsage() {
