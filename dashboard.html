@@ -649,7 +649,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <div class="grid2">
       <div class="card">
         <h3>Llamadas atendidas <span class="tag">14 días</span></h3>
-        <div class="csub">Volumen diario gestionado por tus asistentes</div>
+        <div class="csub" id="callsChartSub">Volumen diario gestionado por tus asistentes</div>
         <div id="chartBars" style="position:relative"></div>
         <div class="legend"><span><span class="dot" style="background:linear-gradient(135deg,#ffb03a,#ff6b35)"></span>Llamadas totales</span>
         <span><span class="dot" style="background:#7c6cff"></span>Pedidos tomados</span></div>
@@ -664,12 +664,12 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       </div>
     </div>
     <div class="grid2">
-      <div class="card">
-        <h3>Tendencia de ingresos <span class="tag">MRR</span></h3>
-        <div class="csub">Ingreso mensual recurrente, últimos 6 meses</div>
+      <div class="card" id="revTrendCard">
+        <h3 id="revTrendTitle">Tendencia de ingresos <span class="tag">MRR</span></h3>
+        <div class="csub" id="revTrendSub">Ingreso mensual recurrente, últimos 6 meses</div>
         <div id="chartLine"></div>
       </div>
-      <div class="card">
+      <div class="card" id="agentStatusCard">
         <h3>Estado de los asistentes <span class="tag" id="agentsOnlineTag">—</span></h3>
         <div class="csub">Salud operativa de cada voz desplegada</div>
         <div id="agentStatus"></div>
@@ -678,8 +678,8 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
     <div class="card">
       <h3>Últimas llamadas</h3>
-      <div class="csub">Actividad más reciente de tus asistentes</div>
-      <div class="tbl-wrap"><table><thead><tr><th></th><th>Hora</th><th>Negocio</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th>Costo</th><th></th></tr></thead>
+      <div class="csub" id="recentCallsSub">Actividad más reciente de tus asistentes</div>
+      <div class="tbl-wrap"><table><thead id="recentCallsHead"><tr><th></th><th>Hora</th><th>Negocio</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th>Costo</th><th></th></tr></thead>
       <tbody id="recentCalls"></tbody></table></div>
     </div>
   </section>
@@ -1696,10 +1696,30 @@ function renderDashboard(anim=true){
     <div class="stat"><div class="top"><div class="label">${k.l}</div><div class="sic" style="background:${k.bg}">${k.ic}</div></div>
     <div class="num" id="dstat${i}">0</div><div class="delta ${k.c}">${k.d}</div>${sparkSVG(k.sp,k.sc)}</div>`).join('');
   cards.forEach((k,i)=>countUp($('dstat'+i),k.v,{pre:k.pre||''}));
-  /* barras 14 días */
-  const days=['28','29','30','1','2','3','4','5','6','7','8','9','10','11'];
-  const bdata=[42,55,48,61,73,88,95,52,58,66,71,80,92,67].map(v=>({total:v,orders:Math.round(v*0.82)}));
+  /* Ajustes visuales segun rol */
+  const isOwner=me&&me.role==='owner';
+  if($('callsChartSub'))$('callsChartSub').textContent=isOwner?'Volumen diario gestionado por tu asistente':'Volumen diario gestionado por tus asistentes';
+  if($('recentCallsSub'))$('recentCallsSub').textContent=isOwner?'Actividad mas reciente de tu asistente':'Actividad más reciente de tus asistentes';
+  if($('agentStatusCard'))$('agentStatusCard').style.display=isOwner?'none':'';
+  // Tendencia: cliente ve sus ventas, admin ve MRR
+  if(isOwner){
+    if($('revTrendTitle'))$('revTrendTitle').innerHTML='Tendencia de ventas <span class="tag">Pedidos</span>';
+    if($('revTrendSub'))$('revTrendSub').textContent='Ventas por pedidos, ultimos 30 dias';
+  }
+  /* barras 14 días - datos reales */
+  const days=[];const bdata=[];
+  for(let d=13;d>=0;d--){const dt=new Date();dt.setDate(dt.getDate()-d);days.push(dt.getDate().toString());
+    const dayCalls=calls.filter(c=>{if(!c.ts)return false;const cd=new Date(c.ts);return cd.toDateString()===dt.toDateString();});
+    const dayOrders=clientOrders.filter(o=>{if(!o.createdAt)return false;const od=o.createdAt.toDate?o.createdAt.toDate():new Date(o.createdAt);return od.toDateString()===dt.toDateString();});
+    bdata.push({total:dayCalls.length,orders:dayOrders.length});}
   barChart($('chartBars'),bdata,days);
+  // Linea de tendencia: ventas reales para cliente
+  if(isOwner&&typeof lineChart==='function'){
+    const sales=[];for(let d=29;d>=0;d--){const dt=new Date();dt.setDate(dt.getDate()-d);
+      const s=clientOrders.filter(o=>o.status==='completed'&&o.createdAt&&(o.createdAt.toDate?o.createdAt.toDate():new Date(o.createdAt)).toDateString()===dt.toDateString()).reduce((a,o)=>a+(o.total||0),0);
+      sales.push(s);}
+    lineChart($('chartLine'),sales,'#38d6f5');
+  }
   /* dona idiomas */
   const es=calls.filter(c=>c.lang==='ES').length, en=calls.filter(c=>c.lang==='EN').length;
   donutChart($('chartDonut'),[{v:es,c:'#ffa02e'},{v:en,c:'#7c6cff'}]);
@@ -1717,13 +1737,15 @@ function renderDashboard(anim=true){
   $('agentStatus').innerHTML=clients.map(c=>`
     <div class="kpi-row"><span style="display:flex;align-items:center;gap:10px">${cavatar(c.name,32)}<span><b>${c.name}</b><br><span style="font-size:11.5px;color:var(--muted)">${c.voice}</span></span></span>
     ${c.status==='off'?'<span class="badge b-off">Pausado</span>':'<span class="badge b-act"><span class="pdot"></span>En línea</span>'}</div>`).join('');
-  /* recientes con mini player */
+  /* recientes con mini player - cliente no ve Negocio ni Costo */
+  const hideCols=me&&me.role==='owner';
+  if(hideCols&&$('recentCallsHead'))$('recentCallsHead').innerHTML='<tr><th></th><th>Hora</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th></th></tr>';
   $('recentCalls').innerHTML=calls.slice(0,5).map(c=>`
     <tr>
-      <td>${cavatar(cname(c.c),34)}</td><td class="mono">${c.d.slice(11)}</td><td class="cell-main">${cname(c.c)}</td>
-      <td class="mono">${c.min.toFixed(1)} min <span style="color:var(--muted)">· ${money(c.min*RATE)}</span></td><td>${c.lang==='ES'?'🇪🇸':'🇺🇸'}</td>
+      <td>${cavatar(cname(c.c),34)}</td><td class="mono">${c.d.slice(11)}</td>${hideCols?'':`<td class="cell-main">${cname(c.c)}</td>`}
+      <td class="mono">${c.min.toFixed(1)} min ${hideCols?'':`<span style="color:var(--muted)">· ${money(c.min*RATE)}</span>`}</td><td>${c.lang==='ES'?'🇪🇸':'🇺🇸'}</td>
       <td>${c.res==='ok'?'<span class="badge b-ok">Pedido</span>':'<span class="badge b-miss">Sin pedido</span>'}</td>
-      <td class="mono">${money(c.min*RATE)}</td>
+      ${hideCols?'':`<td class="mono">${money(c.min*RATE)}</td>`}
       <td><button class="btn btn-ghost btn-sm" onclick="toggleRow(${c.id},this)">▶ Escuchar</button></td>
     </tr>
     <tr id="row-${c.id}" style="display:none"><td colspan="8" style="padding:0 12px 14px"><div class="call-detail" id="det-${c.id}"></div></td></tr>`).join('');
