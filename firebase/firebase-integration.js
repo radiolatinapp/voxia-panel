@@ -200,27 +200,78 @@
       },
     },
     PLANS: {
+      // Planes Estados Unidos (USD)
+      US: {
+        basico: {
+          nombre: 'Básico', precio: 149, moneda: 'USD', minutos: 1000,
+          idiomas: 2, idiomasLista: ['es', 'en'],
+          menuIlimitado: true, ubicaciones: 1,
+          whatsapp: false, gcalendar: false,
+          soporte: 'prioritario',
+        },
+        pro: {
+          nombre: 'Pro', precio: 249, moneda: 'USD', minutos: 2000,
+          idiomas: 2, idiomasLista: ['es', 'en'],
+          menuIlimitado: true, ubicaciones: 1,
+          whatsapp: true, gcalendar: false,
+          soporte: 'prioritario',
+        },
+        premium: {
+          nombre: 'Premium', precio: 399, moneda: 'USD', minutos: 5000,
+          idiomas: 3, idiomasLista: ['es', 'en', 'pt'],
+          menuIlimitado: true, ubicaciones: 3,
+          whatsapp: true, gcalendar: true,
+          soporte: 'prioritario',
+        },
+      },
+      // Planes Colombia (COP) - solo Básico y Pro
+      CO: {
+        basico: {
+          nombre: 'Básico', precio: 400000, moneda: 'COP', minutos: 500,
+          idiomas: 2, idiomasLista: ['es', 'en'],
+          menuIlimitado: true, ubicaciones: 1,
+          whatsapp: false, gcalendar: false,
+          soporte: 'prioritario',
+        },
+        pro: {
+          nombre: 'Pro', precio: 400000, moneda: 'COP', minutos: 800,
+          idiomas: 2, idiomasLista: ['es', 'en'],
+          menuIlimitado: true, ubicaciones: 1,
+          whatsapp: true, gcalendar: false,
+          soporte: 'prioritario',
+        },
+      },
+      // Compatibilidad: acceso directo (US por defecto)
       basico: {
-        nombre: 'Básico', precio: 149, minutos: 1000,
+        nombre: 'Básico', precio: 149, moneda: 'USD', minutos: 1000,
         idiomas: 2, idiomasLista: ['es', 'en'],
         menuIlimitado: true, ubicaciones: 1,
         whatsapp: false, gcalendar: false,
         soporte: 'prioritario',
       },
       pro: {
-        nombre: 'Pro', precio: 249, minutos: 2000,
+        nombre: 'Pro', precio: 249, moneda: 'USD', minutos: 2000,
         idiomas: 2, idiomasLista: ['es', 'en'],
         menuIlimitado: true, ubicaciones: 1,
         whatsapp: true, gcalendar: false,
         soporte: 'prioritario',
       },
       premium: {
-        nombre: 'Premium', precio: 399, minutos: 5000,
+        nombre: 'Premium', precio: 399, moneda: 'USD', minutos: 5000,
         idiomas: 3, idiomasLista: ['es', 'en', 'pt'],
         menuIlimitado: true, ubicaciones: 3,
         whatsapp: true, gcalendar: true,
         soporte: 'prioritario',
       },
+    },
+
+    /**
+     * Obtiene la configuración de un plan según país.
+     */
+    getPlan(planKey, country) {
+      const c = (country === 'CO') ? 'CO' : 'US';
+      return (this.PLAN_CFG.PLANS[c] && this.PLAN_CFG.PLANS[c][planKey])
+        || this.PLAN_CFG.PLANS[planKey];
     },
 
     /**
