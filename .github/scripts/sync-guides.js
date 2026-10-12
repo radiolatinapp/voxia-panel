@@ -13,6 +13,7 @@
 const admin = require('firebase-admin');
 
 // Extrae información de pedido del transcript de una conversación
+// VERSIÓN CONSERVADORA: solo crea pedido si hay confirmación explícita
 function extractOrderFromTranscript(transcript, agentId) {
   if (!transcript) return null;
   const text = transcript.toLowerCase();
@@ -21,6 +22,14 @@ function extractOrderFromTranscript(transcript, agentId) {
   const orderKeywords = ['pedido', 'orden', 'quiero pedir', 'voy a querer', 'me trae', 'para llevar', 'domicilio'];
   const hasOrder = orderKeywords.some(k => text.includes(k));
   if (!hasOrder) return null;
+  
+  // REQUERIR confirmación explícita del pedido (no solo mención de precios)
+  const confirmKeywords = ['confirmado', 'confirmo', 'listo el pedido', 'queda registrado', 'anotado', 'total sería', 'su total es', 'van a ser'];
+  const hasConfirmation = confirmKeywords.some(k => text.includes(k));
+  if (!hasConfirmation) {
+    console.log(`⚠️ Posible pedido sin confirmación explícita, se omite (agent ${agentId})`);
+    return null;
+  }
   
   // Extraer total (buscar patrones como $18.99, 18.99, total 25)
   let total = 0;
@@ -168,12 +177,24 @@ async function main() {
       const agentsData = await agentsRes.json();
       const agents = agentsData.agents || [];
       
-      // Mapear agentId -> clientId
+      // Mapear agentId -> clientId (con detección de duplicados)
       const agentToClient = {};
+      const duplicateAgents = [];
       const clientsSnap2 = await db.collection('clients').get();
       clientsSnap2.forEach(d => {
-        if (d.data().elevenlabsAgentId) agentToClient[d.data().elevenlabsAgentId] = d.id;
+        const aid = d.data().elevenlabsAgentId;
+        if (aid) {
+          if (agentToClient[aid]) {
+            duplicateAgents.push(aid);
+            console.error(`🚨 AGENTE DUPLICADO: ${aid} asignado a ${agentToClient[aid]} y ${d.id}. Se omite para evitar contaminación cruzada.`);
+          } else {
+            agentToClient[aid] = d.id;
+          }
+        }
       });
+      if (duplicateAgents.length > 0) {
+        console.error(`🚨 ${duplicateAgents.length} agente(s) duplicado(s) detectado(s). Revisar asignación manualmente.`);
+      }
       
       for (const agent of agents) {
         const clientId = agentToClient[agent.agent_id];
@@ -189,7 +210,15 @@ async function main() {
         const convosData = await convosRes.json();
         const conversations = convosData.conversations || [];
         
-        for (const convo of conversations) {
+        // Filtrar por últimas 24 horas
+        const now = Date.now();
+        const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+        const recentConversations = conversations.filter(c => {
+          const convoTime = new Date(c.start_time || c.created_at).getTime();
+          return convoTime >= twentyFourHoursAgo;
+        });
+        
+        for (const convo of recentConversations) {
           // Verificar si ya procesamos esta conversación
           const existing = await db.collection('clients').doc(clientId)
             .collection('orders')
@@ -216,7 +245,7 @@ async function main() {
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
               createdBy: 'sistema (auto)'
             });
-            console.log(`🛒 Pedido auto: ${order.customer} $${order.total} (${clientId})`);
+            console.log(`🛒 Pedido auto registrado (${clientId})`);
             ordersFound++;
           }
         }
