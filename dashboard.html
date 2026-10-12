@@ -1071,11 +1071,11 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <h3>🔑 Cambiar contraseña</h3>
         <div class="csub">Mínimo 6 caracteres</div>
         <label class="flabel">Contraseña actual</label>
-        <div style="position:relative"><input type="password" id="pwCur" style="width:100%;padding:11px 40px 11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"><span onclick="togglePw('pwCur',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px">👁️</span></div>
+        <div style="display:flex;gap:8px;align-items:center"><input type="password" id="pwCur" style="flex:1;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"><button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('pwCur',this)" title="Ver/ocultar">👁️</button></div>
         <label class="flabel">Nueva contraseña</label>
-        <div style="position:relative"><input type="password" id="pwNew" style="width:100%;padding:11px 40px 11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"><span onclick="togglePw('pwNew',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px">👁️</span></div>
+        <div style="display:flex;gap:8px;align-items:center"><input type="password" id="pwNew" style="flex:1;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"><button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('pwNew',this)" title="Ver/ocultar">👁️</button></div>
         <label class="flabel">Confirmar nueva contraseña</label>
-        <div style="position:relative"><input type="password" id="pwNew2" style="width:100%;padding:11px 40px 11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;margin-bottom:18px;font-family:var(--font)"><span onclick="togglePw('pwNew2',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px">👁️</span></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:18px"><input type="password" id="pwNew2" style="flex:1;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"><button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('pwNew2',this)" title="Ver/ocultar">👁️</button></div>
         <button class="btn btn-primary" onclick="changeMyPw()" style="width:100%">🔑 Cambiar mi contraseña</button>
       </div>
       <div class="card" style="margin-top:20px">
@@ -1347,6 +1347,7 @@ function togglePw(id,el){
   const inp=$(id);
   if(inp.type==='password'){inp.type='text';el.textContent='🙈';}
   else{inp.type='password';el.textContent='👁️';}
+  inp.focus();
 }
 function openProfile(){
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
