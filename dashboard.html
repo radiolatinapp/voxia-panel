@@ -1070,6 +1070,18 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div class="set-row" style="margin-top:18px"><div><div class="st">Sesión</div><div class="sd">Tu sesión se recuerda en este navegador</div></div>
           <button class="btn btn-ghost btn-sm" onclick="logout()">Cerrar sesión</button></div>
       </div>
+      <div class="card">
+        <h3>📋 Mi plan</h3>
+        <div class="csub">Lo que adquiriste en Voxia</div>
+        <div id="myPlanInfo" style="margin-top:12px">
+          <div class="set-row"><div><div class="st">Plan</div><div class="sd" id="mpPlan">–</div></div></div>
+          <div class="set-row"><div><div class="st">Modelo</div><div class="sd" id="mpModel">–</div></div></div>
+          <div class="set-row"><div><div class="st">Mensualidad</div><div class="sd" id="mpMonthly">–</div></div></div>
+          <div class="set-row"><div><div class="st">Instalación</div><div class="sd" id="mpInstall">–</div></div></div>
+          <div class="set-row"><div><div class="st">País</div><div class="sd" id="mpCountry">–</div></div></div>
+          <div class="set-row"><div><div class="st">Estado</div><div class="sd" id="mpStatus">–</div></div></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -2401,12 +2413,30 @@ function saveNewPw(){
 }
 
 /* ---------- mi perfil ---------- */
+async function loadMyPlan(){
+  try{
+    if(!VoxiaDB || !VoxiaDB.clientId) return;
+    const c = await VoxiaDB.getClient(VoxiaDB.clientId);
+    if(!c) return;
+    const planNames={basico:'Básico',pro:'Pro',premium:'Premium'};
+    $('mpPlan').textContent=planNames[c.plan]||c.plan||'–';
+    $('mpModel').textContent=c.billingModel==='maintenance'?'Solo Mantenimiento':'Voxia Completo';
+    const curr=c.country==='CO'?'COP':'USD';
+    $('mpMonthly').textContent=(c.monthly||0).toLocaleString()+' '+curr+'/mes';
+    $('mpInstall').textContent=(c.installFee||0).toLocaleString()+' '+curr+' (una vez)';
+    const countryNames={US:'Estados Unidos',CO:'Colombia',OT:'Otro'};
+    $('mpCountry').textContent=countryNames[c.country]||c.country||'–';
+    const statusNames={active:'Activo',trial:'Prueba',off:'Pausado'};
+    $('mpStatus').textContent=statusNames[c.status]||c.status||'–';
+  }catch(e){ console.warn('loadMyPlan:', e.message); }
+}
 function renderProfile(){
   if(!me)return;
   $('profAvatarPrev').innerHTML=uavatar(me,54);
   $('profNamePrev').textContent=me.name;$('profRolePrev').textContent=roleLabel(me.role)+' · '+me.email;
   $('pName').value=me.name;$('pEmail').value=me.email;
   $('profSwatches').innerHTML=AVC.map(c=>`<div class="swatch ${ucolor(me)===c?'sel':''}" style="background:${c}" onclick="setMyColor('${c}')" title="${c}"></div>`).join('');
+  loadMyPlan();
 }
 function setMyColor(c){me.color=c;saveUsers();renderProfile();applyPermissions();toast('🎨 Color actualizado');}
 function saveProfileName(){
