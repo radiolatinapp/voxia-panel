@@ -1199,6 +1199,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <option value="dental">🦷 Clínica dental</option>
         <option value="taller">🔧 Taller mecánico</option>
         <option value="belleza">💇 Salón de belleza</option>
+        <option value="barberia">💈 Barbería</option>
         <option value="hotel">🏨 Hotel</option>
         <option value="abogado">⚖️ Abogado</option>
         <option value="veterinaria">🐾 Veterinaria</option>
@@ -2149,13 +2150,26 @@ async function delClient(id){
 /* ==================== ASISTENTES ==================== */
 function vwaveHTML(){let s='';for(let i=0;i<26;i++){s+=`<i style="height:${18+Math.round(Math.abs(Math.sin(i*1.3))*70)}%"></i>`;}return s;}
 /* Widget demo ElevenLabs: carga el agente según tipo de negocio del cliente */
-/* Widget demo: carga el agente del restaurante */
-function loadDemoWidget(){
+async function loadDemoWidget(){
   try{
+    // Determinar el agent ID según el tipo de negocio del cliente actual
+    let agentId = "agent_0901m4mrx5xqfe0t2vcnz7zvr7ev"; // default restaurante
+    let agentName = "Sofía";
+    try {
+      const bizType = (currentClient && currentClient.bizType) || 'restaurante';
+      // Mapear barberia -> belleza (usan el mismo tipo de asistente)
+      const lookupType = bizType === 'barberia' ? 'belleza' : bizType;
+      const agentDoc = await db.collection('biz_agents').doc(lookupType).get();
+      if (agentDoc.exists && agentDoc.data().agentId) {
+        agentId = agentDoc.data().agentId;
+        agentName = agentDoc.data().nombre || agentName;
+      }
+    } catch(e) { console.warn('Agent lookup:', e.message); }
+    
     ['demoWidget','demoWidgetDash'].forEach(id=>{
       const el=document.getElementById(id);
       if(el && !el.querySelector('elevenlabs-convai')){
-        el.innerHTML=`<elevenlabs-convai agent-id="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Sofía está hablando..."></elevenlabs-convai>`;
+        el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="${agentName} está hablando..."></elevenlabs-convai>`;
       }
     });
   }catch(e){ console.warn('Widget:', e.message); }
@@ -2491,6 +2505,7 @@ const BIZ_AGENTS = {
   dental: {nombre:'Asistente Clínica Dental', saludo:'¡Hola! Gracias por llamar a su clínica dental. ¿Desea agendar una cita?', prompt:'Eres el asistente de una clínica dental. Agendas citas, confirmas seguros dentales y envías recordatorios. Pregunta: día preferido, si es paciente nuevo, y tipo de seguro.'},
   taller: {nombre:'Asistente Taller Mecánico', saludo:'¡Hola! Gracias por llamar al taller. ¿En qué le ayudamos con su vehículo?', prompt:'Eres el asistente de un taller mecánico. Recibes diagnósticos, cotizas servicios y agendas citas. Pregunta: marca y modelo, falla que presenta, cuándo puede traerlo.'},
   belleza: {nombre:'Asistente Salón de Belleza', saludo:'¡Hola! Bienvenido al salón. ¿Desea reservar un servicio?', prompt:'Eres el asistente de un salón de belleza. Reservas servicios, confirmas estilista y envías promociones. Pregunta: servicio deseado, estilista preferido, día y hora.'},
+  barberia: {nombre:'Asistente Barbería', saludo:'¡Hola! Bienvenido a la barbería. ¿Desea reservar un corte?', prompt:'Eres el asistente de una barbería. Reservas cortes y servicios, confirmas barbero y envías promociones. Pregunta: servicio deseado (corte, barba, etc.), barbero preferido, día y hora.'},
   hotel: {nombre:'Asistente Hotel', saludo:'¡Hola! Gracias por llamar al hotel. ¿Desea hacer una reserva?', prompt:'Eres el asistente de un hotel. Manejas reservas, info de check-in y servicios 24/7. Pregunta: fechas, número de personas, tipo de habitación.'},
   abogado: {nombre:'Asistente Abogado', saludo:'¡Hola! Gracias por llamar. ¿En qué caso le ayudamos?', prompt:'Eres el asistente de un abogado. Agendas consultas, tomas datos del caso y haces seguimiento. Pregunta: tipo de caso, si desea agendar consulta, nombre y teléfono.'},
   veterinaria: {nombre:'Asistente Veterinaria', saludo:'¡Hola! Gracias por llamar a la veterinaria. ¿Su mascota necesita atención?', prompt:'Eres el asistente de una veterinaria. Agendas citas, atiendes emergencias y envías recordatorios de vacunas. Pregunta: tipo de mascota, síntomas, si es emergencia.'},
