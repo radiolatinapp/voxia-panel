@@ -1672,7 +1672,7 @@ function renderDashboard(anim=true){
   const mins=calls.reduce((a,c)=>a+(c.min||0),0);
   const act=clients.filter(c=>c.status!=='off');
   const mrr=act.reduce((a,c)=>a+(c.monthly||0),0);
-  const isAdmin=me&&me.role!=='owner';
+  const isAdmin=me&&(me.role==='admin'||me.role==='superadmin');
   // Minutos: el costo ($) solo lo ve el admin
   const minDetail=isAdmin?'≈ $'+(mins*RATE).toFixed(2):'';
   const cards=[
@@ -1697,7 +1697,7 @@ function renderDashboard(anim=true){
     <div class="num" id="dstat${i}">0</div><div class="delta ${k.c}">${k.d}</div>${sparkSVG(k.sp,k.sc)}</div>`).join('');
   cards.forEach((k,i)=>countUp($('dstat'+i),k.v,{pre:k.pre||''}));
   /* Ajustes visuales segun rol */
-  const isOwner=me&&me.role==='owner';
+  const isOwner=me&&!(me.role==='admin'||me.role==='superadmin');
   if($('callsChartSub'))$('callsChartSub').textContent=isOwner?'Volumen diario gestionado por tu asistente':'Volumen diario gestionado por tus asistentes';
   if($('recentCallsSub'))$('recentCallsSub').textContent=isOwner?'Actividad mas reciente de tu asistente':'Actividad más reciente de tus asistentes';
   if($('agentStatusCard'))$('agentStatusCard').style.display=isOwner?'none':'';
@@ -1738,7 +1738,7 @@ function renderDashboard(anim=true){
     <div class="kpi-row"><span style="display:flex;align-items:center;gap:10px">${cavatar(c.name,32)}<span><b>${c.name}</b><br><span style="font-size:11.5px;color:var(--muted)">${c.voice}</span></span></span>
     ${c.status==='off'?'<span class="badge b-off">Pausado</span>':'<span class="badge b-act"><span class="pdot"></span>En línea</span>'}</div>`).join('');
   /* recientes con mini player - cliente no ve Negocio ni Costo */
-  const hideCols=me&&me.role==='owner';
+  const hideCols=me&&!(me.role==='admin'||me.role==='superadmin');
   if(hideCols&&$('recentCallsHead'))$('recentCallsHead').innerHTML='<tr><th></th><th>Hora</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th></th></tr>';
   $('recentCalls').innerHTML=calls.slice(0,5).map(c=>`
     <tr>
