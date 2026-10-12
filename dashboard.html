@@ -3440,5 +3440,44 @@ async function updateSidebarPlan(){
 }
 initShortcuts();
 </script>
+<script>
+// Filtro simple de agentes por cliente - ejecutado al cargar
+(function(){
+  function filterAgents(){
+    try{
+      // Obtener email del usuario logueado (del DOM o localStorage)
+      const bodyText = document.body.innerText || '';
+      const isExclusive = bodyText.includes('Exclusive Hair');
+      const isCali = bodyText.includes('Cali Colombian') && !isExclusive;
+      
+      document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+        [...sel.options].forEach(opt=>{
+          const val = opt.value || '';
+          // Si es cliente Exclusive, ocultar Cali
+          if(isExclusive && val === 'agent_0901m4mrx5xqfe0t2vcnz7zvr7ev'){
+            opt.style.display = 'none';
+            opt.disabled = true;
+          }
+          // Si es cliente Cali (no Exclusive), ocultar Exclusive
+          if(!isExclusive && bodyText.includes('Cali') && val === 'agent_4601m4q6qnxrf2fbke358jhmtspw'){
+            opt.style.display = 'none';
+            opt.disabled = true;
+          }
+        });
+        // Seleccionar el visible
+        const visible = [...sel.options].find(o => !o.disabled);
+        if(visible) sel.value = visible.value;
+      });
+    }catch(e){}
+  }
+  // Ejecutar al cargar y después de 2 segundos
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', filterAgents);
+  } else {
+    filterAgents();
+  }
+  setTimeout(filterAgents, 2000);
+})();
+</script>
 </body>
 </html>
