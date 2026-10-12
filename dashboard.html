@@ -2248,13 +2248,14 @@ function probarAgente(agentId){
 async function renderAssistants(){
   // Asegurar que currentClient esté cargado (usar VoxiaDB.clientData como fuente confiable)
   try{
-    if(window.VoxiaDB && VoxiaDB.clientData && VoxiaDB.clientData.elevenlabsAgentId){
-      // VoxiaDB.clientData ya tiene los datos del cliente logueado
-      if(typeof currentClient === 'undefined' || !currentClient || !currentClient.elevenlabsAgentId){
+    if(window.VoxiaDB && VoxiaDB.clientId){
+      // Siempre obtener datos frescos del cliente para asegurar elevenlabsAgentId
+      const freshClient = await VoxiaDB.getClient(VoxiaDB.clientId);
+      if(freshClient && freshClient.elevenlabsAgentId){
+        currentClient = freshClient;
+      } else if(window.VoxiaDB && VoxiaDB.clientData && VoxiaDB.clientData.elevenlabsAgentId){
         currentClient = { id: VoxiaDB.clientId, ...VoxiaDB.clientData };
       }
-    } else if((typeof currentClient === 'undefined' || !currentClient) && window.VoxiaDB && VoxiaDB.clientId){
-      currentClient = await VoxiaDB.getClient(VoxiaDB.clientId);
     }
   }catch(e){}
   // Agregar agentes dedicados al selector
