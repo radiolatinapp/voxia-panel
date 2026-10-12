@@ -66,6 +66,22 @@ async function main() {
 
   // Buscar clientes con guías pendientes de sincronizar
   const clientsSnap = await db.collection('clients').get();
+
+  // DETECCIÓN DE AGENTES DUPLICADOS (ANTES de procesar nada)
+  const agentToClient = {};
+  const duplicateAgents = new Set();
+  clientsSnap.forEach(d => {
+    const aid = d.data().elevenlabsAgentId;
+    if (aid) {
+      if (agentToClient[aid]) {
+        duplicateAgents.add(aid);
+        console.error(`🚨 AGENTE DUPLICADO: ${aid} en ${agentToClient[aid]} y ${d.id}. Ambos se omitirán.`);
+      } else {
+        agentToClient[aid] = d.id;
+      }
+    }
+  });
+
   let synced = 0, errors = 0, skipped = 0;
 
   for (const clientDoc of clientsSnap.docs) {
@@ -85,6 +101,13 @@ async function main() {
       if (!agentId) {
         console.log(`⚠️ ${clientId}: sin agent ID, omitiendo`);
         skipped++;
+        continue;
+      }
+
+      // BLOQUEAR si el agente está duplicado
+      if (duplicateAgents.has(agentId)) {
+        console.error(`🚨 ${clientId}: agente ${agentId} duplicado, sincronización BLOQUEADA`);
+        errors++;
         continue;
       }
 
@@ -138,8 +161,7 @@ async function main() {
       );
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error(`❌ ${clientId}: ElevenLabs error ${response.status}: ${errText.substring(0, 200)}`);
+        console.error(`❌ ${clientId}: ElevenLabs error ${response.status}`);
         errors++;
         continue;
       }
@@ -152,7 +174,7 @@ async function main() {
           'guide.lastSyncOk': true
         }, { merge: true });
 
-      console.log(`✅ ${clientId} (${clientData.name}): sincronizado`);
+      console.log(`✅ ${clientId}: sincronizado`);
       synced++;
 
     } catch (e) {
@@ -177,28 +199,14 @@ async function main() {
       const agentsData = await agentsRes.json();
       const agents = agentsData.agents || [];
       
-      // Mapear agentId -> clientId (con detección de duplicados)
-      const agentToClient = {};
-      const duplicateAgents = [];
-      const clientsSnap2 = await db.collection('clients').get();
-      clientsSnap2.forEach(d => {
-        const aid = d.data().elevenlabsAgentId;
-        if (aid) {
-          if (agentToClient[aid]) {
-            duplicateAgents.push(aid);
-            console.error(`🚨 AGENTE DUPLICADO: ${aid} asignado a ${agentToClient[aid]} y ${d.id}. Se omite para evitar contaminación cruzada.`);
-          } else {
-            agentToClient[aid] = d.id;
-          }
-        }
-      });
-      if (duplicateAgents.length > 0) {
-        console.error(`🚨 ${duplicateAgents.length} agente(s) duplicado(s) detectado(s). Revisar asignación manualmente.`);
-      }
+      // Usar el mapa agentToClient ya construido (con duplicados detectados)
+      // Los agentes duplicados ya fueron reportados y se omiten
       
       for (const agent of agents) {
         const clientId = agentToClient[agent.agent_id];
         if (!clientId) continue;
+        // Omitir agentes duplicados
+        if (duplicateAgents.has(agent.agent_id)) continue;
         
         // Obtener conversaciones recientes (últimas 24h)
         const convosRes = await fetch(
