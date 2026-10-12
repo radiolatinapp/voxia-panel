@@ -1659,7 +1659,8 @@ async function saveClient(){
   if(!id){
     const email=$('fEmail')?$('fEmail').value.trim():($('fOwnerEmail')?$('fOwnerEmail').value.trim():'');
     if(!email){toast('Pon el correo del dueño para crear su usuario','warn');return;}
-    const tempPw='D123456789'; // contraseña genérica demo
+    // Clave temporal única y aleatoria (solo para pruebas del admin, no se guarda)
+    const tempPw='Vx'+Math.random().toString(36).slice(2,10)+'!';
     toast('Creando cliente en Firebase…');
     try{
       const r=await VoxiaDB.onboardClient({
@@ -1671,7 +1672,7 @@ async function saveClient(){
         bizType:$('fBizType')?$('fBizType').value:'restaurante',
         tempPassword:tempPw,
       });
-      toast('🎉 Cliente creado: '+r.email+' · clave: '+tempPw);
+      toast('🎉 Cliente creado: '+r.email+' · clave temporal: '+tempPw+' (cámbiela pronto)');
       logActivity(me.name,'🎉','creó el negocio "'+name+'" en Firebase');
       // El onboarding cierra la sesión; recargar para volver a entrar
       setTimeout(()=>location.reload(), 2500);
