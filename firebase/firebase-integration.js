@@ -30,8 +30,6 @@
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
-  // Forzar HTTP long-polling en vez de WebSockets (puede estar bloqueado)
-  db.settings({ experimentalForceLongPolling: true });
   const functions = firebase.functions();
 
   // Estado global
@@ -70,6 +68,18 @@
      */
     async loadUserData(uid) {
       this.user = auth.currentUser;
+      // UID del superadmin - no requiere documento users
+      const ADMIN_UID = 'GLm4YodaHTcNyblfkFjV6T9jgfH2';
+      if (uid === ADMIN_UID) {
+        this.userData = {
+          email: this.user.email,
+          displayName: 'Jeremy Rico',
+          role: 'superadmin',
+          clientId: '',
+        };
+        this.clientId = '';
+        return;
+      }
       const userDoc = await db.collection('users').doc(uid).get();
       if (!userDoc.exists) throw new Error('Usuario no registrado en Voxia');
       this.userData = userDoc.data();
