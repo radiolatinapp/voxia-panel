@@ -1342,6 +1342,7 @@ let calls = [];
 let invoices = [];
 let notifs = [];
 let clientOrders = [];
+let currentClient = null;
 
 /* Carga pedidos reales del cliente desde Firestore */
 async function loadClientOrders(){
@@ -1673,8 +1674,13 @@ function renderDashboard(anim=true){
   const act=clients.filter(c=>c.status!=='off');
   const mrr=act.reduce((a,c)=>a+(c.monthly||0),0);
   const isAdmin=me&&(me.role==='admin'||me.role==='superadmin');
-  // Minutos: el costo ($) solo lo ve el admin
-  const minDetail=isAdmin?'≈ $'+(mins*RATE).toFixed(2):'';
+  // Minutos: el costo ($) lo ve el admin siempre, y el cliente solo si tiene sus propias keys (maintenance)
+  // porque ellos pagan directamente su ElevenLabs/Twilio
+  let showCost=isAdmin;
+  if(!isAdmin&&typeof currentClient!=='undefined'&&currentClient){
+    showCost=currentClient.billingModel==='maintenance';
+  }
+  const minDetail=showCost?'≈ $'+(mins*RATE).toFixed(2):'';
   const cards=[
     {l:'Llamadas · 30 días', v:totCalls, d:totCalls?'':'Sin llamadas aún', c:'up', ic:'📞', bg:'rgba(255,158,46,.12)', sp:[0,0,0,0,0,0,0], sc:'#ffa02e'},
     {l:'Minutos de voz', v:Math.round(mins), d:minDetail, c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[0,0,0,0,0,0,0], sc:'#9d8fff'},
@@ -3101,6 +3107,7 @@ function renderAll(){renderDashboard();renderClients();renderCalls();renderAssis
       applyPermissions();
       try { await loadClientsFromFirebase(); } catch(e) {}
       try { await loadClientOrders(); } catch(e) {}
+      try { if(VoxiaDB&&VoxiaDB.clientId) currentClient=await VoxiaDB.getClient(VoxiaDB.clientId); } catch(e) {}
       try { await updateSidebarPlan(); } catch(e) {}
     }
     setTimeout(()=>{renderAll();try{restoreConns();}catch(e){}},650);
