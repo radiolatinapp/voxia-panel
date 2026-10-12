@@ -1057,7 +1057,8 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div id="profSwatches" style="display:flex;gap:10px;margin:8px 0 18px"></div>
         <button class="btn btn-primary" onclick="saveProfileName()">Guardar cambios</button>
       </div>
-      <div class="card">
+      <div>
+      <div class="card" id="pwCard" style="border:2px solid #00d4ff">
         <h3>🔑 Cambiar contraseña</h3>
         <div class="csub">Mínimo 6 caracteres</div>
         <label class="flabel">Contraseña actual</label>
@@ -1066,9 +1067,12 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <input type="password" id="pwNew" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)">
         <label class="flabel">Confirmar nueva contraseña</label>
         <input type="password" id="pwNew2" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;margin-bottom:18px;font-family:var(--font)">
-        <button class="btn btn-primary" onclick="changeMyPw()">Cambiar contraseña</button>
-        <div class="set-row" style="margin-top:18px"><div><div class="st">Sesión</div><div class="sd">Tu sesión se recuerda en este navegador</div></div>
+        <button class="btn btn-primary" onclick="changeMyPw()" style="width:100%">🔑 Cambiar mi contraseña</button>
+      </div>
+      <div class="card" style="margin-top:20px">
+        <div class="set-row" style="margin-top:0"><div><div class="st">Sesión</div><div class="sd">Tu sesión se recuerda en este navegador</div></div>
           <button class="btn btn-ghost btn-sm" onclick="logout()">Cerrar sesión</button></div>
+      </div>
       </div>
       <div class="card">
         <h3>📋 Mi plan</h3>
