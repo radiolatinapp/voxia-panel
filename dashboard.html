@@ -1087,11 +1087,11 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <label class="flabel">Nombre del negocio *</label><input type="text" id="fName" placeholder="Ej: Cali Colombian Restaurant">
     <label class="flabel">Correo del dueño * (se crea su usuario automáticamente)</label><input type="email" id="fEmail" placeholder="dueno@restaurante.com">
     <div class="row2">
-      <div><label class="flabel">País</label><select id="fCountry" onchange="updatePlanOptions()"><option value="US">🇺🇸 Estados Unidos</option><option value="CO">🇨🇴 Colombia</option><option value="OT">🌎 Otro</option></select></div>
+      <div><label class="flabel">País</label><select id="fCountry" onchange="updatePlanOptions();updateDialCode()" style="font-size:15px"><option value="US">🇺🇸 Estados Unidos</option><option value="CO">🇨🇴 Colombia</option><option value="OT">🌎 Otro</option></select></div>
       <div><label class="flabel">Ciudad</label><input type="text" id="fCity" placeholder="Charlotte, NC / Bogotá"></div>
     </div>
     <div class="row2">
-      <div><label class="flabel">Teléfono</label><input type="tel" id="fPhone" placeholder="(704) 555-0100"></div>
+      <div><label class="flabel">Teléfono</label><div style="display:flex;gap:6px"><select id="fDialCode" style="max-width:110px;flex-shrink:0"><option value="+1">🇺🇸 +1</option><option value="+57">🇨🇴 +57</option><option value="+52">🇲🇽 +52</option><option value="+34">🇪🇸 +34</option><option value="+54">🇦🇷 +54</option><option value="+51">🇵🇪 +51</option><option value="+56">🇨🇱 +56</option><option value="+593">🇪🇨 +593</option><option value="+58">🇻🇪 +58</option><option value="">Otro</option></select><input type="tel" id="fPhone" placeholder="704 555-0100" style="flex:1"></div></div>
       <div><label class="flabel">Plan</label><select id="fPlan" onchange="updateMonthly()"><option>Básico</option><option>Pro</option><option>Premium</option></select></div>
     </div>
     <div class="row2">
@@ -1623,6 +1623,24 @@ function renderClients(){
   }).join('')||`<tr><td colspan="7"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
 }
 /* Actualiza la mensualidad según el plan elegido */
+function updateDialCode(){
+  const country=$('fCountry')?$('fCountry').value:'US';
+  const dial=$('fDialCode');
+  if(!dial) return;
+  if(country==='CO') dial.value='+57';
+  else if(country==='US') dial.value='+1';
+}
+
+function getFullPhone(){
+  const dial=$('fDialCode')?$('fDialCode').value:'';
+  const num=$('fPhone')?$('fPhone').value.trim():'';
+  if(!num) return '';
+  // Evitar duplicar el indicativo si ya lo trae
+  if(dial && !num.startsWith('+') && !num.startsWith(dial.replace('+',''))) return dial+' '+num;
+  if(num.startsWith('+')) return num;
+  return (dial?dial+' ':'')+num;
+}
+
 function toggleClientKeys(){
   const model=$('fBillingModel')?$('fBillingModel').value:'full';
   $('clientKeysSection').style.display = model==='maintenance' ? '' : 'none';
@@ -1673,7 +1691,21 @@ function openClientModal(id){
   if(id&&!c){toast('Cliente no encontrado: '+id,'warn');return;}
   try{
     $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
-    $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCountry').value=c.country||'US';$('fCity').value=c.city||'';$('fPhone').value=c.phone||'';
+    $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCountry').value=c.country||'US';$('fCity').value=c.city||'';
+    // Separar indicativo del número
+    (function(){
+      const ph=c.phone||'';
+      const m=ph.match(/^(\+\d{1,4})\s*(.*)$/);
+      if(m && $('fDialCode')){
+        let found=false;
+        for(let o of $('fDialCode').options){ if(o.value===m[1]){ $('fDialCode').value=m[1]; found=true; break; } }
+        $('fPhone').value=m[2]||'';
+        if(!found) $('fPhone').value=ph;
+      }else{
+        $('fPhone').value=ph;
+        updateDialCode();
+      }
+    })();
     if($('fBillingModel')) $('fBillingModel').value=c.billingModel||'full';
     toggleClientKeys();
     updatePlanOptions();
@@ -1725,7 +1757,7 @@ async function saveClient(){
         clientName:name,
         ownerName:name,
         ownerEmail:email,
-        ownerPhone:$('fPhone').value,
+        ownerPhone:getFullPhone(),
         country:$('fCountry').value,
         city:$('fCity').value,
         plan:$('fPlan').value==='Pro'?'pro':($('fPlan').value==='Premium'?'premium':'basico'),
@@ -1753,7 +1785,7 @@ async function saveClient(){
   const planMap={'Básico':'basico','Pro':'pro','Premium':'premium','basico':'basico','pro':'pro','premium':'premium'};
   const planKey=planMap[$('fPlan').value]||'basico';
   const bizType=$('fBizType')?$('fBizType').value:'restaurante';
-  const d={name,country:$('fCountry').value,city:$('fCity').value,phone:$('fPhone').value,plan:planKey,billingModel:$('fBillingModel').value,monthly:parseFloat($('fMonthly').value)||0,installFee:parseFloat($('fInstall').value)||0,status:$('fStatus').value,bizType};
+  const d={name,country:$('fCountry').value,city:$('fCity').value,phone:getFullPhone(),plan:planKey,billingModel:$('fBillingModel').value,monthly:parseFloat($('fMonthly').value)||0,installFee:parseFloat($('fInstall').value)||0,status:$('fStatus').value,bizType};
   try{
     toast('Guardando en Firebase…');
     await VoxiaDB.updateClient(id,d);
