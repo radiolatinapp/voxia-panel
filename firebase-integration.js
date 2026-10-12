@@ -68,6 +68,18 @@
      */
     async loadUserData(uid) {
       this.user = auth.currentUser;
+      // UID del superadmin - no requiere documento users
+      const ADMIN_UID = 'GLm4YodaHTcNyblfkFjV6T9jgfH2';
+      if (uid === ADMIN_UID) {
+        this.userData = {
+          email: this.user.email,
+          displayName: 'Jeremy Rico',
+          role: 'superadmin',
+          clientId: '',
+        };
+        this.clientId = '';
+        return;
+      }
       const userDoc = await db.collection('users').doc(uid).get();
       if (!userDoc.exists) throw new Error('Usuario no registrado en Voxia');
       this.userData = userDoc.data();
@@ -87,6 +99,16 @@
       const snap = await db.collection('clients').doc(this.clientId)
         .collection('config').doc('settings').get();
       return snap.exists ? snap.data() : null;
+    },
+
+    /**
+     * Obtiene los datos del cliente actual (plan, modelo, precios)
+     */
+    async getClient(clientId) {
+      const id = clientId || this.clientId;
+      if (!id) return null;
+      const snap = await db.collection('clients').doc(id).get();
+      return snap.exists ? { id: snap.id, ...snap.data() } : null;
     },
 
     /**
@@ -188,22 +210,64 @@
       },
     },
     PLANS: {
+      // Planes Estados Unidos (USD)
+      US: {
+        basico: {
+          nombre: 'Básico', precio: 149, moneda: 'USD', minutos: 1000,
+          idiomas: 2, idiomasLista: ['es', 'en'],
+          menuIlimitado: true, ubicaciones: 1,
+          whatsapp: false, gcalendar: false,
+          soporte: 'prioritario',
+        },
+        pro: {
+          nombre: 'Pro', precio: 249, moneda: 'USD', minutos: 2000,
+          idiomas: 2, idiomasLista: ['es', 'en'],
+          menuIlimitado: true, ubicaciones: 1,
+          whatsapp: true, gcalendar: false,
+          soporte: 'prioritario',
+        },
+        premium: {
+          nombre: 'Premium', precio: 399, moneda: 'USD', minutos: 5000,
+          idiomas: 3, idiomasLista: ['es', 'en', 'pt'],
+          menuIlimitado: true, ubicaciones: 3,
+          whatsapp: true, gcalendar: true,
+          soporte: 'prioritario',
+        },
+      },
+      // Planes Colombia (COP) - solo Básico y Pro
+      CO: {
+        basico: {
+          nombre: 'Básico', precio: 400000, moneda: 'COP', minutos: 500,
+          idiomas: 2, idiomasLista: ['es', 'en'],
+          menuIlimitado: true, ubicaciones: 1,
+          whatsapp: false, gcalendar: false,
+          soporte: 'prioritario',
+        },
+        pro: {
+          nombre: 'Pro', precio: 400000, moneda: 'COP', minutos: 800,
+          idiomas: 2, idiomasLista: ['es', 'en'],
+          menuIlimitado: true, ubicaciones: 1,
+          whatsapp: true, gcalendar: false,
+          soporte: 'prioritario',
+        },
+      },
+      // Compatibilidad: acceso directo (US por defecto)
       basico: {
-        nombre: 'Básico', precio: 149, minutos: 1000,
+        nombre: 'Básico', precio: 149, moneda: 'USD', minutos: 1000,
         idiomas: 2, idiomasLista: ['es', 'en'],
         menuIlimitado: true, ubicaciones: 1,
         whatsapp: false, gcalendar: false,
         soporte: 'prioritario',
       },
       pro: {
-        nombre: 'Pro', precio: 249, minutos: 2000,
+        nombre: 'Pro', precio: 249, moneda: 'USD', minutos: 2000,
         idiomas: 2, idiomasLista: ['es', 'en'],
         menuIlimitado: true, ubicaciones: 1,
         whatsapp: true, gcalendar: false,
         soporte: 'prioritario',
       },
       premium: {
-        nombre: 'Premium', precio: 399, minutos: 5000,
+        nombre: 'Premium', precio: 399, moneda: 'USD', minutos: 5000,
         idiomas: 3, idiomasLista: ['es', 'en', 'pt'],
         menuIlimitado: true, ubicaciones: 3,
         whatsapp: true, gcalendar: true,
@@ -212,115 +276,109 @@
     },
 
     /**
+     * Obtiene la configuración de un plan según país.
+     */
+    getPlan(planKey, country) {
+      const c = (country === 'CO') ? 'CO' : 'US';
+      return (this.PLAN_CFG.PLANS[c] && this.PLAN_CFG.PLANS[c][planKey])
+        || this.PLAN_CFG.PLANS[planKey];
+    },
+
+    /**
      * Onboarding completo de cliente nuevo (solo superadmin).
      * Crea usuario Auth + docs en Firestore, todo conectado.
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const { clientName, ownerName, ownerEmail, ownerPhone, plan, elevenlabsAgentId, tempPassword, bizType } = data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, monthly, installFee, clientElevenKey, clientTwilioSid, clientTwilioToken, elevenlabsAgentId, tempPassword, bizType } = data;
 
       if (!clientName || !ownerEmail || !tempPassword) {
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
       }
 
-      // Guardar sesión actual del admin
       const adminUser = auth.currentUser;
+      if (!adminUser) {
+        throw new Error('Sesión expirada. Por favor, cierre sesión y vuelva a entrar.');
+      }
+      const adminUid = adminUser.uid;
 
-      // 1. Crear usuario en Auth (esto cambia la sesión actual)
-      const cred = await auth.createUserWithEmailAndPassword(ownerEmail, tempPassword);
-      const uid = cred.user.uid;
-
-      // 2. ID del cliente
       const slug = clientName.toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
-      const clientId = `${slug}-${uid.slice(0, 6)}`;
+      const clientId = `${slug}-${Date.now().toString(36)}`;
       const now = firebase.firestore.Timestamp.now();
 
-      // 3. Crear documentos (como el nuevo usuario es owner, puede escribir su propio cliente)
-      const batch = db.batch();
-
-      batch.set(db.collection('clients').doc(clientId), {
-        name: clientName,
-        email: ownerEmail,
-        phone: ownerPhone || '',
-        status: 'trial',
-        plan: plan || 'basico',
-        bizType: bizType || 'restaurante',
-        elevenlabsAgentId: elevenlabsAgentId || '',
-        twilioNumber: '',
-        // NOTA: contraseña temporal guardada para registro del admin
-        // Solo visible para superadmin vía reglas
-        _tempPassword: tempPassword,
-        _tempPasswordSetAt: now,
-        createdAt: now,
-        createdBy: adminUser.uid,
-      });
-
-      // Plantilla según tipo de negocio + config según plan
       const tpl = this.BIZ_TEMPLATES[bizType] || this.BIZ_TEMPLATES.restaurante;
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
-      batch.set(db.collection('clients').doc(clientId).collection('config').doc('settings'), {
-        voice: 'sofia',
-        // Config automática según el plan elegido
-        languages: planCfg.idiomasLista,
-        minutosIncluidos: planCfg.minutos,
-        ubicaciones: planCfg.ubicaciones,
-        whatsapp: planCfg.whatsapp,
-        gcalendar: planCfg.gcalendar,
-        soporte: 'prioritario',
-        menuIlimitado: true,
-        // Config automática según tipo de negocio
+
+      // 1. Crear cliente
+      await db.collection('clients').doc(clientId).set({
+        name: clientName, email: ownerEmail, phone: ownerPhone || '',
+        country: country || 'US', city: city || '',
+        status: 'trial', plan: plan || 'basico', billingModel: billingModel || 'full',
+        monthly: monthly || 0, installFee: installFee || 0,
+        bizType: bizType || 'restaurante',
+        elevenlabsAgentId: elevenlabsAgentId || '', twilioNumber: '',
+        createdAt: now, createdBy: adminUid,
+      });
+
+      // 2. Config
+      await db.collection('clients').doc(clientId).collection('config').doc('settings').set({
+        voice: 'sofia', languages: planCfg.idiomasLista,
+        minutosIncluidos: planCfg.minutos, ubicaciones: planCfg.ubicaciones,
+        whatsapp: planCfg.whatsapp, gcalendar: planCfg.gcalendar,
+        soporte: 'prioritario', menuIlimitado: true,
         bizType: bizType || 'restaurante',
         saludo: tpl.saludo.replace('{negocio}', clientName),
-        servicios: tpl.servicios,
-        preguntas: tpl.preguntas,
-        pickup: tpl.pickup,
-        delivery: tpl.delivery,
-        citas: tpl.citas,
+        servicios: tpl.servicios, preguntas: tpl.preguntas,
+        pickup: tpl.pickup, delivery: tpl.delivery, citas: tpl.citas,
         turnModel: 'turn_v3',
       });
 
-      batch.set(db.collection('users').doc(uid), {
-        email: ownerEmail,
-        displayName: ownerName || clientName,
-        clientId: clientId,
-        role: 'owner',
-        createdAt: now,
-        createdBy: adminUser.uid,
-      });
+      // 2b. Credenciales del cliente (solo si es modelo maintenance)
+      if (billingModel === 'maintenance' && (clientElevenKey || clientTwilioSid)) {
+        await db.collection('clients').doc(clientId).collection('config').doc('credentials').set({
+          elevenlabsApiKey: clientElevenKey || '',
+          twilioAccountSid: clientTwilioSid || '',
+          twilioAuthToken: clientTwilioToken || '',
+          updatedAt: now,
+        });
+      }
 
-      await batch.commit();
-
-      // 4. Registrar actividad (como admin)
-      await db.collection('activity').add({
-        clientId,
-        userId: adminUser.uid,
-        action: 'client_onboarded',
-        details: { clientName, ownerEmail },
-        timestamp: now,
-      });
-
-      // 5. Cerrar sesión del nuevo usuario y restaurar la del admin
-      // (el admin deberá volver a entrar)
-      await auth.signOut();
-
-      // 6. AUTOMÁTICO: generar y descargar Excel actualizado
+      // 3. Usuario Auth via REST (no cambia sesión)
+      let uid = null;
       try {
-        // Re-autenticar como admin no es posible aquí; el Excel se genera
-        // con los datos que ya tenemos + el nuevo cliente
+        const apiKey = firebase.app().options.apiKey;
+        const signUpResp = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: ownerEmail, password: tempPassword, returnSecureToken: false })
+        });
+        const signUpData = await signUpResp.json();
+        if (signUpResp.ok) {
+          uid = signUpData.localId;
+          await db.collection('users').doc(uid).set({
+            email: ownerEmail, displayName: ownerName || clientName,
+            clientId: clientId, role: 'owner',
+            createdAt: now, createdBy: adminUid,
+          });
+          // Enviar correo de recuperación para que el dueño ponga su propia clave
+          try {
+            await auth.sendPasswordResetEmail(ownerEmail);
+          } catch (e) { console.warn('Reset email:', e.message); }
+        }
+      } catch (e) { console.warn('Auth:', e.message); }
+
+      // 4. Excel (sin contraseña)
+      try {
         await this._autoDownloadExcelAfterOnboarding({
           nombre: clientName, correo: ownerEmail, telefono: ownerPhone || '',
           estado: 'trial', plan: plan || 'basico',
           agenteElevenLabs: elevenlabsAgentId || '', numeroTwilio: '',
           creado: new Date().toLocaleDateString('es-CO'), id: clientId,
-          tempPassword: tempPassword,
         });
-      } catch (e) {
-        console.warn('No se pudo generar Excel automático:', e.message);
-      }
+      } catch (e) {}
 
-      return { ok: true, clientId, uid, email: ownerEmail, tempPassword, needsRelogin: true };
+      return { ok: true, clientId, uid, email: ownerEmail, tempPassword, needsRelogin: false };
     },
 
     /**
@@ -333,7 +391,7 @@
       try {
         const existing = await this.getAllClients();
         rows = existing.map(c => ({
-          'Restaurante': c.nombre, 'Correo': c.correo, 'Contraseña temporal': '',
+          'Restaurante': c.nombre, 'Correo': c.correo,
           'Teléfono': c.telefono, 'Estado': c.estado, 'Plan': c.plan,
           'Agente ElevenLabs': c.agenteElevenLabs, 'Número Twilio': c.numeroTwilio,
           'Fecha creación': c.creado, 'ID Cliente': c.id,
@@ -341,7 +399,6 @@
       } catch (e) { /* sin sesión, solo el nuevo */ }
       rows.push({
         'Restaurante': newClient.nombre, 'Correo': newClient.correo,
-        'Contraseña temporal': newClient.tempPassword || '',
         'Teléfono': newClient.telefono, 'Estado': newClient.estado, 'Plan': newClient.plan,
         'Agente ElevenLabs': newClient.agenteElevenLabs, 'Número Twilio': newClient.numeroTwilio,
         'Fecha creación': newClient.creado, 'ID Cliente': newClient.id,
@@ -377,7 +434,6 @@
           id: doc.id,
           nombre: data.name || '',
           correo: ownerEmail,
-          contrasena: data._tempPassword || '',
           telefono: data.phone || '',
           estado: data.status || '',
           plan: data.plan || '',
@@ -401,7 +457,6 @@
       const ws = XLSX.utils.json_to_sheet(clients.map(c => ({
         'Restaurante': c.nombre,
         'Correo': c.correo,
-        'Contraseña': c.contrasena || '',
         'Teléfono': c.telefono,
         'Estado': c.estado,
         'Plan': c.plan,
@@ -604,13 +659,14 @@
      */
     async updateClient(clientId, data) {
       if (!this.user) throw new Error('Sin sesión');
-      const esAdmin = this.userData?.role === 'superadmin';
+      const esAdmin = this.userData?.role === 'superadmin' || this.user.uid === 'GLm4YodaHTcNyblfkFjV6T9jgfH2';
       const esPropio = this.clientId === clientId;
       if (!esAdmin && !esPropio) throw new Error('Sin permiso');
-      await db.collection('clients').doc(clientId).update({
+      // Usar set con merge para no fallar si el doc no existe
+      await db.collection('clients').doc(clientId).set({
         ...data,
         updatedAt: firebase.firestore.Timestamp.now(),
-      });
+      }, { merge: true });
     },
 
     /**
@@ -618,7 +674,8 @@
      */
     async deleteClient(clientId) {
       if (!this.user) throw new Error('Sin sesión');
-      if (this.userData?.role !== 'superadmin') throw new Error('Solo el admin puede eliminar');
+      const esAdmin = this.userData?.role === 'superadmin' || this.user.uid === 'GLm4YodaHTcNyblfkFjV6T9jgfH2';
+      if (!esAdmin) throw new Error('Solo el admin puede eliminar');
       // Eliminar config primero
       const configDocs = await db.collection('clients').doc(clientId)
         .collection('config').get();
