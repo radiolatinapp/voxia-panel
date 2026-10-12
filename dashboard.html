@@ -1443,16 +1443,23 @@ async function saveGuide(){
 }
 async function syncGuideToElevenLabs(guide){
   try{
-    if(!VoxiaDB||!VoxiaDB.clientId){console.warn('Sin clientId');return false;}
-    const syncFn=firebase.functions().httpsCallable('syncGuideToElevenLabs');
-    const result=await syncFn({clientId:VoxiaDB.clientId,guide});
-    console.log('Sync OK:',result.data);
+    if(!currentClient){console.warn('Sin currentClient');return false;}
+    const prompt=`Eres el asistente de ${currentClient.name||'este negocio'}.\n\nINFORMACION DEL NEGOCIO:\n${guide.desc}\n\nHORARIO: ${guide.hours}\nDIRECCION: ${guide.address}\n\nMENU/SERVICIOS:\n${guide.menu}\n\nNOTAS IMPORTANTES:\n${guide.notes}\n\nResponde siempre en base a esta informacion. Se amable y profesional.`;
+    await VoxiaDB.saveClientConfig({'guide.elevenlabsPrompt':prompt,'guide.pendingSync':true});
+    // Mostrar el prompt para copiar manualmente a ElevenLabs
+    showPromptModal(prompt);
     return true;
-  }catch(e){
-    console.warn('syncGuide:',e.message);
-    try{await VoxiaDB.saveClientConfig({'guide.pendingSync':true});}catch(_){}
-    return false;
-  }
+  }catch(e){console.warn('syncGuide:',e.message);return false;}
+}
+function showPromptModal(prompt){
+  const m=document.createElement('div');
+  m.className='modal-bg open';m.id='promptModal';
+  m.innerHTML=`<div class="modal" style="max-width:600px"><button class="mx" onclick="document.getElementById('promptModal').remove()">✕</button>
+    <h3>📋 Prompt para ElevenLabs</h3>
+    <div class="msub">Copia este texto y pégalo en tu agente de ElevenLabs</div>
+    <textarea id="promptText" rows="12" readonly style="width:100%;padding:11px;font-size:12px;background:var(--bg0)">${prompt.replace(/</g,'&lt;')}</textarea>
+    <div style="text-align:right;margin-top:12px"><button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('promptText').value);toast('📋 Copiado')">📋 Copiar</button></div></div>`;
+  document.body.appendChild(m);
 }
 
 /* ---------- pedidos ---------- */
