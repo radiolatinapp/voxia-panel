@@ -77,8 +77,8 @@ button{font-family:var(--font)}
 .user-chip{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:10px 12px}
 .user-chip .avatar{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#3b4a75,#1d2742);
   display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
-.user-chip .nm{font-size:13.5px;font-weight:600}
-.user-chip .rl{font-size:11.5px;color:var(--muted)}
+.user-chip .nm{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.user-chip .rl{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
 .plan-pill{margin-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);
   background:rgba(255,158,46,.08);border:1px solid rgba(255,158,46,.22);border-radius:11px;padding:9px 12px}
 .plan-pill b{color:#ffcf9a;font-weight:700}
@@ -2362,7 +2362,7 @@ async function logout(){
   $('loginPass').value='';$('loginErr').style.display='none';
   $('loginScreen').style.display='flex';
 }
-function applyPermissions(){
+async function applyPermissions(){
   if(!me)return;
   const R=ROLES[me.role];
   document.querySelectorAll('.nav button[data-view]').forEach(b=>{b.style.display=R.views.includes(b.dataset.view)?'':'none';});
@@ -2370,7 +2370,19 @@ function applyPermissions(){
   $('ucAvatar').textContent=initials(me.name);$('ucAvatar').style.background=ucolor(me);
   $('ucName').textContent=me.name;$('ucRole').textContent=roleLabel(me.role);
   $('topAvatar').textContent=initials(me.name);$('topAvatar').style.background=ucolor(me);$('topAvatar').title=me.name;
-  $('userDDName').textContent=me.name+' · '+me.email;
+  $('userDDName').textContent=me.name;$('userDDName').title=me.email;
+  $('userDDName').style.cssText='word-break:break-all;overflow-wrap:anywhere;font-size:13px';
+  // Mostrar logo de empresa en avatares si existe
+  try{
+    if(VoxiaDB&&VoxiaDB.clientId){
+      const cfg=await VoxiaDB.getClientConfig();
+      if(cfg&&cfg.logo){
+        const img=`<img src="${cfg.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        $('ucAvatar').innerHTML=img;$('ucAvatar').style.background='transparent';
+        $('topAvatar').innerHTML=img;$('topAvatar').style.background='transparent';
+      }
+    }
+  }catch(e){}
   if(!can(curView()))go('dashboard');
 }
 
