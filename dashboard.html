@@ -556,7 +556,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
       </button>
     </div>
-    <div class="plan-pill"><span>🚀 Plan Agencia</span><b>Pro</b></div>
+    <div class="plan-pill"><span>🚀 Plan Agencia</span><b id="sidebarPlan">–</b></div>
   </div>
 </aside>
 
@@ -1047,7 +1047,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div class="csub">Visible para tu equipo</div>
         <div style="display:flex;align-items:center;gap:14px;margin:16px 0">
           <div id="profAvatarPrev"></div>
-          <div><div style="font-weight:700" id="profNamePrev">–</div><div class="cell-sub" id="profRolePrev">–</div></div>
+          <div style="min-width:0;flex:1"><div style="font-weight:700" id="profNamePrev">–</div><div class="cell-sub" id="profRolePrev" style="word-break:break-all;overflow-wrap:anywhere">–</div></div>
         </div>
         <label class="flabel">Nombre completo</label>
         <input type="text" id="pName" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)">
@@ -2504,7 +2504,11 @@ async function renderProfile(){
   try{
     if(VoxiaDB&&VoxiaDB.clientId){
       const cfg=await VoxiaDB.getClientConfig();
-      if(cfg&&cfg.logo)$('bizLogoPrev').innerHTML=`<img src="${cfg.logo}" style="width:100%;height:100%;object-fit:cover">`;
+      if(cfg&&cfg.logo){
+        $('bizLogoPrev').innerHTML=`<img src="${cfg.logo}" style="width:100%;height:100%;object-fit:cover">`;
+        // Mostrar logo también en el avatar del perfil
+        $('profAvatarPrev').innerHTML=`<img src="${cfg.logo}" style="width:54px;height:54px;border-radius:50%;object-fit:cover">`;
+      }
     }
   }catch(e){}
 }
@@ -2924,10 +2928,19 @@ function renderAll(){renderDashboard();renderClients();renderCalls();renderAssis
       $('loginScreen').style.display='none';
       applyPermissions();
       try { await loadClientsFromFirebase(); } catch(e) {}
+      try { await updateSidebarPlan(); } catch(e) {}
     }
     setTimeout(()=>{renderAll();try{restoreConns();}catch(e){}},650);
   });
 })();
+async function updateSidebarPlan(){
+  if(!VoxiaDB||!VoxiaDB.clientId)return;
+  const c=await VoxiaDB.getClient(VoxiaDB.clientId);
+  if(!c)return;
+  const planNames={basico:'Básico',pro:'Pro',premium:'Premium'};
+  const el=$('sidebarPlan');
+  if(el)el.textContent=planNames[c.plan]||c.plan||'–';
+}
 initShortcuts();
 </script>
 </body>
