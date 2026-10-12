@@ -1435,18 +1435,16 @@ async function saveGuide(){
     if($('guideSyncIcon'))$('guideSyncIcon').textContent='⏳';
     if($('guideSyncText'))$('guideSyncText').textContent='Guardando...';
     await VoxiaDB.saveClientConfig({guide});
-    // Sincronizar con ElevenLabs
-    const synced=await syncGuideToElevenLabs(guide);
-    if(synced){
-      guide.syncedAt=new Date().toISOString();
-      await VoxiaDB.saveClientConfig({guide:{...guide,syncedAt:firebase.firestore.FieldValue.serverTimestamp()}});
-      if($('guideSyncIcon'))$('guideSyncIcon').textContent='✅';
-      if($('guideSyncText'))$('guideSyncText').textContent='Sincronizado con ElevenLabs: '+new Date().toLocaleString();
-      toast('✅ Guia guardada y sincronizada');
+    // Marcar para sincronización automática (GitHub Actions cada 15 min)
+    const queued=await syncGuideToElevenLabs(guide);
+    if(queued){
+      if($('guideSyncIcon'))$('guideSyncIcon').textContent='⏳';
+      if($('guideSyncText'))$('guideSyncText').textContent='Guardada. Sincronización automática con ElevenLabs en curso (máx. 15 min).';
+      toast('✅ Guía guardada. Se sincronizará automáticamente.');
     }else{
       if($('guideSyncIcon'))$('guideSyncIcon').textContent='⚠️';
-      if($('guideSyncText'))$('guideSyncText').textContent='Guardada localmente. Sincronizacion con ElevenLabs pendiente.';
-      toast('Guardada. Sincronizacion pendiente.','warn');
+      if($('guideSyncText'))$('guideSyncText').textContent='Guardada localmente. Sincronización pendiente.';
+      toast('Guardada. Sincronización pendiente.','warn');
     }
     logActivity(me.name,'📖','actualizo su guia de negocio');
   }catch(e){toast('⚠ '+e.message,'warn');}
