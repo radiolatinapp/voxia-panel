@@ -1676,8 +1676,8 @@ function updateMonthly(){
   const country=$('fCountry')?$('fCountry').value:'US';
   const model=$('fBillingModel')?$('fBillingModel').value:'full';
   const plan=$('fPlan').value;
-  // Instalación por plan (US)
-  const installUS={'Básico':500,'Pro':550,'Premium':600};
+  // Instalación por plan (US) - desde $700 en adelante
+  const installUS={'Básico':700,'Pro':750,'Premium':800};
   const installCO={'Básico':1500000,'Pro':1650000};
   if(country==='CO'){
     $('fCurrency').textContent='COP';$('fCurrencyInst').textContent='COP';
