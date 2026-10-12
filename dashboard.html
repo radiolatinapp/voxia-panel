@@ -2238,6 +2238,24 @@ function probarAgente(agentId){
 }
 
 function renderAssistants(){
+  // Si el cliente tiene su propio agente, agregarlo al selector y seleccionarlo
+  try{
+    if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
+      document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+        const agentId = currentClient.elevenlabsAgentId;
+        // Evitar duplicados
+        let exists = false;
+        [...sel.options].forEach(opt=>{ if(opt.value===agentId) exists=true; });
+        if(!exists){
+          const opt = document.createElement('option');
+          opt.value = agentId;
+          opt.textContent = '⭐ ' + (currentClient.name || 'Mi asistente');
+          sel.insertBefore(opt, sel.firstChild);
+        }
+        sel.value = agentId;
+      });
+    }
+  }catch(e){ console.warn('Selector agente:', e.message); }
   loadDemoWidget();
   const _dis=canEdit()?'':'disabled';
   $('assistantsList').innerHTML=liveAgentsBlock()+clients.map(c=>`
