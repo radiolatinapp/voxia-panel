@@ -335,12 +335,18 @@
         turnModel: 'turn_v3',
       });
 
-      // 2b. Credenciales del cliente (solo si es modelo maintenance)
+      // 2b. Referencia de credenciales del cliente (solo si es modelo maintenance)
+      // SEGURIDAD: nunca se guardan API keys ni tokens en texto plano.
+      // Solo se guarda constancia de que fueron provistas + últimos 4 caracteres como referencia.
+      // Las claves reales las configura el admin por canal seguro (backend / gestor de secretos).
       if (billingModel === 'maintenance' && (clientElevenKey || clientTwilioSid)) {
+        const hint = (s) => s ? '****' + String(s).slice(-4) : '';
         await db.collection('clients').doc(clientId).collection('config').doc('credentials').set({
-          elevenlabsApiKey: clientElevenKey || '',
-          twilioAccountSid: clientTwilioSid || '',
-          twilioAuthToken: clientTwilioToken || '',
+          elevenlabsConfigured: !!clientElevenKey,
+          elevenlabsKeyHint: hint(clientElevenKey),
+          twilioConfigured: !!(clientTwilioSid && clientTwilioToken),
+          twilioSidHint: hint(clientTwilioSid),
+          note: 'Claves reales gestionadas por canal seguro. Este documento solo guarda referencias.',
           updatedAt: now,
         });
       }
