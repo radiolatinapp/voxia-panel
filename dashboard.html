@@ -2184,10 +2184,35 @@ function loadDemoWidget(){
       const el=document.getElementById(id);
       if(el && !el.querySelector('elevenlabs-convai')){
         el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="${agentName} está hablando..."></elevenlabs-convai>`;
+        // Forzar al widget a inicializarse si el script ya cargó
+        setTimeout(()=>{
+          const w = el.querySelector('elevenlabs-convai');
+          if(w && !w.shadowRoot && window.customElements){
+            // Re-insertar para forzar upgrade del custom element
+            const parent = w.parentNode;
+            const clone = w.cloneNode(true);
+            parent.replaceChild(clone, w);
+          }
+        }, 1500);
       }
     });
   }catch(e){ console.warn('Widget:', e.message); }
 }
+// Reintentar carga del widget cuando el script de ElevenLabs termine de cargar
+window.addEventListener('load', ()=>{ setTimeout(()=>{ 
+  try{
+    document.querySelectorAll('#demoWidget:empty, #demoWidgetDash:empty').forEach(el=>{
+      if(!el.querySelector('elevenlabs-convai')) loadDemoWidget();
+    });
+    // Si hay elevenlabs-convai sin shadowRoot, forzar re-render
+    document.querySelectorAll('elevenlabs-convai').forEach(w=>{
+      if(!w.shadowRoot){
+        const clone = w.cloneNode(true);
+        w.parentNode.replaceChild(clone, w);
+      }
+    });
+  }catch(e){}
+}, 2500); });
 /* Cambiar el agente del widget demo */
 function switchDemoAgent(agentId){
   if(!agentId || !agentId.startsWith('agent_')) return;
