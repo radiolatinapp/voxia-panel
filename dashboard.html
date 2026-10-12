@@ -2791,10 +2791,12 @@ async function login(){
   $('loginBtn').textContent='Entrar';
 }
 async function logout(){
-  if(me)logActivity(me.name,'🔒','cerró sesión');
-  try{ await VoxiaDB.logout(); }catch(e){}
+  if(me){ try{ logActivity(me.name,'🔒','cerró sesión'); }catch(e){} }
+  let firebaseOk = true;
+  try{ await VoxiaDB.logout(); }catch(e){ firebaseOk = false; console.error('Error cerrando sesión Firebase:', e); }
+  // Limpiar todo el estado local SIEMPRE, aunque Firebase falle
+  // (la limpieza local no depende del cierre remoto)
   me=null;
-  // Limpiar todo el estado del cliente anterior (evitar fuga entre sesiones)
   clients = [];
   currentClient = null;
   clientOrders = [];
@@ -2805,8 +2807,21 @@ async function logout(){
   });
   // Limpiar selectores de agentes
   document.querySelectorAll('select[id*="agent"], select[id*="Agent"]').forEach(s=>{ s.innerHTML=''; });
+  // Restablecer elementos visuales del usuario anterior
+  try{
+    ['ucAvatar','topAvatar'].forEach(id=>{ const el=$(id); if(el){ el.innerHTML=''; el.style.background=''; } });
+    ['ucName','ucRole','userDDName'].forEach(id=>{ const el=$(id); if(el) el.textContent=''; });
+  }catch(e){}
   $('loginPass').value='';$('loginErr').style.display='none';
+  // Solo mostrar login como confirmado si Firebase cerró bien;
+  // si falló, mostrar aviso pero igual limpiar la vista local
+  if(!firebaseOk){
+    $('loginErr').textContent='⚠️ Sesión local cerrada, pero hubo un error con el servidor. Recargue si es necesario.';
+    $('loginErr').style.display='block';
+  }
   $('loginScreen').style.display='flex';
+  // Volver a la vista inicial para evitar datos residuales visibles
+  try{ if(typeof go==='function') go('dashboard'); }catch(e){}
 }
 async function applyPermissions(){
   if(!me)return;
