@@ -2244,24 +2244,43 @@ async function renderAssistants(){
       currentClient = await VoxiaDB.getClient(VoxiaDB.clientId);
     }
   }catch(e){}
-  // Si el cliente tiene su propio agente, agregarlo al selector y seleccionarlo
+  // Agregar agentes dedicados al selector
   try{
+    const agentsToAdd = [];
+    // 1. Agente del cliente actual (si es cliente)
     if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
+      agentsToAdd.push({id: currentClient.elevenlabsAgentId, name: '⭐ ' + (currentClient.name || 'Mi asistente'), select: true});
+    }
+    // 2. Para admin: agregar agentes de TODOS los clientes
+    try{
+      const isAdmin = me && (me.role==='admin'||me.role==='superadmin');
+      if(isAdmin && typeof clients !== 'undefined' && clients.length){
+        clients.forEach(c=>{
+          if(c.elevenlabsAgentId && c.id !== (currentClient&&currentClient.id)){
+            agentsToAdd.push({id: c.elevenlabsAgentId, name: '⭐ ' + c.name, select: false});
+          }
+        });
+      }
+    }catch(e){}
+    // Aplicar al selector
+    if(agentsToAdd.length){
       document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
-        const agentId = currentClient.elevenlabsAgentId;
-        // Evitar duplicados
-        let exists = false;
-        [...sel.options].forEach(opt=>{ if(opt.value===agentId) exists=true; });
-        if(!exists){
-          const opt = document.createElement('option');
-          opt.value = agentId;
-          opt.textContent = '⭐ ' + (currentClient.name || 'Mi asistente');
-          sel.insertBefore(opt, sel.firstChild);
-        }
-        sel.value = agentId;
+        agentsToAdd.forEach(a=>{
+          let exists = false;
+          [...sel.options].forEach(opt=>{ if(opt.value===a.id) exists=true; });
+          if(!exists){
+            const opt = document.createElement('option');
+            opt.value = a.id;
+            opt.textContent = a.name;
+            sel.insertBefore(opt, sel.firstChild);
+          }
+        });
+        // Seleccionar el del cliente actual si aplica
+        const toSelect = agentsToAdd.find(a=>a.select);
+        if(toSelect) sel.value = toSelect.id;
       });
-      // Cargar directamente el agente del cliente en el widget
-      switchDemoAgent(currentClient.elevenlabsAgentId);
+      const toSelect = agentsToAdd.find(a=>a.select);
+      if(toSelect) switchDemoAgent(toSelect.id);
     }
   }catch(e){ console.warn('Selector agente:', e.message); }
   loadDemoWidget();
