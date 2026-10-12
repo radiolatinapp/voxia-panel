@@ -280,7 +280,7 @@
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, elevenlabsAgentId, tempPassword, bizType } = data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, clientElevenKey, clientTwilioSid, clientTwilioToken, elevenlabsAgentId, tempPassword, bizType } = data;
 
       if (!clientName || !ownerEmail || !tempPassword) {
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
@@ -305,7 +305,8 @@
       await db.collection('clients').doc(clientId).set({
         name: clientName, email: ownerEmail, phone: ownerPhone || '',
         country: country || 'US', city: city || '',
-        status: 'trial', plan: plan || 'basico', bizType: bizType || 'restaurante',
+        status: 'trial', plan: plan || 'basico', billingModel: billingModel || 'full',
+        bizType: bizType || 'restaurante',
         elevenlabsAgentId: elevenlabsAgentId || '', twilioNumber: '',
         createdAt: now, createdBy: adminUid,
       });
@@ -322,6 +323,16 @@
         pickup: tpl.pickup, delivery: tpl.delivery, citas: tpl.citas,
         turnModel: 'turn_v3',
       });
+
+      // 2b. Credenciales del cliente (solo si es modelo maintenance)
+      if (billingModel === 'maintenance' && (clientElevenKey || clientTwilioSid)) {
+        await db.collection('clients').doc(clientId).collection('config').doc('credentials').set({
+          elevenlabsApiKey: clientElevenKey || '',
+          twilioAccountSid: clientTwilioSid || '',
+          twilioAuthToken: clientTwilioToken || '',
+          updatedAt: now,
+        });
+      }
 
       // 3. Usuario Auth via REST (no cambia sesión)
       let uid = null;
