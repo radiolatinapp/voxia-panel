@@ -102,6 +102,16 @@
     },
 
     /**
+     * Obtiene los datos del cliente actual (plan, modelo, precios)
+     */
+    async getClient(clientId) {
+      const id = clientId || this.clientId;
+      if (!id) return null;
+      const snap = await db.collection('clients').doc(id).get();
+      return snap.exists ? { id: snap.id, ...snap.data() } : null;
+    },
+
+    /**
      * Guarda la configuración del cliente
      */
     async saveClientConfig(config) {
