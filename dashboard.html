@@ -1369,6 +1369,7 @@ async function loadClientsFromFirebase(){
         greeting: '¡Hola! Gracias por llamar a ' + (d.name || '') + '.',
         email: d.email || '',
         bizType: d.bizType || 'restaurante',
+        elevenlabsAgentId: d.elevenlabsAgentId || null,
         _fb: true,
       });
     }
@@ -2168,12 +2169,12 @@ async function delClient(id){
 
 /* ==================== ASISTENTES ==================== */
 function vwaveHTML(){let s='';for(let i=0;i<26;i++){s+=`<i style="height:${18+Math.round(Math.abs(Math.sin(i*1.3))*70)}%"></i>`;}return s;}
-/* Widget demo ElevenLabs: carga el agente del cliente (o default) */
+/* Widget demo ElevenLabs: carga el agente del cliente (o muestra mensaje si no hay) */
 function loadDemoWidget(){
   try{
-    // Si el cliente tiene su propio agente asignado, usarlo; si no, default restaurante
-    let agentId = "agent_0901m4mrx5xqfe0t2vcnz7zvr7ev";
-    let agentName = "Sofía";
+    // SOLO usar el agente del cliente. Si no hay, NO usar fallback a otro negocio.
+    let agentId = null;
+    let agentName = "Asistente";
     try{
       if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
         agentId = currentClient.elevenlabsAgentId;
@@ -2186,6 +2187,10 @@ function loadDemoWidget(){
     ['demoWidget','demoWidgetDash'].forEach(id=>{
       const el=document.getElementById(id);
       if(el && !el.querySelector('elevenlabs-convai')){
+        if(!agentId){
+          el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">⚠️ Tu asistente de ElevenLabs todavía no está vinculado a esta cuenta.<br>Contacta al administrador.</div>';
+          return;
+        }
         el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="${agentName} está hablando..."></elevenlabs-convai>`;
         // Forzar al widget a inicializarse si el script ya cargó
         setTimeout(()=>{
