@@ -1,12 +1,45 @@
 /**
- * Sincroniza las guías pendientes de Firestore con ElevenLabs.
- * Se ejecuta cada 15 minutos vía GitHub Actions (gratis).
+ * Voxia Automation - GitHub Actions (gratis, sin Blaze)
+ * 
+ * 1. Sincroniza guías pendientes → ElevenLabs
+ * 2. Extrae pedidos de conversaciones recientes → Firestore
+ * 
+ * Se ejecuta cada 15 minutos.
  * 
  * Secrets requeridos en GitHub:
  * - FIREBASE_SERVICE_ACCOUNT: JSON de la cuenta de servicio de Firebase
- * - ELEVENLABS_API_KEY: API key maestra de ElevenLabs (para clientes Voxia Completo)
+ * - ELEVENLABS_API_KEY: API key maestra de ElevenLabs
  */
 const admin = require('firebase-admin');
+
+// Extrae información de pedido del transcript de una conversación
+function extractOrderFromTranscript(transcript, agentId) {
+  if (!transcript) return null;
+  const text = transcript.toLowerCase();
+  
+  // Detectar si se tomó un pedido
+  const orderKeywords = ['pedido', 'orden', 'quiero pedir', 'voy a querer', 'me trae', 'para llevar', 'domicilio'];
+  const hasOrder = orderKeywords.some(k => text.includes(k));
+  if (!hasOrder) return null;
+  
+  // Extraer total (buscar patrones como $18.99, 18.99, total 25)
+  let total = 0;
+  const moneyMatches = text.match(/\$?\s*(\d+[.,]\d{2})/g);
+  if (moneyMatches) {
+    // Tomar el último monto mencionado (suele ser el total)
+    const last = moneyMatches[moneyMatches.length - 1].replace(/[$\s]/g, '').replace(',', '.');
+    total = parseFloat(last) || 0;
+  }
+  
+  // Extraer nombre del cliente (patrones comunes)
+  let customer = 'Cliente por teléfono';
+  const nameMatch = text.match(/(?:mi nombre es|me llamo|soy)\s+([a-záéíóúñ\s]+)/i);
+  if (nameMatch) customer = nameMatch[1].trim().split(' ').slice(0, 2).join(' ');
+  
+  if (total <= 0) return null; // Sin total no es un pedido válido
+  
+  return { customer, total, detail: 'Pedido por llamada (auto)', status: 'completed', source: 'elevenlabs' };
+}
 
 async function main() {
   console.log('🔄 Iniciando sincronización de guías...');
@@ -119,7 +152,82 @@ async function main() {
     }
   }
 
-  console.log(`\n📊 Resumen: ${synced} sincronizados, ${errors} errores, ${skipped} omitidos`);
+  console.log(`\n📊 Guías: ${synced} sincronizados, ${errors} errores, ${skipped} omitidos`);
+
+  // ===== PARTE 2: Extraer pedidos de conversaciones recientes =====
+  console.log('\n📞 Buscando pedidos en conversaciones recientes...');
+  let ordersFound = 0;
+  
+  try {
+    // Obtener agentes y sus conversaciones recientes
+    const agentsRes = await fetch('https://api.elevenlabs.io/v1/convai/agents', {
+      headers: { 'xi-api-key': elevenlabsKey }
+    });
+    
+    if (agentsRes.ok) {
+      const agentsData = await agentsRes.json();
+      const agents = agentsData.agents || [];
+      
+      // Mapear agentId -> clientId
+      const agentToClient = {};
+      const clientsSnap2 = await db.collection('clients').get();
+      clientsSnap2.forEach(d => {
+        if (d.data().elevenlabsAgentId) agentToClient[d.data().elevenlabsAgentId] = d.id;
+      });
+      
+      for (const agent of agents) {
+        const clientId = agentToClient[agent.agent_id];
+        if (!clientId) continue;
+        
+        // Obtener conversaciones recientes (últimas 24h)
+        const convosRes = await fetch(
+          `https://api.elevenlabs.io/v1/convai/conversations?agent_id=${agent.agent_id}&page_size=20`,
+          { headers: { 'xi-api-key': elevenlabsKey } }
+        );
+        if (!convosRes.ok) continue;
+        
+        const convosData = await convosRes.json();
+        const conversations = convosData.conversations || [];
+        
+        for (const convo of conversations) {
+          // Verificar si ya procesamos esta conversación
+          const existing = await db.collection('clients').doc(clientId)
+            .collection('orders')
+            .where('conversationId', '==', convo.conversation_id)
+            .limit(1).get();
+          if (!existing.empty) continue;
+          
+          // Obtener transcript completo
+          const detailRes = await fetch(
+            `https://api.elevenlabs.io/v1/convai/conversations/${convo.conversation_id}`,
+            { headers: { 'xi-api-key': elevenlabsKey } }
+          );
+          if (!detailRes.ok) continue;
+          
+          const detail = await detailRes.json();
+          const transcript = (detail.transcript || [])
+            .map(t => `${t.role}: ${t.message}`).join('\n');
+          
+          const order = extractOrderFromTranscript(transcript, agent.agent_id);
+          if (order) {
+            await db.collection('clients').doc(clientId).collection('orders').add({
+              ...order,
+              conversationId: convo.conversation_id,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              createdBy: 'sistema (auto)'
+            });
+            console.log(`🛒 Pedido auto: ${order.customer} $${order.total} (${clientId})`);
+            ordersFound++;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error extrayendo pedidos:', e.message);
+  }
+  
+  console.log(`\n📊 Pedidos auto: ${ordersFound} encontrados`);
+  console.log('\n✅ Proceso completado');
   if (errors > 0) process.exit(1);
 }
 
