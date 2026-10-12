@@ -1087,12 +1087,16 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <label class="flabel">Nombre del negocio *</label><input type="text" id="fName" placeholder="Ej: Cali Colombian Restaurant">
     <label class="flabel">Correo del dueño * (se crea su usuario automáticamente)</label><input type="email" id="fEmail" placeholder="dueno@restaurante.com">
     <div class="row2">
-      <div><label class="flabel">Ciudad</label><input type="text" id="fCity" placeholder="Charlotte, NC"></div>
-      <div><label class="flabel">Teléfono</label><input type="tel" id="fPhone" placeholder="(704) 555-0100"></div>
+      <div><label class="flabel">País</label><select id="fCountry" onchange="updateMonthly()"><option value="US">🇺🇸 Estados Unidos</option><option value="CO">🇨🇴 Colombia</option><option value="OT">🌎 Otro</option></select></div>
+      <div><label class="flabel">Ciudad</label><input type="text" id="fCity" placeholder="Charlotte, NC / Bogotá"></div>
     </div>
     <div class="row2">
+      <div><label class="flabel">Teléfono</label><input type="tel" id="fPhone" placeholder="(704) 555-0100"></div>
       <div><label class="flabel">Plan</label><select id="fPlan" onchange="updateMonthly()"><option>Básico</option><option>Pro</option><option>Premium</option></select></div>
-      <div><label class="flabel">Mensualidad ($)</label><input type="number" id="fMonthly" value="249"></div>
+    </div>
+    <div class="row2">
+      <div><label class="flabel">Mensualidad (<span id="fCurrency">USD</span>)</label><input type="number" id="fMonthly" value="249"></div>
+      <div></div>
     </div>
     <div class="row2">
       <div><label class="flabel">Tipo de negocio</label><select id="fBizType">
@@ -1189,7 +1193,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   </div>
 </div>
 
-<script src="firebase-integration.js?v=20261011u"></script>
+<script src="firebase-integration.js?v=20261011v"></script>
 <script>
 /* ==================== DATOS ==================== */
 const RATE_TWILIO = 0.0085, RATE_ELEVEN = 0.08, RATE_NUM = 1.15;
@@ -1608,17 +1612,25 @@ function renderClients(){
 }
 /* Actualiza la mensualidad según el plan elegido */
 function updateMonthly(){
-  const precios={'Básico':149,'Pro':249,'Premium':399};
+  const preciosUS={'Básico':149,'Pro':249,'Premium':399};
+  const preciosCO={'Básico':599000,'Pro':999000,'Premium':1599000};
+  const country=$('fCountry')?$('fCountry').value:'US';
   const plan=$('fPlan').value;
-  if(precios[plan]) $('fMonthly').value=precios[plan];
+  if(country==='CO'){
+    $('fCurrency').textContent='COP';
+    if(preciosCO[plan]) $('fMonthly').value=preciosCO[plan];
+  }else{
+    $('fCurrency').textContent='USD';
+    if(preciosUS[plan]) $('fMonthly').value=preciosUS[plan];
+  }
 }
 
 function openClientModal(id){
-  const c=id?clients.find(x=>x.id==id):{id:'',name:'',city:'',phone:'',plan:'Pro',monthly:249,status:'active',voice:'Luisa · ES amable'};
+  const c=id?clients.find(x=>x.id==id):{id:'',name:'',country:'US',city:'',phone:'',plan:'Pro',monthly:249,status:'active',voice:'Luisa · ES amable'};
   if(id&&!c){toast('Cliente no encontrado: '+id,'warn');return;}
   try{
     $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
-    $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCity').value=c.city||'';$('fPhone').value=c.phone||'';
+    $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCountry').value=c.country||'US';$('fCity').value=c.city||'';$('fPhone').value=c.phone||'';
     let planVal = c.plan||'basico';
     if(typeof planVal==='string'){
       const pl=planVal.toLowerCase();
@@ -1668,6 +1680,8 @@ async function saveClient(){
         ownerName:name,
         ownerEmail:email,
         ownerPhone:$('fPhone').value,
+        country:$('fCountry').value,
+        city:$('fCity').value,
         plan:$('fPlan').value==='Pro'?'pro':($('fPlan').value==='Premium'?'premium':'basico'),
         bizType:$('fBizType')?$('fBizType').value:'restaurante',
         tempPassword:tempPw,
@@ -1687,7 +1701,7 @@ async function saveClient(){
   const planMap={'Básico':'basico','Pro':'pro','Premium':'premium','basico':'basico','pro':'pro','premium':'premium'};
   const planKey=planMap[$('fPlan').value]||'basico';
   const bizType=$('fBizType')?$('fBizType').value:'restaurante';
-  const d={name,city:$('fCity').value,phone:$('fPhone').value,plan:planKey,status:$('fStatus').value,bizType};
+  const d={name,country:$('fCountry').value,city:$('fCity').value,phone:$('fPhone').value,plan:planKey,status:$('fStatus').value,bizType};
   try{
     toast('Guardando en Firebase…');
     await VoxiaDB.updateClient(id,d);
