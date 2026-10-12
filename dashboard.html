@@ -1562,12 +1562,18 @@ function renderDashboard(anim=true){
   const mins=calls.reduce((a,c)=>a+(c.min||0),0);
   const act=clients.filter(c=>c.status!=='off');
   const mrr=act.reduce((a,c)=>a+(c.monthly||0),0);
+  const isAdmin=me&&me.role!=='owner';
+  // Minutos: el costo ($) solo lo ve el admin
+  const minDetail=isAdmin?'≈ $'+(mins*RATE).toFixed(2):'';
   const cards=[
     {l:'Llamadas · 30 días', v:totCalls, d:totCalls?'':'Sin llamadas aún', c:'up', ic:'📞', bg:'rgba(255,158,46,.12)', sp:[0,0,0,0,0,0,0], sc:'#ffa02e'},
-    {l:'Minutos de voz', v:Math.round(mins), d:'≈ $'+(mins*RATE).toFixed(2), c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[0,0,0,0,0,0,0], sc:'#9d8fff'},
-    {l:'Clientes activos', v:act.length, d:act.length?'':'Sin clientes aún', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'},
-    {l:'Ingresos mensuales', v:mrr, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'},
+    {l:'Minutos de voz', v:Math.round(mins), d:minDetail, c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[0,0,0,0,0,0,0], sc:'#9d8fff'},
   ];
+  // Clientes activos e Ingresos: solo admin (son métricas de Voxia, no del cliente)
+  if(isAdmin){
+    cards.push({l:'Clientes activos', v:act.length, d:act.length?'':'Sin clientes aún', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'});
+    cards.push({l:'Ingresos mensuales', v:mrr, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'});
+  }
   $('dashStats').innerHTML=cards.map((k,i)=>`
     <div class="stat"><div class="top"><div class="label">${k.l}</div><div class="sic" style="background:${k.bg}">${k.ic}</div></div>
     <div class="num" id="dstat${i}">0</div><div class="delta ${k.c}">${k.d}</div>${sparkSVG(k.sp,k.sc)}</div>`).join('');
