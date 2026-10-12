@@ -367,10 +367,9 @@
             clientId: clientId, role: 'owner',
             createdAt: now, createdBy: adminUid,
           });
-          // Enviar correo de recuperación para que el dueño ponga su propia clave
-          try {
-            await auth.sendPasswordResetEmail(ownerEmail);
-          } catch (e) { console.warn('Reset email:', e.message); }
+          // NOTA: no se envía correo de recuperación automático.
+          // Gmail pre-abre los links (antiphishing) y quema el código de un solo uso.
+          // El admin comparte la clave temporal por WhatsApp/llamada (modal en el panel).
         }
       } catch (e) { console.warn('Auth:', e.message); }
 
