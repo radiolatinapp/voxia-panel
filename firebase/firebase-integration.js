@@ -229,7 +229,7 @@
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const { clientName, ownerName, ownerEmail, ownerPhone, plan, elevenlabsAgentId, tempPassword, bizType } = data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, elevenlabsAgentId, tempPassword, bizType } = data;
 
       if (!clientName || !ownerEmail || !tempPassword) {
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
@@ -253,6 +253,7 @@
       // 1. Crear cliente
       await db.collection('clients').doc(clientId).set({
         name: clientName, email: ownerEmail, phone: ownerPhone || '',
+        country: country || 'US', city: city || '',
         status: 'trial', plan: plan || 'basico', bizType: bizType || 'restaurante',
         elevenlabsAgentId: elevenlabsAgentId || '', twilioNumber: '',
         createdAt: now, createdBy: adminUid,
