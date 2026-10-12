@@ -2273,10 +2273,12 @@ async function renderAssistants(){
     if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
       agentsToAdd.push({id: currentClient.elevenlabsAgentId, name: '⭐ ' + (currentClient.name || 'Mi asistente'), select: true});
     }
-    // 1b. Fallback directo: si el clientId es Exclusive Hair, agregar su agente
+    // 1b. Fallback: detectar por nombre del negocio en el sidebar
     try{
+      const sidebarText = document.body.innerText || '';
+      const isExclusive = sidebarText.includes('Exclusive Hair');
       const cid = (window.VoxiaDB && VoxiaDB.clientId) || (typeof currentClient !== 'undefined' && currentClient && currentClient.id);
-      if(cid === 'exclusive-hair-estudio-mv4r9m5t'){
+      if(isExclusive || cid === 'exclusive-hair-estudio-mv4r9m5t'){
         const already = agentsToAdd.some(a => a.id === 'agent_4601m4q6qnxrf2fbke358jhmtspw');
         if(!already){
           agentsToAdd.push({id: 'agent_4601m4q6qnxrf2fbke358jhmtspw', name: '⭐ Exclusive Hair Estudio', select: true});
