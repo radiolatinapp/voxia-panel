@@ -3,15 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Voxia · Command Center</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
 <!-- SheetJS para Excel -->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -74,8 +77,8 @@ button{font-family:var(--font)}
 .user-chip{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:10px 12px}
 .user-chip .avatar{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#3b4a75,#1d2742);
   display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
-.user-chip .nm{font-size:13.5px;font-weight:600}
-.user-chip .rl{font-size:11.5px;color:var(--muted)}
+.user-chip .nm{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.user-chip .rl{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
 .plan-pill{margin-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);
   background:rgba(255,158,46,.08);border:1px solid rgba(255,158,46,.22);border-radius:11px;padding:9px 12px}
 .plan-pill b{color:#ffcf9a;font-weight:700}
@@ -505,6 +508,12 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <button data-view="notifcenter">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
       Notificaciones <span class="count" id="navNotifCount">3</span></button>
+    <button data-view="pedidos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+      Pedidos <span class="count" id="navOrderCount">0</span></button>
+    <button data-view="miguia">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Mi Guía</button>
     <div class="sec">Negocio</div>
     <button data-view="clientes">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 4.8 4h14.4L21 9.5M3 9.5h18M3 9.5V19a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9.5M9 20v-5h6v5"/></svg>
@@ -553,7 +562,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>
       </button>
     </div>
-    <div class="plan-pill"><span>🚀 Plan Agencia</span><b>Pro</b></div>
+    <div class="plan-pill"><span>🚀 Plan Agencia</span><b id="sidebarPlan">–</b></div>
   </div>
 </aside>
 
@@ -594,7 +603,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div class="dd" id="userDD" style="width:240px">
           <h4 id="userDDName">Mi cuenta</h4>
           <div style="padding:4px 10px 12px;display:flex;flex-direction:column;gap:6px">
-            <button class="btn btn-ghost btn-sm" style="justify-content:flex-start" onclick="$('userDD').classList.remove('open');go('perfil')">👤 Mi perfil</button>
+            <button class="btn btn-ghost btn-sm" style="justify-content:flex-start" onclick="$('userDD').classList.remove('open');openProfile()">👤 Mi perfil</button>
             <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;color:var(--red)" onclick="logout()">⎋ Cerrar sesión</button>
           </div>
         </div>
@@ -607,16 +616,36 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   <!-- ============ VIEW: DASHBOARD ============ -->
   <section class="view active" id="view-dashboard">
     <div class="page-head">
-      <div><h2>Command Center</h2><p>Todo tu negocio de voz IA en tiempo real · <span id="liveClock" class="mono"></span> · <span id="dashModeBadge"><span class="badge b-demo">MODO DEMO</span></span></p></div>
+      <div><h2>Command Center</h2><p>Todo tu negocio de voz IA en tiempo real · <span id="liveClock" class="mono"></span> · <span id="dashModeBadge"></span></p></div>
       <div class="pill-tabs" id="dashRange">
         <button data-r="7">7 días</button><button class="active" data-r="30">30 días</button><button data-r="90">90 días</button>
       </div>
     </div>
     <div class="stats" id="dashStats"></div>
+    <!-- Medidor de minutos: admin ve todo, cliente solo su consumo -->
+    <div class="card" id="minutesMeter" style="margin-bottom:18px;display:none">
+      <h3>⏱️ Consumo de minutos <span class="tag" id="minutesPeriod"></span></h3>
+      <div id="minutesContent"></div>
+    </div>
+    <div class="card" style="background:linear-gradient(135deg,rgba(255,158,46,.12),rgba(255,107,53,.06));border:1px solid rgba(255,158,46,.25);position:relative;overflow:hidden">
+      <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,158,46,.2),transparent);border-radius:50%"></div>
+      <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite;flex-shrink:0">🎙️</div>
+        <div style="flex:1;min-width:220px">
+          <h3 style="margin:0 0 6px;font-size:19px">🎧 Pruébalo en vivo — Habla con tu asistente</h3>
+          <p style="margin:0;color:var(--muted);font-size:13.5px">Elige el asistente y habla como un cliente real.</p>
+          <select onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:300px">
+            <option value="">Cargando asistente...</option>
+          </select>
+        </div>
+        <div id="demoWidgetDash"></div>
+      </div>
+      <div class="csub" style="margin-top:10px">💡 Usa audífonos para mejor experiencia · Funciona en español e inglés</div>
+    </div>
     <div class="grid2">
       <div class="card">
         <h3>Llamadas atendidas <span class="tag">14 días</span></h3>
-        <div class="csub">Volumen diario gestionado por tus asistentes</div>
+        <div class="csub" id="callsChartSub">Volumen diario gestionado por tus asistentes</div>
         <div id="chartBars" style="position:relative"></div>
         <div class="legend"><span><span class="dot" style="background:linear-gradient(135deg,#ffb03a,#ff6b35)"></span>Llamadas totales</span>
         <span><span class="dot" style="background:#7c6cff"></span>Pedidos tomados</span></div>
@@ -631,12 +660,12 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       </div>
     </div>
     <div class="grid2">
-      <div class="card">
-        <h3>Tendencia de ingresos <span class="tag">MRR</span></h3>
-        <div class="csub">Ingreso mensual recurrente, últimos 6 meses</div>
+      <div class="card" id="revTrendCard">
+        <h3 id="revTrendTitle">Tendencia de ingresos <span class="tag">MRR</span></h3>
+        <div class="csub" id="revTrendSub">Ingreso mensual recurrente, últimos 6 meses</div>
         <div id="chartLine"></div>
       </div>
-      <div class="card">
+      <div class="card" id="agentStatusCard">
         <h3>Estado de los asistentes <span class="tag" id="agentsOnlineTag">—</span></h3>
         <div class="csub">Salud operativa de cada voz desplegada</div>
         <div id="agentStatus"></div>
@@ -645,8 +674,8 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
     <div class="card">
       <h3>Últimas llamadas</h3>
-      <div class="csub">Actividad más reciente de tus asistentes</div>
-      <div class="tbl-wrap"><table><thead><tr><th></th><th>Hora</th><th>Negocio</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th>Costo</th><th></th></tr></thead>
+      <div class="csub" id="recentCallsSub">Actividad más reciente de tus asistentes</div>
+      <div class="tbl-wrap"><table><thead id="recentCallsHead"><tr><th></th><th>Hora</th><th>Negocio</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th>Costo</th><th></th></tr></thead>
       <tbody id="recentCalls"></tbody></table></div>
     </div>
   </section>
@@ -654,7 +683,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   <!-- ============ VIEW: LLAMADAS ============ -->
   <section class="view" id="view-llamadas">
     <div class="page-head">
-      <div><h2>Llamadas</h2><p>Historial completo con audio y transcripción de la IA · <span id="callsModeBadge"><span class="badge b-demo">MODO DEMO</span></span></p></div>
+      <div><h2>Llamadas</h2><p>Historial completo con audio y transcripción de la IA · <span id="callsModeBadge"></span></p></div>
     </div>
     <div id="liveCallsBox"></div>
     <div class="card">
@@ -674,9 +703,11 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   <section class="view" id="view-clientes">
     <div class="page-head">
       <div><h2>Clientes</h2><p>Tus negocios y sus planes activos</p></div>
+      <div style="display:flex;gap:10px">
       <button class="btn btn-primary" data-edit onclick="openClientModal()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         Nuevo cliente</button>
+      </div>
     </div>
     <div class="card">
       <div class="toolbar">
@@ -694,8 +725,26 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <div class="page-head">
       <div><h2>Asistentes</h2><p>Una voz IA por negocio · cambios publicados al instante</p></div>
     </div>
+    <!-- DEMO EN VIVO: prueba tu asistente con voz real -->
+    <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(255,158,46,.08),rgba(124,108,255,.08));border:1px solid rgba(255,158,46,.2);overflow:hidden;position:relative">
+      <div style="position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,158,46,.25),transparent);border-radius:50%"></div>
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;position:relative">
+        <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#ffa02e,#ff6b35);display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 8px 24px rgba(255,158,46,.4);animation:pulse 2s infinite">🎙️</div>
+        <div style="flex:1;min-width:200px">
+          <h3 style="margin:0 0 6px;font-size:20px">🎧 Pruébalo en vivo</h3>
+          <p style="margin:0;color:var(--muted);font-size:14px">Elige el asistente y habla como un cliente real.</p>
+          <select onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:300px">
+            <option value="">Cargando asistente...</option>
+          </select>
+        </div>
+        <div id="demoWidget"></div>
+      </div>
+      <div class="csub" style="margin-top:12px">💡 Usa audífonos para mejor experiencia · Funciona en español e inglés</div>
+    </div>
     <div id="assistantsList" style="display:grid;gap:16px"></div>
   </section>
+  <style>@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}</style>
+  <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 
   <!-- ============ VIEW: FINANZAS ============ -->
   <section class="view" id="view-finanzas">
@@ -785,7 +834,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         </div>
         <div class="card">
           <h3>Conexiones en vivo</h3>
-          <div class="csub">Conecta tus cuentas reales para ver datos verdaderos · <span id="connModeBadge"><span class="badge b-demo">MODO DEMO</span></span></div>
+          <div class="csub">Conecta tus cuentas reales para ver datos verdaderos · <span id="connModeBadge"></span></div>
           <!-- ElevenLabs -->
           <div style="margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -858,6 +907,58 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
   </section>
 
+  <!-- ============ VIEW: PEDIDOS ============ -->
+  <section class="view" id="view-pedidos">
+    <div class="page-head">
+      <div><h2>🛒 Pedidos</h2><p>Pedidos tomados por tu asistente y registrados manualmente</p></div>
+      <button class="btn btn-primary" onclick="openOrderModal()">+ Nuevo pedido</button>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <select id="orderStatusFilter" onchange="renderOrders()"><option value="">Todos</option><option value="pending">⏳ Pendientes</option><option value="completed">✅ Completados</option><option value="cancelled">❌ Cancelados</option></select>
+        <div class="spacer"></div><span style="font-size:12.5px;color:var(--muted)" id="orderCount"></span>
+        <span style="font-size:14px;font-weight:700" id="orderTotal"></span>
+      </div>
+      <div id="orderList"></div>
+    </div>
+  </section>
+
+  <!-- ============ VIEW: MI GUIA ============ -->
+  <section class="view" id="view-miguia">
+    <div class="page-head">
+      <div><h2>📖 Mi Guía</h2><p>Información que tu asistente usará en las llamadas · se sincroniza con ElevenLabs</p></div>
+      <button class="btn btn-primary" onclick="saveGuide()">💾 Guardar y sincronizar</button>
+    </div>
+    <div class="card">
+      <h3>🏢 Sobre tu negocio</h3>
+      <div class="csub">Describe tu negocio para que la IA responda correctamente</div>
+      <label class="flabel">Descripción del negocio</label>
+      <textarea id="gDesc" rows="4" placeholder="Ej: Restaurante colombiano en Charlotte, especialidad en bandeja paisa..." style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"></textarea>
+      <div class="row2">
+        <div><label class="flabel">Horario</label><input type="text" id="gHours" placeholder="Ej: Lun-Vie 11am-9pm, Sáb-Dom 10am-10pm"></div>
+        <div><label class="flabel">Dirección</label><input type="text" id="gAddress" placeholder="Ej: 123 Main St, Charlotte NC"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🍽️ Menú / Servicios / Precios</h3>
+      <div class="csub">Lista lo que vendes con precios para que la IA pueda tomar pedidos</div>
+      <label class="flabel">Menú o lista de servicios</label>
+      <textarea id="gMenu" rows="6" placeholder="Ej:&#10;Bandeja paisa - $18.99&#10;Jugo de maracuyá - $4.50&#10;Empanadas (3) - $5.00" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"></textarea>
+    </div>
+    <div class="card">
+      <h3>📋 Políticas y notas especiales</h3>
+      <div class="csub">Domicilios, tiempos de espera, promociones, lo que la IA debe saber</div>
+      <label class="flabel">Notas adicionales</label>
+      <textarea id="gNotes" rows="4" placeholder="Ej: Domicilios solo en 5 millas, tiempo 30-45 min, 10% descuento los martes..." style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"></textarea>
+    </div>
+    <div class="card" id="guideSyncStatus">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px" id="guideSyncIcon">🔄</div>
+        <div><b>Sincronización con ElevenLabs</b><div class="csub" id="guideSyncText">Tu guía se enviará a tu asistente de voz</div></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ VIEW: COMPARATIVA ============ -->
   <section class="view" id="view-comparativa">
     <div class="page-head">
@@ -878,7 +979,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   <section class="view" id="view-plantillas">
     <div class="page-head">
       <div><h2>Plantillas de asistentes</h2><p>Configuraciones listas por tipo de negocio · un clic para empezar</p></div>
+      <button class="btn btn-primary" onclick="createAllBizAgents()" id="btnCreateAgents">🤖 Crear agentes en ElevenLabs</button>
     </div>
+    <div id="agentsStatus" style="margin-bottom:16px"></div>
     <div id="templatesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:20px"></div>
     <div class="card" id="templateDetail" style="display:none">
       <h3 id="tplName"></h3>
@@ -988,7 +1091,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div class="csub">Visible para tu equipo</div>
         <div style="display:flex;align-items:center;gap:14px;margin:16px 0">
           <div id="profAvatarPrev"></div>
-          <div><div style="font-weight:700" id="profNamePrev">–</div><div class="cell-sub" id="profRolePrev">–</div></div>
+          <div style="min-width:0;flex:1"><div style="font-weight:700" id="profNamePrev">–</div><div class="cell-sub" id="profRolePrev" style="word-break:break-all;overflow-wrap:anywhere">–</div></div>
         </div>
         <label class="flabel">Nombre completo</label>
         <input type="text" id="pName" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)">
@@ -996,20 +1099,45 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <input type="email" id="pEmail" disabled style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.02);color:var(--muted);font-size:13.5px;font-family:var(--font)">
         <label class="flabel">Color de tu avatar</label>
         <div id="profSwatches" style="display:flex;gap:10px;margin:8px 0 18px"></div>
+        <label class="flabel">Logo de tu empresa</label>
+        <div style="display:flex;align-items:center;gap:14px;margin:8px 0 18px">
+          <div id="bizLogoPrev" style="width:64px;height:64px;border-radius:12px;background:var(--surface);border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden">🏢</div>
+          <div>
+            <input type="file" id="bizLogoInput" accept="image/*" style="display:none" onchange="previewBizLogo(this)">
+            <button class="btn btn-ghost btn-sm" onclick="$('bizLogoInput').click()">📤 Subir logo</button>
+            <div class="cell-sub" style="margin-top:6px">PNG o JPG, se guarda en tu negocio</div>
+          </div>
+        </div>
         <button class="btn btn-primary" onclick="saveProfileName()">Guardar cambios</button>
       </div>
-      <div class="card">
+      <div>
+      <div class="card" id="pwCard" style="border:2px solid #00d4ff">
         <h3>🔑 Cambiar contraseña</h3>
         <div class="csub">Mínimo 6 caracteres</div>
         <label class="flabel">Contraseña actual</label>
-        <input type="password" id="pwCur" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)">
+        <div style="display:flex;gap:8px;align-items:center"><input type="password" id="pwCur" style="flex:1;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"><button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('pwCur',this)" title="Ver/ocultar">👁️</button></div>
         <label class="flabel">Nueva contraseña</label>
-        <input type="password" id="pwNew" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)">
+        <div style="display:flex;gap:8px;align-items:center"><input type="password" id="pwNew" style="flex:1;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"><button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('pwNew',this)" title="Ver/ocultar">👁️</button></div>
         <label class="flabel">Confirmar nueva contraseña</label>
-        <input type="password" id="pwNew2" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;margin-bottom:18px;font-family:var(--font)">
-        <button class="btn btn-primary" onclick="changeMyPw()">Cambiar contraseña</button>
-        <div class="set-row" style="margin-top:18px"><div><div class="st">Sesión</div><div class="sd">Tu sesión se recuerda en este navegador</div></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:18px"><input type="password" id="pwNew2" style="flex:1;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"><button type="button" class="btn btn-ghost btn-sm" onclick="togglePw('pwNew2',this)" title="Ver/ocultar">👁️</button></div>
+        <button class="btn btn-primary" onclick="changeMyPw()" style="width:100%">🔑 Cambiar mi contraseña</button>
+      </div>
+      <div class="card" style="margin-top:20px">
+        <div class="set-row" style="margin-top:0"><div><div class="st">Sesión</div><div class="sd">Tu sesión se recuerda en este navegador</div></div>
           <button class="btn btn-ghost btn-sm" onclick="logout()">Cerrar sesión</button></div>
+      </div>
+      </div>
+      <div class="card">
+        <h3>📋 Mi plan</h3>
+        <div class="csub">Lo que adquiriste en Voxia</div>
+        <div id="myPlanInfo" style="margin-top:12px">
+          <div class="set-row"><div><div class="st">Plan</div><div class="sd" id="mpPlan">–</div></div></div>
+          <div class="set-row"><div><div class="st">Modelo</div><div class="sd" id="mpModel">–</div></div></div>
+          <div class="set-row"><div><div class="st">Mensualidad</div><div class="sd" id="mpMonthly">–</div></div></div>
+          <div class="set-row"><div><div class="st">Instalación</div><div class="sd" id="mpInstall">–</div></div></div>
+          <div class="set-row"><div><div class="st">País</div><div class="sd" id="mpCountry">–</div></div></div>
+          <div class="set-row"><div><div class="st">Estado</div><div class="sd" id="mpStatus">–</div></div></div>
+        </div>
       </div>
     </div>
   </section>
@@ -1028,20 +1156,90 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <label class="flabel">Nombre del negocio *</label><input type="text" id="fName" placeholder="Ej: Cali Colombian Restaurant">
     <label class="flabel">Correo del dueño * (se crea su usuario automáticamente)</label><input type="email" id="fEmail" placeholder="dueno@restaurante.com">
     <div class="row2">
-      <div><label class="flabel">Ciudad</label><input type="text" id="fCity" placeholder="Charlotte, NC"></div>
-      <div><label class="flabel">Teléfono</label><input type="tel" id="fPhone" placeholder="(704) 555-0100"></div>
+      <div><label class="flabel">País</label><select id="fCountry" onchange="updatePlanOptions();updateDialCode()" style="font-size:15px"><option value="US">[US] Estados Unidos</option><option value="CO">[CO] Colombia</option><option value="OT">[--] 🌎 Otro</option></select></div>
+      <div><label class="flabel">Ciudad</label><input type="text" id="fCity" placeholder="Charlotte, NC / Bogotá"></div>
     </div>
     <div class="row2">
-      <div><label class="flabel">Plan</label><select id="fPlan"><option>Básico</option><option>Pro</option><option>Premium</option></select></div>
-      <div><label class="flabel">Mensualidad ($)</label><input type="number" id="fMonthly" value="249"></div>
+      <div><label class="flabel">Teléfono</label><div style="display:flex;gap:6px"><select id="fDialCode" style="max-width:130px;flex-shrink:0"><option value="+1">[US] +1</option><option value="+57">[CO] +57</option><option value="+52">[MX] +52</option><option value="+34">[ES] +34</option><option value="+54">[AR] +54</option><option value="+51">[PE] +51</option><option value="+56">[CL] +56</option><option value="+593">[EC] +593</option><option value="+58">[VE] +58</option><option value="">Otro</option></select><input type="tel" id="fPhone" placeholder="704 555-0100" style="flex:1"></div></div>
+      <div><label class="flabel">Plan</label><select id="fPlan" onchange="updateMonthly()"><option>Básico</option><option>Pro</option><option>Premium</option></select></div>
     </div>
     <div class="row2">
+      <div><label class="flabel">Mensualidad (<span id="fCurrency">USD</span>)</label><input type="number" id="fMonthly" value="249"></div>
+      <div><label class="flabel">Instalación (<span id="fCurrencyInst">USD</span>)</label><input type="number" id="fInstall" value="550"></div>
+    </div>
+    <div class="row2">
+      <div><label class="flabel">Modelo</label><select id="fBillingModel" onchange="updateMonthly();toggleClientKeys()"><option value="full">Voxia Completo</option><option value="maintenance">Solo Mantenimiento</option></select></div>
+      <div></div>
+    </div>
+    <div id="clientKeysSection" style="display:none;border:1px dashed #888;border-radius:8px;padding:10px;margin:8px 0;">
+      <div class="msub">🔑 Credenciales del cliente (él paga su ElevenLabs y Twilio directo)</div>
+      <label class="flabel">ElevenLabs API Key del cliente</label><input type="text" id="fClientElevenKey" placeholder="sk_...">
+      <div class="row2">
+        <div><label class="flabel">Twilio Account SID</label><input type="text" id="fClientTwilioSid" placeholder="AC..."></div>
+        <div><label class="flabel">Twilio Auth Token</label><input type="password" id="fClientTwilioToken" placeholder="..."></div>
+      </div>
+    </div>
+    <div class="row2">
+      <div><label class="flabel">Tipo de negocio</label><select id="fBizType">
+        <option value="restaurante">🍽️ Restaurante</option>
+        <option value="dental">🦷 Clínica dental</option>
+        <option value="taller">🔧 Taller mecánico</option>
+        <option value="belleza">💇 Salón de belleza</option>
+        <option value="barberia">💈 Barbería</option>
+        <option value="hotel">🏨 Hotel</option>
+        <option value="abogado">⚖️ Abogado</option>
+        <option value="veterinaria">🐾 Veterinaria</option>
+        <option value="inmobiliaria">🏠 Inmobiliaria</option>
+        <option value="otro">📦 Otro</option>
+      </select></div>
       <div><label class="flabel">Estado</label><select id="fStatus"><option value="active">Activo</option><option value="trial">Prueba</option><option value="off">Pausado</option></select></div>
+    </div>
+    <div class="row2">
       <div><label class="flabel">Voz del asistente</label><select id="fVoice"><option>Luisa · ES amable</option><option>Carlos · ES neutro</option><option>Sofía · EN/ES</option></select></div>
+      <div></div>
     </div>
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
+      <button class="btn btn-ghost" id="btnResetPw" onclick="sendPasswordReset()" style="display:none">📧 Enviar recuperación</button>
       <button class="btn btn-primary" onclick="saveClient()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: PEDIDO ============ -->
+<div class="modal-bg" id="orderModal">
+  <div class="modal">
+    <button class="mx" onclick="closeModal('orderModal')">✕</button>
+    <h3>🛒 Nuevo pedido</h3>
+    <div class="msub">Registra un pedido tomado por teléfono o WhatsApp</div>
+    <label class="flabel">Cliente (nombre)</label><input type="text" id="oCustomer" placeholder="Nombre del cliente">
+    <label class="flabel">Teléfono del cliente</label><input type="tel" id="oPhone" placeholder="+1 704 555-0100">
+    <div class="row2">
+      <div><label class="flabel">Total ($)</label><input type="number" id="oTotal" placeholder="0.00" step="0.01" min="0"></div>
+      <div><label class="flabel">Estado</label><select id="oStatus"><option value="completed">✅ Completado</option><option value="pending">⏳ Pendiente</option><option value="cancelled">❌ Cancelado</option></select></div>
+    </div>
+    <label class="flabel">Detalle del pedido</label><textarea id="oDetail" rows="3" placeholder="Ej: 2 bandejas paisas, 1 jugo de maracuyá..." style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"></textarea>
+    <div style="text-align:right;margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal('orderModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveOrder()">Guardar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: CLAVE TEMPORAL ============ -->
+<div class="modal-bg" id="tempPwModal">
+  <div class="modal">
+    <button class="mx" onclick="closeModal('tempPwModal')">✕</button>
+    <h3>🔑 Clave temporal creada</h3>
+    <div class="msub">Compártela con el cliente por WhatsApp o llamada. No se envía por correo (Gmail quema los links).</div>
+    <div style="background:#f8f9ff;border:2px dashed #00d4ff;border-radius:12px;padding:20px;text-align:center;margin:18px 0">
+      <div style="font-size:13px;color:#666;margin-bottom:8px" id="tpEmail"></div>
+      <div style="font-size:32px;font-weight:800;letter-spacing:3px;font-family:monospace" id="tpPassword"></div>
+      <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="copyTempPw()">📋 Copiar clave</button>
+    </div>
+    <p style="font-size:13px;color:#666;line-height:1.6">El cliente entra con esta clave y la cambia en <b>Mi perfil → Cambiar contraseña</b>. Esta clave solo se muestra una vez.</p>
+    <div style="text-align:right;margin-top:16px">
+      <button class="btn btn-primary" onclick="closeModal('tempPwModal')">Entendido</button>
     </div>
   </div>
 </div>
@@ -1115,7 +1313,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   </div>
 </div>
 
-<script src="firebase-integration.js"></script>
+<script src="firebase-integration.js?v=20261011z2"></script>
 <script>
 /* ==================== DATOS ==================== */
 const RATE_TWILIO = 0.0085, RATE_ELEVEN = 0.08, RATE_NUM = 1.15;
@@ -1133,20 +1331,35 @@ async function loadClientsFromFirebase(){
   if (typeof VoxiaDB === 'undefined' || !VoxiaDB.user) return;
   clientsLoading = true;
   try {
-    const snap = await VoxiaDB.db.collection('clients').get();
+    const ud = VoxiaDB.userData;
+    const isSuper = ud.role === 'superadmin';
     clients = [];
-    snap.forEach(doc => {
+    let docs = [];
+    if(isSuper){
+      // Superadmin puede listar todos
+      const snap = await VoxiaDB.db.collection('clients').get();
+      docs = snap.docs;
+    } else if(ud.clientId){
+      // Cliente solo puede leer su propio documento
+      const doc = await VoxiaDB.db.collection('clients').doc(ud.clientId).get();
+      if(doc.exists) docs = [doc];
+    }
+    for(const doc of docs){
       const d = doc.data();
-      // Superadmin ve todos; owner/admin solo su cliente
-      const ud = VoxiaDB.userData;
-      if (ud.role !== 'superadmin' && ud.clientId !== doc.id) return;
+      // Cargar logo del cliente (si tiene)
+      let clientLogo = null;
+      try{
+        const cfgSnap = await VoxiaDB.db.collection('clients').doc(doc.id).collection('config').doc('settings').get();
+        if(cfgSnap.exists && cfgSnap.data().logo) clientLogo = cfgSnap.data().logo;
+      }catch(e){}
       clients.push({
         id: doc.id,
+        logo: clientLogo,
         name: d.name || 'Sin nombre',
         city: d.city || '',
         phone: d.phone || '',
         plan: d.plan === 'basico' ? 'Básico' : (d.plan === 'pro' ? 'Pro' : (d.plan || '')),
-        monthly: d.plan === 'pro' ? 249 : 149,
+        monthly: d.plan === 'pro' ? 249 : (d.plan === 'premium' ? 399 : 149),
         status: d.status || 'trial',
         voice: 'Sofía · ES/EN',
         lang: 'ES/EN',
@@ -1155,43 +1368,155 @@ async function loadClientsFromFirebase(){
         since: d.createdAt ? d.createdAt.toDate().toISOString().slice(0,10) : '',
         greeting: '¡Hola! Gracias por llamar a ' + (d.name || '') + '.',
         email: d.email || '',
+        bizType: d.bizType || 'restaurante',
+        elevenlabsAgentId: d.elevenlabsAgentId || null,
         _fb: true,
       });
-    });
+    }
   } catch(e) {
     console.warn('No se pudieron cargar clientes de Firebase:', e.message);
   }
   clientsLoading = false;
   try { renderClients(); } catch(e) {}
 }
-/* Datos de ejemplo ELIMINADOS — ahora todo es real desde Firebase. */
-let calls = [
-  {id:101, d:'2026-10-11 02:41 PM', c:1, min:2.4, lang:'ES', order:'Bandeja paisa ×2', res:'ok', cost:0.22, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant. ¿Su pedido es para recoger o delivery?'],['cl','Para recoger, por favor. Quiero dos bandejas paisas.'],['ia','Perfecto, dos bandejas paisas para recoger. Serían $39.98. ¿Algo más?'],['cl','No, eso es todo.'],['ia','Listo, su pedido estará en 20 minutos a nombre de… ¿me confirma su nombre?']]},
-  {id:102, d:'2026-10-11 02:18 PM', c:1, min:1.8, lang:'EN', order:'Chicken tacos ×3', res:'ok', cost:0.16, tr:[['ia','Hello! Thanks for calling Cali Colombian Restaurant. Pickup or delivery?'],['cl','Pickup. Three chicken tacos please.'],['ia','Three chicken tacos for pickup, $8.97. Anything else?'],['cl','That is all.']]},
-  {id:103, d:'2026-10-11 01:52 PM', c:2, min:3.1, lang:'ES', order:'Ajiaco ×1, jugo ×2', res:'ok', cost:0.28, tr:[['ia','¡Hola! Bienvenido a Sabor Paisa. ¿En qué le puedo ayudar?'],['cl','¿Tienen ajiaco hoy?'],['ia','Sí, tenemos ajiaco a $15.95. ¿Le anoto uno?'],['cl','Sí, y dos jugos de mango.'],['ia','Anotado: un ajiaco y dos jugos de mango, $20.95. ¿Para recoger?']]},
-  {id:104, d:'2026-10-11 01:20 PM', c:1, min:0.9, lang:'ES', order:'—', res:'miss', cost:0.08, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant.'],['cl','Aló… aló…'],['ia','¿Me escucha? ¿Desea hacer un pedido?']]},
-  {id:105, d:'2026-10-11 12:44 PM', c:3, min:2.2, lang:'ES', order:'Sancocho ×2', res:'ok', cost:0.20, tr:[['ia','Gracias por llamar a La Caleñita. ¿En español o English?'],['cl','Español. Dos sancochos de gallina.'],['ia','Dos sancochos, $35.90. ¿Recoger o domicilio?']]},
-  {id:106, d:'2026-10-11 12:05 PM', c:1, min:2.7, lang:'ES', order:'Picada ×1, Pony Malta ×2', res:'ok', cost:0.24, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant.'],['cl','Una picada y dos Pony Malta.'],['ia','Picada $20.99 y dos Pony Malta $5.98. Total $26.97.']]},
-  {id:107, d:'2026-10-11 11:31 AM', c:2, min:1.5, lang:'ES', order:'Empanadas ×6', res:'ok', cost:0.14, tr:[['ia','¡Hola! Bienvenido a Sabor Paisa.'],['cl','Seis empanadas de carne.'],['ia','Seis empanadas, $10.80. ¿Algo de tomar?']]},
-  {id:108, d:'2026-10-10 08:12 PM', c:1, min:3.4, lang:'EN', order:'Bandeja paisa ×1, flan ×1', res:'ok', cost:0.31, tr:[['ia','Hello! Thanks for calling Cali Colombian Restaurant.'],['cl','One bandeja paisa and one flan, please.'],['ia','Bandeja paisa and flan, $24.98. Pickup or delivery?']]},
-  {id:109, d:'2026-10-10 07:48 PM', c:3, min:2.0, lang:'ES', order:'Arroz con pollo ×2', res:'ok', cost:0.18, tr:[['ia','Gracias por llamar a La Caleñita.'],['cl','Dos arroz con pollo para llevar.'],['ia','Dos arroz con pollo, $31.98. Listo en 15 minutos.']]},
-  {id:110, d:'2026-10-10 07:02 PM', c:1, min:1.2, lang:'ES', order:'—', res:'miss', cost:0.11, tr:[['ia','¡Hola! Gracias por llamar a Cali Colombian Restaurant.'],['cl','¿A qué hora cierran?'],['ia','Cerramos a las 11:00 PM. ¿Le ayudo con un pedido?']]},
-];
-/* Normaliza costos desde la tarifa única RATE: min × (Twilio $0.0085 + ElevenLabs $0.08) */
-calls.forEach(c=>{c.cost=+(c.min*RATE).toFixed(2);});
-let invoices = [
-  {id:'INV-2026-1042', c:1, period:'Octubre 2026', amount:249, due:'2026-11-01', status:'pending', lines:[['Plan Pro · Asistente de voz IA','249.00'],['Minutos incluidos (2,000)','—'],['Minutos extra (0)','0.00']]},
-  {id:'INV-2026-1041', c:2, period:'Octubre 2026', amount:149, due:'2026-11-01', status:'pending', lines:[['Plan Básico · Asistente de voz IA','149.00'],['Minutos incluidos (1,000)','—']]},
-  {id:'INV-2026-1040', c:3, period:'Octubre 2026', amount:0, due:'2026-10-20', status:'trial', lines:[['Período de prueba · 14 días','0.00']]},
-  {id:'INV-2026-1035', c:1, period:'Septiembre 2026', amount:249, due:'2026-10-01', status:'paid', lines:[['Plan Pro · Asistente de voz IA','249.00']]},
-  {id:'INV-2026-1034', c:2, period:'Septiembre 2026', amount:149, due:'2026-10-01', status:'paid', lines:[['Plan Básico · Asistente de voz IA','149.00']]},
-  {id:'INV-2026-1028', c:4, period:'Agosto 2026', amount:149, due:'2026-09-01', status:'overdue', lines:[['Plan Básico · Asistente de voz IA','149.00']]},
-];
-let notifs = [
-  {i:'🎉', t:'Nuevo cliente en prueba', d:'La Caleñita activó su asistente bilingüe.', tm:'hace 2 h'},
-  {i:'💰', t:'Factura pagada', d:'Cali Colombian Restaurant pagó INV-2026-1035 ($249).', tm:'ayer'},
-  {i:'⚠️', t:'Factura vencida', d:'El Buen Gusto tiene INV-2026-1028 vencida ($149).', tm:'hace 3 días'},
-];
+/* Datos reales desde Firebase — sin ejemplos falsos. */
+let calls = [];
+let invoices = [];
+let notifs = [];
+let clientOrders = [];
+let currentClient = null;
+
+/* Carga pedidos reales del cliente desde Firestore */
+async function loadClientOrders(){
+  clientOrders=[];
+  try{
+    if(!VoxiaDB||!VoxiaDB.clientId)return;
+    const snap=await db.collection('clients').doc(VoxiaDB.clientId).collection('orders').orderBy('createdAt','desc').limit(500).get();
+    snap.forEach(d=>clientOrders.push({id:d.id,...d.data()}));
+  }catch(e){console.warn('loadClientOrders:',e.message);}
+  updateOrderBadge();
+}
+function updateOrderBadge(){
+  const el=$('navOrderCount');
+  if(el)el.textContent=clientOrders.filter(o=>o.status==='pending').length||clientOrders.length;
+}
+/* ---------- mi guia ---------- */
+async function loadGuide(){
+  try{
+    if(!VoxiaDB||!VoxiaDB.clientId)return;
+    const cfg=await VoxiaDB.getClientConfig();
+    if(cfg&&cfg.guide){
+      const g=cfg.guide;
+      if($('gDesc'))$('gDesc').value=g.desc||'';
+      if($('gHours'))$('gHours').value=g.hours||'';
+      if($('gAddress'))$('gAddress').value=g.address||'';
+      if($('gMenu'))$('gMenu').value=g.menu||'';
+      if($('gNotes'))$('gNotes').value=g.notes||'';
+      if(g.syncedAt&&$('guideSyncText'))$('guideSyncText').textContent='Sincronizado: '+new Date(g.syncedAt.toDate?g.syncedAt.toDate():g.syncedAt).toLocaleString();
+    }
+  }catch(e){console.warn('loadGuide:',e.message);}
+}
+async function saveGuide(){
+  const guide={
+    desc:$('gDesc').value.trim(),hours:$('gHours').value.trim(),
+    address:$('gAddress').value.trim(),menu:$('gMenu').value.trim(),
+    notes:$('gNotes').value.trim(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{
+    toast('Guardando guia...');
+    if($('guideSyncIcon'))$('guideSyncIcon').textContent='⏳';
+    if($('guideSyncText'))$('guideSyncText').textContent='Guardando...';
+    await VoxiaDB.saveClientConfig({guide});
+    // Marcar para sincronización automática (GitHub Actions cada 15 min)
+    const queued=await syncGuideToElevenLabs(guide);
+    if(queued){
+      if($('guideSyncIcon'))$('guideSyncIcon').textContent='⏳';
+      if($('guideSyncText'))$('guideSyncText').textContent='Guardada. Sincronización automática con ElevenLabs en curso (máx. 15 min).';
+      toast('✅ Guía guardada. Se sincronizará automáticamente.');
+    }else{
+      if($('guideSyncIcon'))$('guideSyncIcon').textContent='⚠️';
+      if($('guideSyncText'))$('guideSyncText').textContent='Guardada localmente. Sincronización pendiente.';
+      toast('Guardada. Sincronización pendiente.','warn');
+    }
+    logActivity(me.name,'📖','actualizo su guia de negocio');
+  }catch(e){toast('⚠ '+e.message,'warn');}
+}
+async function syncGuideToElevenLabs(guide){
+  try{
+    if(!currentClient){console.warn('Sin currentClient');return false;}
+    const prompt=`Eres el asistente de ${currentClient.name||'este negocio'}.\n\nINFORMACION DEL NEGOCIO:\n${guide.desc}\n\nHORARIO: ${guide.hours}\nDIRECCION: ${guide.address}\n\nMENU/SERVICIOS:\n${guide.menu}\n\nNOTAS IMPORTANTES:\n${guide.notes}\n\nResponde siempre en base a esta informacion. Se amable y profesional.`;
+    await VoxiaDB.saveClientConfig({'guide.elevenlabsPrompt':prompt,'guide.pendingSync':true});
+    // Mostrar el prompt para copiar manualmente a ElevenLabs
+    showPromptModal(prompt);
+    return true;
+  }catch(e){console.warn('syncGuide:',e.message);return false;}
+}
+function showPromptModal(prompt){
+  const m=document.createElement('div');
+  m.className='modal-bg open';m.id='promptModal';
+  m.innerHTML=`<div class="modal" style="max-width:600px"><button class="mx" onclick="document.getElementById('promptModal').remove()">✕</button>
+    <h3>📋 Prompt para ElevenLabs</h3>
+    <div class="msub">Copia este texto y pégalo en tu agente de ElevenLabs</div>
+    <textarea id="promptText" rows="12" readonly style="width:100%;padding:11px;font-size:12px;background:var(--bg0)">${prompt.replace(/</g,'&lt;')}</textarea>
+    <div style="text-align:right;margin-top:12px"><button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('promptText').value);toast('📋 Copiado')">📋 Copiar</button></div></div>`;
+  document.body.appendChild(m);
+}
+
+/* ---------- pedidos ---------- */
+function openOrderModal(){
+  $('oCustomer').value='';$('oPhone').value='';$('oTotal').value='';$('oDetail').value='';$('oStatus').value='completed';
+  $('orderModal').classList.add('open');
+}
+async function saveOrder(){
+  const customer=$('oCustomer').value.trim(),total=parseFloat($('oTotal').value)||0;
+  if(!customer){toast('Pon el nombre del cliente','warn');return;}
+  if(total<=0){toast('Pon el total del pedido','warn');return;}
+  const order={
+    customer,phone:$('oPhone').value.trim(),total,
+    detail:$('oDetail').value.trim(),status:$('oStatus').value,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    createdBy:me?me.name:'sistema',source:'manual'
+  };
+  try{
+    toast('Guardando pedido…');
+    const ref=await db.collection('clients').doc(VoxiaDB.clientId).collection('orders').add(order);
+    order.id=ref.id;order.createdAt=new Date();
+    clientOrders.unshift(order);
+    closeModal('orderModal');renderOrders();updateOrderBadge();
+    if(typeof renderDashboard==='function')renderDashboard(false);
+    logActivity(me.name,'🛒','registró un pedido de $'+total.toFixed(2)+' ('+customer+')');
+    toast('✅ Pedido guardado');
+  }catch(e){toast('⚠ '+e.message,'warn');}
+}
+async function setOrderStatus(id,status){
+  try{
+    await db.collection('clients').doc(VoxiaDB.clientId).collection('orders').doc(id).update({status});
+    const o=clientOrders.find(x=>x.id===id);
+    if(o)o.status=status;
+    renderOrders();updateOrderBadge();
+    if(typeof renderDashboard==='function')renderDashboard(false);
+    toast('✅ Pedido actualizado');
+  }catch(e){toast('⚠ '+e.message,'warn');}
+}
+function renderOrders(){
+  const f=$('orderStatusFilter')?$('orderStatusFilter').value:'';
+  const list=clientOrders.filter(o=>!f||o.status===f);
+  const done=list.filter(o=>o.status==='completed');
+  const total=done.reduce((a,o)=>a+(o.total||0),0);
+  $('orderCount').textContent=list.length+' pedidos';
+  $('orderTotal').textContent='💰 $'+total.toFixed(2);
+  const stBadge={pending:'⏳ Pendiente',completed:'✅ Completado',cancelled:'❌ Cancelado'};
+  $('orderList').innerHTML=list.map(o=>`
+    <div class="act-row"><div class="act-ico">🛒</div>
+      <div style="flex:1"><div class="act-tx"><b>${o.customer}</b> · $${(o.total||0).toFixed(2)} ${stBadge[o.status]||o.status}</div>
+      <div class="act-meta">${o.detail||''} ${o.phone?'· '+o.phone:''}</div></div>
+      <div style="display:flex;gap:6px">
+        ${o.status!=='completed'?`<button class="btn btn-ghost btn-sm" onclick="setOrderStatus('${o.id}','completed')">✓</button>`:''}
+        ${o.status!=='cancelled'?`<button class="btn btn-ghost btn-sm" onclick="setOrderStatus('${o.id}','cancelled')">✕</button>`:''}
+      </div>
+    </div>`).join('')||'<div class="empty"><div class="eico">🛒</div><h4>Sin pedidos</h4><p>Registra el primero con "+ Nuevo pedido"</p></div>';
+}
 
 /* ==================== UTILS ==================== */
 const $ = id => document.getElementById(id);
@@ -1199,7 +1524,7 @@ const money = n => '$' + n.toLocaleString('en-US',{minimumFractionDigits:n<10?2:
 const cname = id => (clients.find(c=>c.id===id)||{}).name || '—';
 const avColor = name => { let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))%997; return AVC[h%AVC.length]; };
 const initials = name => name.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-const cavatar = (name,sz=38) => `<div class="cavatar" style="width:${sz}px;height:${sz}px;background:${avColor(name)};font-size:${sz*0.36}px">${initials(name)}</div>`;
+const cavatar = (name,sz=38,logo=null) => logo ? `<div class="cavatar" style="width:${sz}px;height:${sz}px;overflow:hidden"><img src="${logo}" style="width:100%;height:100%;object-fit:cover"></div>` : `<div class="cavatar" style="width:${sz}px;height:${sz}px;background:${avColor(name)};font-size:${sz*0.36}px">${initials(name)}</div>`;
 const statusBadge = s => s==='active'?'<span class="badge b-act"><span class="pdot"></span>Activo</span>':s==='trial'?'<span class="badge b-trial">En prueba</span>':'<span class="badge b-off">Pausado</span>';
 const planBadge = p => p==='Pro'?'<span class="badge b-pro">Pro</span>':p==='Premium'?'<span class="badge b-pro" style="background:rgba(255,158,46,.14);color:#ffcf9a;border-color:rgba(255,158,46,.3)">Premium</span>':'<span class="badge b-bas">Básico</span>';
 const invBadge = s => s==='paid'?'<span class="badge b-paid">Pagada</span>':s==='pending'?'<span class="badge b-pend">Pendiente</span>':s==='overdue'?'<span class="badge b-over">Vencida</span>':'<span class="badge b-trial">Prueba</span>';
@@ -1224,23 +1549,135 @@ function hideTip(){ tip.style.display='none'; }
 
 /* ==================== NAV ==================== */
 const titles={dashboard:['Dashboard'],clientes:['Clientes'],llamadas:['Llamadas'],asistentes:['Asistentes'],finanzas:['Finanzas'],facturacion:['Facturación'],config:['Configuración'],transcripciones:['Transcripciones'],notifcenter:['Notificaciones'],comparativa:['Comparativa'],plantillas:['Plantillas'],voces:['Voces'],reportes:['Reportes'],equipo:['Equipo'],integraciones:['Integraciones'],actividad:['Actividad'],perfil:['Mi perfil']};
+let _bizLogoData=null;
+function previewBizLogo(input){
+  const f=input.files&&input.files[0];
+  if(!f)return;
+  if(f.size>500*1024){toast('El logo debe pesar menos de 500KB','warn');return;}
+  const r=new FileReader();
+  r.onload=e=>{_bizLogoData=e.target.result;$('bizLogoPrev').innerHTML=`<img src="${_bizLogoData}" style="width:100%;height:100%;object-fit:cover">`;};
+  r.readAsDataURL(f);
+}
+function togglePw(id,el){
+  const inp=$(id);
+  if(inp.type==='password'){inp.type='text';el.textContent='🙈';}
+  else{inp.type='password';el.textContent='👁️';}
+  inp.focus();
+}
+function openProfile(){
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $('view-perfil').classList.add('active');
+  $('sidebar').classList.remove('open');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(typeof renderProfile==='function')renderProfile();
+}
 function go(view){
   if(me&&!can(view)){toast('🔒 Tu rol no tiene acceso a esta sección','warn');return;}
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
-  document.querySelector(`.nav button[data-view="${view}"]`).classList.add('active');
+  const nb=document.querySelector(`.nav button[data-view="${view}"]`);
+  if(nb)nb.classList.add('active');
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   $('view-'+view).classList.add('active');
   $('sidebar').classList.remove('open');
   window.scrollTo({top:0,behavior:'smooth'});
+  if(view==='pedidos'&&typeof renderOrders==='function')renderOrders();
+  if(view==='miguia'&&typeof loadGuide==='function')loadGuide();
+  if(view==='asistentes'&&typeof renderAssistants==='function')renderAssistants();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
 $('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');
 /* notificaciones */
 $('notifBtn').onclick=e=>{e.stopPropagation();$('notifDD').classList.toggle('open');};
 document.addEventListener('click',e=>{ if(!$('notifDD').contains(e.target)) $('notifDD').classList.remove('open'); if(!$('userDD').contains(e.target)) $('userDD').classList.remove('open'); });
+/* Alertas en tiempo real desde Firebase */
+let firebaseAlerts = [];
 function renderNotifs(){
-  $('notifList').innerHTML=notifs.map(n=>`<div class="notif"><div class="ni" style="background:rgba(255,158,46,.1)">${n.i}</div>
-    <div><div class="nt">${n.t}</div><div class="nd">${n.d}</div><div class="ntm">${n.tm}</div></div></div>`).join('');
+  const list = firebaseAlerts.length ? firebaseAlerts : notifs;
+  $('notifList').innerHTML = list.map(n=>{
+    const icon = n.tipo==='warning'?'⚠️':n.tipo==='urgent'?'🔴':n.tipo==='overage'?'💰':'🔔';
+    const titulo = n.titulo || n.t;
+    const msg = n.mensaje || n.d;
+    const tiempo = n.creada ? new Date(n.creada.seconds*1000).toLocaleString() : (n.tm||'');
+    return `<div class="notif"><div class="ni" style="background:rgba(255,158,46,.1)">${n.i||icon}</div>
+      <div><div class="nt">${titulo}</div><div class="nd">${msg}</div><div class="ntm">${tiempo}</div></div></div>`;
+  }).join('') || '<div class="notif"><div class="nd">Sin notificaciones</div></div>';
+}
+
+/* Conectar campana a Firebase (llamar después del login) */
+function connectAlerts(){
+  if(typeof VoxiaDB==='undefined'||!VoxiaDB.clientId) return;
+  const esAdmin = VoxiaDB.userData?.role==='superadmin';
+  const unsub = esAdmin ? VoxiaDB.onAdminAlerts(alerts=>{
+    firebaseAlerts = alerts;
+    renderNotifs(); renderNotifCenter(); updateNotifBadge();
+  }) : VoxiaDB.onAlerts(alerts=>{
+    firebaseAlerts = alerts;
+    renderNotifs(); renderNotifCenter(); updateNotifBadge();
+  });
+  return unsub;
+}
+
+/* MEDIDOR DE MINUTOS
+ * Admin: ve minutos, costo, extra y total por cliente.
+ * Cliente: solo ve sus minutos consumidos.
+ */
+async function renderMinutesMeter(){
+  const el = $('minutesMeter');
+  if(!el || typeof VoxiaDB==='undefined' || !VoxiaDB.clientId) { if(el) el.style.display='none'; return; }
+  const esAdmin = VoxiaDB.userData?.role==='superadmin';
+
+  if(esAdmin){
+    // Admin: resumen de todos los clientes
+    el.style.display='block';
+    $('minutesPeriod').textContent = new Date().toISOString().slice(0,7);
+    let rows = '';
+    for(const c of clients){
+      const plan = (VoxiaDB.PLANS||{})[(c.plan||'basico').toLowerCase()] || {minutos:1000, precio:149};
+      // Uso real desde Firebase si está disponible
+      let usado = 0, costoExtra = 0;
+      try{
+        const u = await VoxiaDB.getUsageFor(c.id);
+        if(u){ usado = u.usado; costoExtra = u.costoExtra; }
+      }catch(e){}
+      const pct = Math.min(100, Math.round(usado/plan.minutos*100));
+      const color = pct>=95?'#ef4444':pct>=80?'#f59e0b':'#34d399';
+      rows += `<div style="margin:10px 0;padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <strong>${c.name||c.id}</strong>
+          <span>${Math.round(usado)} / ${plan.minutos} min</span>
+        </div>
+        <div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};transition:width .5s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:#888">
+          <span>Plan: $${plan.precio}/mes</span>
+          <span>Extra: $${costoExtra.toFixed(2)}</span>
+          <span><strong>Total: $${(plan.precio+costoExtra).toFixed(2)}</strong></span>
+        </div>
+      </div>`;
+    }
+    $('minutesContent').innerHTML = rows || '<p>Sin clientes aún.</p>';
+  } else {
+    // Cliente: solo sus minutos
+    try{
+      const u = await VoxiaDB.getUsage();
+      if(!u){ el.style.display='none'; return; }
+      el.style.display='block';
+      $('minutesPeriod').textContent = u.periodo;
+      const pct = Math.min(100, u.porcentaje);
+      const color = pct>=95?'#ef4444':pct>=80?'#f59e0b':'#34d399';
+      $('minutesContent').innerHTML = `
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span>Minutos usados este mes</span>
+          <strong>${u.usado} / ${u.limite}</strong>
+        </div>
+        <div style="height:12px;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};transition:width .5s"></div>
+        </div>
+        <div style="margin-top:8px;font-size:13px;color:#888">Te quedan ${u.disponible} minutos</div>`;
+    }catch(e){ el.style.display='none'; }
+  }
 }
 /* búsqueda global */
 function globalGo(){
@@ -1339,24 +1776,63 @@ function sparkSVG(vals,color){
   return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/></svg>`;
 }
 function renderDashboard(anim=true){
-  const totCalls=1247+calls.length;
-  const mins=calls.reduce((a,c)=>a+c.min,0)+2318;
+  const totCalls=calls.length;
+  const mins=calls.reduce((a,c)=>a+(c.min||0),0);
   const act=clients.filter(c=>c.status!=='off');
-  const mrr=act.reduce((a,c)=>a+c.monthly,0);
+  const mrr=act.reduce((a,c)=>a+(c.monthly||0),0);
+  const isAdmin=me&&(me.role==='admin'||me.role==='superadmin');
+  // Minutos: el costo ($) lo ve el admin siempre, y el cliente solo si tiene sus propias keys (maintenance)
+  // porque ellos pagan directamente su ElevenLabs/Twilio
+  let showCost=isAdmin;
+  if(!isAdmin&&typeof currentClient!=='undefined'&&currentClient){
+    showCost=currentClient.billingModel==='maintenance';
+  }
+  const minDetail=showCost?'≈ $'+(mins*RATE).toFixed(2):'';
   const cards=[
-    {l:'Llamadas · 30 días', v:totCalls, d:'▲ 18% vs anterior', c:'up', ic:'📞', bg:'rgba(255,158,46,.12)', sp:[12,18,15,22,19,26,24], sc:'#ffa02e'},
-    {l:'Minutos de voz', v:Math.round(mins), d:'≈ $'+(mins*RATE).toFixed(2)+' · ▲ 12% vs anterior', c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[8,11,9,14,12,16,15], sc:'#9d8fff'},
-    {l:'Clientes activos', v:act.length, d:'+2 este mes', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[1,1,2,2,3,3,4], sc:'#34d399'},
-    {l:'Ingresos mensuales', v:mrr, d:'▲ 24% vs anterior', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[320,380,410,470,540,610,mrr], sc:'#38d6f5', pre:'$'},
+    {l:'Llamadas · 30 días', v:totCalls, d:totCalls?'':'Sin llamadas aún', c:'up', ic:'📞', bg:'rgba(255,158,46,.12)', sp:[0,0,0,0,0,0,0], sc:'#ffa02e'},
+    {l:'Minutos de voz', v:Math.round(mins), d:minDetail, c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[0,0,0,0,0,0,0], sc:'#9d8fff'},
   ];
+  // Clientes activos e Ingresos: solo admin (son métricas de Voxia, no del cliente)
+  // Para el cliente: Pedidos realizados e Ingresos por ventas (requiere tracking de pedidos)
+  if(isAdmin){
+    cards.push({l:'Clientes activos', v:act.length, d:act.length?'':'Sin clientes aún', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'});
+    cards.push({l:'Ingresos mensuales', v:mrr, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'});
+  }else{
+    // Vista cliente: pedidos e ingresos por ventas (datos vienen de orders)
+    const orders=typeof clientOrders!=='undefined'?clientOrders:[];
+    const doneOrders=orders.filter(o=>o.status==='completed');
+    const salesTotal=doneOrders.reduce((a,o)=>a+(o.total||0),0);
+    cards.push({l:'Pedidos realizados', v:doneOrders.length, d:doneOrders.length?'':'Sin pedidos aún', c:'up', ic:'🛒', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'});
+    cards.push({l:'Ingresos por ventas', v:salesTotal, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'});
+  }
   $('dashStats').innerHTML=cards.map((k,i)=>`
     <div class="stat"><div class="top"><div class="label">${k.l}</div><div class="sic" style="background:${k.bg}">${k.ic}</div></div>
     <div class="num" id="dstat${i}">0</div><div class="delta ${k.c}">${k.d}</div>${sparkSVG(k.sp,k.sc)}</div>`).join('');
   cards.forEach((k,i)=>countUp($('dstat'+i),k.v,{pre:k.pre||''}));
-  /* barras 14 días */
-  const days=['28','29','30','1','2','3','4','5','6','7','8','9','10','11'];
-  const bdata=[42,55,48,61,73,88,95,52,58,66,71,80,92,67].map(v=>({total:v,orders:Math.round(v*0.82)}));
+  /* Ajustes visuales segun rol */
+  const isOwner=me&&!(me.role==='admin'||me.role==='superadmin');
+  if($('callsChartSub'))$('callsChartSub').textContent=isOwner?'Volumen diario gestionado por tu asistente':'Volumen diario gestionado por tus asistentes';
+  if($('recentCallsSub'))$('recentCallsSub').textContent=isOwner?'Actividad mas reciente de tu asistente':'Actividad más reciente de tus asistentes';
+  if($('agentStatusCard'))$('agentStatusCard').style.display=isOwner?'none':'';
+  // Tendencia: cliente ve sus ventas, admin ve MRR
+  if(isOwner){
+    if($('revTrendTitle'))$('revTrendTitle').innerHTML='Tendencia de ventas <span class="tag">Pedidos</span>';
+    if($('revTrendSub'))$('revTrendSub').textContent='Ventas por pedidos, ultimos 30 dias';
+  }
+  /* barras 14 días - datos reales */
+  const days=[];const bdata=[];
+  for(let d=13;d>=0;d--){const dt=new Date();dt.setDate(dt.getDate()-d);days.push(dt.getDate().toString());
+    const dayCalls=calls.filter(c=>{if(!c.ts)return false;const cd=new Date(c.ts);return cd.toDateString()===dt.toDateString();});
+    const dayOrders=clientOrders.filter(o=>{if(!o.createdAt)return false;const od=o.createdAt.toDate?o.createdAt.toDate():new Date(o.createdAt);return od.toDateString()===dt.toDateString();});
+    bdata.push({total:dayCalls.length,orders:dayOrders.length});}
   barChart($('chartBars'),bdata,days);
+  // Linea de tendencia: ventas reales para cliente
+  if(isOwner&&typeof lineChart==='function'){
+    const sales=[];for(let d=29;d>=0;d--){const dt=new Date();dt.setDate(dt.getDate()-d);
+      const s=clientOrders.filter(o=>o.status==='completed'&&o.createdAt&&(o.createdAt.toDate?o.createdAt.toDate():new Date(o.createdAt)).toDateString()===dt.toDateString()).reduce((a,o)=>a+(o.total||0),0);
+      sales.push(s);}
+    lineChart($('chartLine'),sales,'#38d6f5');
+  }
   /* dona idiomas */
   const es=calls.filter(c=>c.lang==='ES').length, en=calls.filter(c=>c.lang==='EN').length;
   donutChart($('chartDonut'),[{v:es,c:'#ffa02e'},{v:en,c:'#7c6cff'}]);
@@ -1372,15 +1848,17 @@ function renderDashboard(anim=true){
   const on=act.length;
   $('agentsOnlineTag').textContent=on+' en línea';
   $('agentStatus').innerHTML=clients.map(c=>`
-    <div class="kpi-row"><span style="display:flex;align-items:center;gap:10px">${cavatar(c.name,32)}<span><b>${c.name}</b><br><span style="font-size:11.5px;color:var(--muted)">${c.voice}</span></span></span>
+    <div class="kpi-row"><span style="display:flex;align-items:center;gap:10px">${cavatar(c.name,32,c.logo)}<span><b>${c.name}</b><br><span style="font-size:11.5px;color:var(--muted)">${c.voice}</span></span></span>
     ${c.status==='off'?'<span class="badge b-off">Pausado</span>':'<span class="badge b-act"><span class="pdot"></span>En línea</span>'}</div>`).join('');
-  /* recientes con mini player */
+  /* recientes con mini player - cliente no ve Negocio ni Costo */
+  const hideCols=me&&!(me.role==='admin'||me.role==='superadmin');
+  if(hideCols&&$('recentCallsHead'))$('recentCallsHead').innerHTML='<tr><th></th><th>Hora</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th></th></tr>';
   $('recentCalls').innerHTML=calls.slice(0,5).map(c=>`
     <tr>
-      <td>${cavatar(cname(c.c),34)}</td><td class="mono">${c.d.slice(11)}</td><td class="cell-main">${cname(c.c)}</td>
-      <td class="mono">${c.min.toFixed(1)} min <span style="color:var(--muted)">· ${money(c.min*RATE)}</span></td><td>${c.lang==='ES'?'🇪🇸':'🇺🇸'}</td>
+      <td>${cavatar(cname(c.c),34)}</td><td class="mono">${c.d.slice(11)}</td>${hideCols?'':`<td class="cell-main">${cname(c.c)}</td>`}
+      <td class="mono">${c.min.toFixed(1)} min ${hideCols?'':`<span style="color:var(--muted)">· ${money(c.min*RATE)}</span>`}</td><td>${c.lang==='ES'?'🇪🇸':'🇺🇸'}</td>
       <td>${c.res==='ok'?'<span class="badge b-ok">Pedido</span>':'<span class="badge b-miss">Sin pedido</span>'}</td>
-      <td class="mono">${money(c.min*RATE)}</td>
+      ${hideCols?'':`<td class="mono">${money(c.min*RATE)}</td>`}
       <td><button class="btn btn-ghost btn-sm" onclick="toggleRow(${c.id},this)">▶ Escuchar</button></td>
     </tr>
     <tr id="row-${c.id}" style="display:none"><td colspan="8" style="padding:0 12px 14px"><div class="call-detail" id="det-${c.id}"></div></td></tr>`).join('');
@@ -1459,25 +1937,144 @@ function renderClients(){
   const list=clients.filter(c=>c.name.toLowerCase().includes(q)&&(!fs||c.status===fs));
   $('clientCount').textContent=list.length+' negocios';
   $('clientsBody').innerHTML=list.map(c=>{
-    const cm=calls.filter(x=>x.c===c.id).length+ (c.id===1?312:c.id===2?148:c.id===3?61:44);
+    const cm=calls.filter(x=>x.c===c.id).length;
     return `<tr>
-    <td><div class="row-client">${cavatar(c.name)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
+    <td><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
     <td class="mono">${c.phone}</td><td>${planBadge(c.plan)}</td>
     <td><b class="mono">$${c.monthly}</b><span style="color:var(--faint);font-size:11.5px">/mes</span></td>
     <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td>
     ${canEdit()?`<td style="text-align:right;white-space:nowrap">
-      <button class="btn btn-ghost btn-sm" onclick="openClientModal(${c.id})">Editar</button>
-      <button class="btn btn-danger btn-sm" onclick="delClient(${c.id})">Eliminar</button></td>`:'<td></td>'}</tr>`;
+      <button class="btn btn-ghost btn-sm" onclick="openClientModal('${c.id}')">Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="delClient('${c.id}')">Eliminar</button></td>`:'<td></td>'}</tr>`;
   }).join('')||`<tr><td colspan="7"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
 }
+/* Actualiza la mensualidad según el plan elegido */
+function updateDialCode(){
+  const country=$('fCountry')?$('fCountry').value:'US';
+  const dial=$('fDialCode');
+  if(!dial) return;
+  if(country==='CO') dial.value='+57';
+  else if(country==='US') dial.value='+1';
+}
+
+function getFullPhone(){
+  const dial=$('fDialCode')?$('fDialCode').value:'';
+  const num=$('fPhone')?$('fPhone').value.trim():'';
+  if(!num) return '';
+  // Evitar duplicar el indicativo si ya lo trae
+  if(dial && !num.startsWith('+') && !num.startsWith(dial.replace('+',''))) return dial+' '+num;
+  if(num.startsWith('+')) return num;
+  return (dial?dial+' ':'')+num;
+}
+
+function toggleClientKeys(){
+  const model=$('fBillingModel')?$('fBillingModel').value:'full';
+  $('clientKeysSection').style.display = model==='maintenance' ? '' : 'none';
+}
+
+function updatePlanOptions(){
+  const country=$('fCountry')?$('fCountry').value:'US';
+  const planSel=$('fPlan');
+  const current=planSel.value;
+  planSel.innerHTML='';
+  if(country==='CO'){
+    planSel.innerHTML='<option>Básico</option><option>Pro</option>';
+  }else{
+    planSel.innerHTML='<option>Básico</option><option>Pro</option><option>Premium</option>';
+  }
+  for(let o of planSel.options){ if(o.value===current||o.text===current){planSel.value=o.value||o.text;break;} }
+  updateMonthly();
+}
+
+function updateMonthly(){
+  const country=$('fCountry')?$('fCountry').value:'US';
+  const model=$('fBillingModel')?$('fBillingModel').value:'full';
+  const plan=$('fPlan').value;
+  // Instalación por plan (US) - desde $700 en adelante
+  const installUS={'Básico':700,'Pro':750,'Premium':800};
+  const installCO={'Básico':1500000,'Pro':1650000};
+  if(country==='CO'){
+    $('fCurrency').textContent='COP';$('fCurrencyInst').textContent='COP';
+    // Colombia: solo mantenimiento, cliente pone su infra
+    $('fMonthly').value=100000;
+    $('fInstall').value=installCO[plan]||1500000;
+    return;
+  }
+  // EE.UU.
+  $('fCurrency').textContent='USD';$('fCurrencyInst').textContent='USD';
+  if(model==='maintenance'){
+    // Solo mantenimiento: cliente paga su ElevenLabs + Twilio directo
+    $('fMonthly').value=100;
+  }else{
+    // Voxia Completo: nosotros manejamos todo
+    $('fMonthly').value=400;
+  }
+  $('fInstall').value=installUS[plan]||500;
+}
+
 function openClientModal(id){
-  const c=id?clients.find(x=>x.id===id):{id:'',name:'',city:'',phone:'',plan:'Pro',monthly:249,status:'active',voice:'Luisa · ES amable'};
-  $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
-  $('fId').value=c.id||'';$('fName').value=c.name;$('fCity').value=c.city;$('fPhone').value=c.phone;
-  $('fPlan').value=c.plan;$('fMonthly').value=c.monthly;$('fStatus').value=c.status;$('fVoice').value=c.voice;
-  $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
+  const c=id?clients.find(x=>x.id==id):{id:'',name:'',country:'US',city:'',phone:'',plan:'Pro',monthly:249,installFee:550,billingModel:'full',status:'active',voice:'Luisa · ES amable'};
+  if(id&&!c){toast('Cliente no encontrado: '+id,'warn');return;}
+  try{
+    $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
+    $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCountry').value=c.country||'US';$('fCity').value=c.city||'';
+    // Separar indicativo del número
+    (function(){
+      const ph=c.phone||'';
+      const m=ph.match(/^(\+\d{1,4})\s*(.*)$/);
+      if(m && $('fDialCode')){
+        let found=false;
+        for(let o of $('fDialCode').options){ if(o.value===m[1]){ $('fDialCode').value=m[1]; found=true; break; } }
+        $('fPhone').value=m[2]||'';
+        if(!found) $('fPhone').value=ph;
+      }else{
+        $('fPhone').value=ph;
+        updateDialCode();
+      }
+    })();
+    if($('fBillingModel')) $('fBillingModel').value=c.billingModel||'full';
+    toggleClientKeys();
+    updatePlanOptions();
+    let planVal = c.plan||'basico';
+    if(typeof planVal==='string'){
+      const pl=planVal.toLowerCase();
+      planVal = pl.includes('premium')?'Premium':pl.includes('pro')?'Pro':'Básico';
+    }
+    $('fPlan').value=planVal;$('fMonthly').value=c.monthly||'';$('fInstall').value=c.installFee||'';$('fStatus').value=c.status||'trial';$('fVoice').value=c.voice||'';
+    const emailField=$('fEmail')||$('fOwnerEmail');
+    if(emailField){ emailField.value=c.email||''; emailField.disabled=!!id; }
+    // Tipo de negocio
+    if($('fBizType')) $('fBizType').value=c.bizType||'restaurante';
+    // Mostrar botón de recuperación solo al editar
+    if($('btnResetPw')) $('btnResetPw').style.display=id?'':'none';
+    $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
+  }catch(err){
+    toast('Error abriendo: '+err.message,'warn');
+  }
 }
 function closeModal(id){$(id).classList.remove('open');}
+/* Envía correo de recuperación al dueño del cliente */
+async function sendPasswordReset(){
+  const email=($('fEmail')||{}).value||'';
+  if(!email){ toast('⚠️ El cliente no tiene correo','warn'); return; }
+  if(!confirm('¿Enviar correo de recuperación a '+email+'?')) return;
+  try{
+    await firebase.auth().sendPasswordResetEmail(email);
+    toast('📧 Correo enviado a '+email);
+  }catch(e){
+    toast('⚠️ Error: '+e.message,'warn');
+  }
+}
+
+function showTempPasswordModal(email, tempPw){
+  $('tpEmail').textContent=email;
+  $('tpPassword').textContent=tempPw;
+  $('tempPwModal').classList.add('open');
+}
+function copyTempPw(){
+  const pw=$('tpPassword').textContent;
+  navigator.clipboard.writeText(pw).then(()=>toast('📋 Clave copiada'));
+}
 async function saveClient(){
   if(!canEdit()){toast('🔒 Tu rol no permite crear ni editar negocios','warn');return;}
   const id=$('fId').value,name=$('fName').value.trim();
@@ -1487,21 +2084,50 @@ async function saveClient(){
   if(!id){
     const email=$('fEmail')?$('fEmail').value.trim():($('fOwnerEmail')?$('fOwnerEmail').value.trim():'');
     if(!email){toast('Pon el correo del dueño para crear su usuario','warn');return;}
-    const tempPw='D123456789'; // contraseña genérica demo
+    // Clave temporal única y aleatoria (solo para pruebas del admin, no se guarda)
+    const tempPw='Vx'+Math.random().toString(36).slice(2,10)+'!';
     toast('Creando cliente en Firebase…');
     try{
       const r=await VoxiaDB.onboardClient({
         clientName:name,
         ownerName:name,
         ownerEmail:email,
-        ownerPhone:$('fPhone').value,
-        plan:$('fPlan').value==='Pro'?'pro':'basico',
+        ownerPhone:getFullPhone(),
+        country:$('fCountry').value,
+        city:$('fCity').value,
+        plan:$('fPlan').value==='Pro'?'pro':($('fPlan').value==='Premium'?'premium':'basico'),
+        billingModel:$('fBillingModel').value,
+        monthly:parseFloat($('fMonthly').value)||0,
+        installFee:parseFloat($('fInstall').value)||0,
+        clientElevenKey:$('fClientElevenKey')?$('fClientElevenKey').value:'',
+        clientTwilioSid:$('fClientTwilioSid')?$('fClientTwilioSid').value:'',
+        clientTwilioToken:$('fClientTwilioToken')?$('fClientTwilioToken').value:'',
+        bizType:$('fBizType')?$('fBizType').value:'restaurante',
         tempPassword:tempPw,
       });
-      toast('🎉 Cliente creado: '+r.email+' · clave: '+tempPw);
+      toast('🎉 Cliente creado: '+r.email);
       logActivity(me.name,'🎉','creó el negocio "'+name+'" en Firebase');
-      // El onboarding cierra la sesión; recargar para volver a entrar
-      setTimeout(()=>location.reload(), 2500);
+      // Crear agente ElevenLabs DEDICADO automáticamente para este cliente
+      try{
+        toast('🤖 Creando asistente IA exclusivo...');
+        const agentId = await createClientAgent(
+          r.clientId || r.id,
+          name,
+          $('fBizType')?$('fBizType').value:'restaurante',
+          { address: '', phone: getFullPhone(), city: $('fCity').value, country: $('fCountry').value }
+        );
+        if(agentId){
+          toast('✅ Asistente IA creado para '+name);
+          logActivity(me.name,'🤖','creó asistente IA exclusivo para "'+name+'"');
+        } else {
+          toast('⚠️ Cliente creado pero no se pudo crear el asistente (verifica la API key de ElevenLabs)','warn');
+        }
+      }catch(e){
+        console.error('Error auto-creando agente:', e);
+        toast('⚠️ Cliente creado, asistente pendiente: '+e.message,'warn');
+      }
+      // Mostrar clave temporal en modal (no depende del correo que Gmail quema)
+      showTempPasswordModal(r.email, tempPw);
     }catch(e){
       toast('⚠ '+e.message,'warn');
     }
@@ -1509,34 +2135,187 @@ async function saveClient(){
     return;
   }
 
-  // EDITAR existente (solo local por ahora)
-  const d={name,city:$('fCity').value,phone:$('fPhone').value,plan:$('fPlan').value,monthly:+$('fMonthly').value||0,status:$('fStatus').value,voice:$('fVoice').value};
-  Object.assign(clients.find(c=>c.id==id),d);toast('Cliente actualizado ✓');
-  logActivity(me.name,'✏️','actualizó el negocio "'+name+'"');
+  // EDITAR existente → actualiza en Firebase
+  const planMap={'Básico':'basico','Pro':'pro','Premium':'premium','basico':'basico','pro':'pro','premium':'premium'};
+  const planKey=planMap[$('fPlan').value]||'basico';
+  const bizType=$('fBizType')?$('fBizType').value:'restaurante';
+  const d={name,country:$('fCountry').value,city:$('fCity').value,phone:getFullPhone(),plan:planKey,billingModel:$('fBillingModel').value,monthly:parseFloat($('fMonthly').value)||0,installFee:parseFloat($('fInstall').value)||0,status:$('fStatus').value,bizType};
+  try{
+    toast('Guardando en Firebase…');
+    await VoxiaDB.updateClient(id,d);
+    Object.assign(clients.find(c=>c.id==id),d);
+    toast('Cliente actualizado ✓');
+    logActivity(me.name,'✏️','actualizó el negocio "'+name+'"');
+  }catch(e){
+    toast('⚠ '+e.message,'warn');
+  }
   closeModal('clientModal');renderAll();
 }
-function delClient(id){
+async function delClient(id){
   if(!canEdit()){toast('🔒 Tu rol no permite eliminar negocios','warn');return;}
-  const c=clients.find(x=>x.id===id);
-  if(!confirm(`¿Eliminar “${c.name}” del panel?`))return;
-  logActivity(me.name,'🗑','eliminó el negocio “'+c.name+'”');
-  if(!confirm(`¿Eliminar “${c.name}” del panel?`))return;
-  clients=clients.filter(x=>x.id!==id);calls=calls.filter(x=>x.c!==id);
-  toast('Cliente eliminado','warn');renderAll();
+  const c=clients.find(x=>x.id==id);
+  if(!c){toast('Cliente no encontrado','warn');return;}
+  if(!confirm(`¿Eliminar "${c.name}" de Firebase? Esta acción no se puede deshacer.`))return;
+  try{
+    toast('Eliminando de Firebase…');
+    await VoxiaDB.deleteClient(id);
+    clients=clients.filter(x=>x.id!=id);
+    logActivity(me.name,'🗑','eliminó el negocio "'+c.name+'" de Firebase');
+    toast('Cliente eliminado','warn');renderAll();
+  }catch(e){
+    toast('⚠ '+e.message,'warn');
+  }
 }
 
 /* ==================== ASISTENTES ==================== */
 function vwaveHTML(){let s='';for(let i=0;i<26;i++){s+=`<i style="height:${18+Math.round(Math.abs(Math.sin(i*1.3))*70)}%"></i>`;}return s;}
-function renderAssistants(){
+/* Widget demo ElevenLabs: carga el agente del cliente (o muestra mensaje si no hay) */
+function loadDemoWidget(){
+  try{
+    // SOLO usar el agente del cliente. Si no hay, NO usar fallback a otro negocio.
+    let agentId = null;
+    let agentName = "Asistente";
+    try{
+      if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
+        agentId = currentClient.elevenlabsAgentId;
+        agentName = currentClient.name || agentName;
+      } else if(window.VoxiaDB && VoxiaDB.clientData && VoxiaDB.clientData.elevenlabsAgentId){
+        agentId = VoxiaDB.clientData.elevenlabsAgentId;
+        agentName = VoxiaDB.clientData.name || agentName;
+      }
+    }catch(e){}
+    ['demoWidget','demoWidgetDash'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el && !el.querySelector('elevenlabs-convai')){
+        if(!agentId){
+          el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">⚠️ Tu asistente de ElevenLabs todavía no está vinculado a esta cuenta.<br>Contacta al administrador.</div>';
+          return;
+        }
+        el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="${agentName} está hablando..."></elevenlabs-convai>`;
+        // Forzar al widget a inicializarse si el script ya cargó
+        setTimeout(()=>{
+          const w = el.querySelector('elevenlabs-convai');
+          if(w && !w.shadowRoot && window.customElements){
+            // Re-insertar para forzar upgrade del custom element
+            const parent = w.parentNode;
+            const clone = w.cloneNode(true);
+            parent.replaceChild(clone, w);
+          }
+        }, 1500);
+      }
+    });
+  }catch(e){ console.warn('Widget:', e.message); }
+}
+// Reintentar carga del widget cuando el script de ElevenLabs termine de cargar
+window.addEventListener('load', ()=>{ setTimeout(()=>{ 
+  try{
+    document.querySelectorAll('#demoWidget:empty, #demoWidgetDash:empty').forEach(el=>{
+      if(!el.querySelector('elevenlabs-convai')) loadDemoWidget();
+    });
+    // Si hay elevenlabs-convai sin shadowRoot, forzar re-render
+    document.querySelectorAll('elevenlabs-convai').forEach(w=>{
+      if(!w.shadowRoot){
+        const clone = w.cloneNode(true);
+        w.parentNode.replaceChild(clone, w);
+      }
+    });
+  }catch(e){}
+}, 2500); });
+/* Cambiar el agente del widget demo */
+function switchDemoAgent(agentId){
+  if(!agentId || !agentId.startsWith('agent_')) return;
+  ['demoWidget','demoWidgetDash'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="Asistente hablando..."></elevenlabs-convai>`;
+    }
+  });
+}
+/* Probar un agente desde la lista: lo carga en el widget demo y sube */
+function probarAgente(agentId){
+  switchDemoAgent(agentId);
+  const demo=document.getElementById('demoWidget');
+  if(demo){
+    demo.scrollIntoView({behavior:'smooth', block:'center'});
+    // Actualizar el selector si existe
+    document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+      [...sel.options].forEach(opt=>{ if(opt.value===agentId) sel.value=agentId; });
+    });
+  }
+  toast('🎧 Agente cargado en el demo');
+}
+
+async function renderAssistants(){
+  // Cargar agente del cliente de forma limpia y escalable
+  let clientAgentId = null;
+  let clientAgentName = null;
+  try{
+    if(window.VoxiaDB && VoxiaDB.clientId){
+      const clientDoc = await VoxiaDB.getClient(VoxiaDB.clientId);
+      if(clientDoc && clientDoc.elevenlabsAgentId){
+        clientAgentId = clientDoc.elevenlabsAgentId;
+        clientAgentName = clientDoc.name || 'Mi asistente';
+        currentClient = clientDoc;
+      }
+    }
+  }catch(e){ console.warn('Error cargando agente del cliente:', e.message); }
+  
+  // Agregar agentes al selector
+  try{
+    const agentsToAdd = [];
+    // 1. Agente del cliente actual (SOLO su agente, nada más)
+    if(clientAgentId){
+      agentsToAdd.push({id: clientAgentId, name: '⭐ ' + clientAgentName, select: true});
+    }
+    // 2. Para admin: agregar agentes de TODOS los clientes
+    try{
+      const isAdmin = me && (me.role==='admin'||me.role==='superadmin');
+      if(isAdmin && typeof clients !== 'undefined' && clients.length){
+        clients.forEach(c=>{
+          if(c.elevenlabsAgentId && c.id !== (currentClient&&currentClient.id)){
+            agentsToAdd.push({id: c.elevenlabsAgentId, name: '⭐ ' + c.name, select: false});
+          }
+        });
+      }
+    }catch(e){}
+    // Aplicar al selector
+    if(agentsToAdd.length){
+      document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+        agentsToAdd.forEach(a=>{
+          let exists = false;
+          [...sel.options].forEach(opt=>{ if(opt.value===a.id) exists=true; });
+          if(!exists){
+            const opt = document.createElement('option');
+            opt.value = a.id;
+            opt.textContent = a.name;
+            sel.insertBefore(opt, sel.firstChild);
+          }
+        });
+        // Seleccionar el del cliente actual si aplica
+        const toSelect = agentsToAdd.find(a=>a.select);
+        if(toSelect) sel.value = toSelect.id;
+      });
+      const toSelect = agentsToAdd.find(a=>a.select);
+      if(toSelect){
+        switchDemoAgent(toSelect.id);
+      } else {
+        // Sin agente configurado: mostrar mensaje claro
+        document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+          sel.innerHTML = '<option value="">⚠️ Tu asistente no está configurado. Contacta al administrador.</option>';
+        });
+      }
+    }
+  }catch(e){ console.warn('Selector agente:', e.message); }
+  loadDemoWidget();
   const _dis=canEdit()?'':'disabled';
   $('assistantsList').innerHTML=liveAgentsBlock()+clients.map(c=>`
   <div class="card" style="margin:0">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-      <div class="row-client">${cavatar(c.name,44)}<div><div class="cell-main" style="font-size:15.5px">🎙️ ${c.name}</div>
+      <div class="row-client">${cavatar(c.name,44,c.logo)}<div><div class="cell-main" style="font-size:15.5px">🎙️ ${c.name}</div>
         <div class="cell-sub">${c.voice} · ${c.lang} · ${c.menu} platos en el menú</div></div></div>
       <div style="display:flex;align-items:center;gap:10px">
         ${c.status==='off'?'<span class="badge b-off">Pausado</span>':'<span class="badge b-act"><span class="pdot"></span>En línea</span>'}
-        ${canEdit()?`<span class="switch ${c.status!=='off'?'on':''}" onclick="toggleAgent(${c.id},this)"></span>`:`<span class="switch ${c.status!=='off'?'on':''}" style="opacity:.5;cursor:not-allowed" title="Sin permiso"></span>`}
+        ${canEdit()?`<span class="switch ${c.status!=='off'?'on':''}" onclick="toggleAgent('${c.id}',this)"></span>`:`<span class="switch ${c.status!=='off'?'on':''}" style="opacity:.5;cursor:not-allowed" title="Sin permiso"></span>`}
       </div>
     </div>
     <div class="voice-card" style="margin-top:16px">
@@ -1546,13 +2325,17 @@ function renderAssistants(){
         <div class="vwave">${vwaveHTML()}</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:6px">
-      <div><label class="flabel">Mensaje de bienvenida</label><textarea ${_dis} onchange="upd(${c.id},'greeting',this.value)">${c.greeting}</textarea></div>
-      <div><label class="flabel">Horario de atención</label><input ${_dis} type="text" value="${c.hours}" onchange="upd(${c.id},'hours',this.value)">
+      <div><label class="flabel">Mensaje de bienvenida</label><textarea ${_dis} onchange="upd('${c.id}','greeting',this.value)">${c.greeting||''}</textarea></div>
+      <div><label class="flabel">Horario de atención</label><input ${_dis} type="text" value="${c.hours||''}" onchange="upd('${c.id}','hours',this.value)">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:2px">
-          <div><label class="flabel">Voz</label><select ${_dis} onchange="upd(${c.id},'voice',this.value)">${['Luisa · ES amable','Carlos · ES neutro','Sofía · EN/ES'].map(v=>`<option ${v===c.voice?'selected':''}>${v}</option>`).join('')}</select></div>
-          <div><label class="flabel">Idiomas</label><select ${_dis} onchange="upd(${c.id},'lang',this.value)">${['ES','EN','ES/EN'].map(v=>`<option ${v===c.lang?'selected':''}>${v}</option>`).join('')}</select></div>
+          <div><label class="flabel">Voz</label><select ${_dis} onchange="upd('${c.id}','voice',this.value)">${['Luisa · ES amable','Carlos · ES neutro','Sofía · EN/ES'].map(v=>`<option ${v===c.voice?'selected':''}>${v}</option>`).join('')}</select></div>
+          <div><label class="flabel">Idiomas</label><select ${_dis} onchange="upd('${c.id}','lang',this.value)">${['ES','EN','ES/EN'].map(v=>`<option ${v===c.lang?'selected':''}>${v}</option>`).join('')}</select></div>
         </div>
       </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:10px">
+      <div><label class="flabel">🛎️ Servicios que ofrece</label><textarea ${_dis} rows="3" placeholder="Ej: Pedidos a domicilio, reservas, catering..." onchange="upd('${c.id}','services',this.value)">${c.services||''}</textarea></div>
+      <div><label class="flabel">❓ Preguntas frecuentes</label><textarea ${_dis} rows="3" placeholder="Ej: ¿Tienen parqueadero? ¿Aceptan tarjetas?..." onchange="upd('${c.id}','questions',this.value)">${c.questions||''}</textarea></div>
     </div>
   </div>`).join('');
 }
@@ -1570,15 +2353,34 @@ function previewVoice(btn){
   setTimeout(()=>{clearInterval(pvTimer);btn.dataset.p='';btn.querySelector('svg').innerHTML='<path d="M8 5v14l11-7z"/>';
     w.forEach(i=>{i.style.transform='scaleY(1)';i.style.opacity=.85;});},3200);
 }
-function toggleAgent(id,el){
+async function toggleAgent(id,el){
   if(!canEdit()){toast('🔒 Tu rol no permite cambiar asistentes','warn');return;}
-  const c=clients.find(x=>x.id===id);
-  logActivity(me.name,c.status==='off'?'▶':'⏸',(c.status==='off'?'activó':'pausó')+' el asistente de “'+c.name+'”');
-  c.status=c.status==='off'?'active':'off'; el.classList.toggle('on');
-  toast(c.status==='off'?'⏸ Asistente pausado':'▶ Asistente activado · en línea');
+  const c=clients.find(x=>String(x.id)===String(id));
+  if(!c){toast('⚠️ Cliente no encontrado','warn');return;}
+  const newStatus=c.status==='off'?'active':'off';
+  logActivity(me.name,newStatus==='off'?'⏸':'▶',(newStatus==='off'?'pausó':'activó')+' el asistente de "'+c.name+'"');
+  c.status=newStatus; el.classList.toggle('on', newStatus!=='off');
+  // Guardar en Firebase para que persista
+  try{
+    if(window.VoxiaDB && VoxiaDB.db){
+      await VoxiaDB.db.collection('clients').doc(String(id)).update({status:newStatus});
+    }
+  }catch(e){ console.warn('toggleAgent Firebase:', e.message); }
+  toast(newStatus==='off'?'⏸ Asistente pausado':'▶ Asistente activado · en línea');
   renderAll();
 }
-function upd(id,k,v){if(!canEdit()){toast('🔒 Tu rol no permite editar','warn');renderAssistants();return;}clients.find(c=>c.id===id)[k]=v;toast('✓ Guardado y publicado');}
+async function upd(id,k,v){
+  if(!canEdit()){toast('🔒 Tu rol no permite editar','warn');renderAssistants();return;}
+  const c=clients.find(x=>String(x.id)===String(id));
+  if(!c) return;
+  c[k]=v;
+  try{
+    if(window.VoxiaDB && VoxiaDB.db){
+      await VoxiaDB.db.collection('clients').doc(String(id)).update({[k]:v});
+    }
+  }catch(e){ console.warn('upd Firebase:', e.message); }
+  toast('✓ Guardado y publicado');
+}
 
 /* ==================== FINANZAS ==================== */
 function clientMinutes(id){return calls.filter(c=>c.c===id).reduce((a,c)=>a+c.min,0)+(id===1?412:id===2?188:id===3?96:40);}
@@ -1727,11 +2529,7 @@ if(!users||!users.length){
 let activity=[];
 try{activity=JSON.parse(localStorage.getItem('voxia_activity'))||[];}catch(e){activity=[];}
 if(!activity.length){
-  activity=[
-    {t:'2026-10-11 03:12',who:'María González',icon:'🏪',tx:'creó el negocio “La Caleñita”'},
-    {t:'2026-10-10 18:40',who:'Jeremy Rico',icon:'🔑',tx:'restableció la contraseña de Carlos Ruiz'},
-    {t:'2026-10-10 09:05',who:'Carlos Ruiz',icon:'🔓',tx:'inició sesión'},
-  ];
+  activity=[];
   localStorage.setItem('voxia_activity',JSON.stringify(activity));
 }
 let me=null;
@@ -1742,58 +2540,12 @@ let integrations=[
   {id:'stripe',icon:'💳',name:'Stripe',desc:'Cobros automáticos a tus clientes',status:'off',detail:'Conecta tu cuenta para facturar'},
   {id:'gcal',icon:'📅',name:'Google Calendar',desc:'Sincroniza citas agendadas por la IA',status:'off',detail:'OAuth con tu cuenta de Google'}
 ];
-let transcripts=[
-  {cid:1,dt:'11 oct · 1:42 PM',dur:'2:34',cost:2.27,lang:'ES',result:'Pedido tomado · $32.50',
-   lines:[['IA','¡Hola! Gracias por llamar a Cali Colombian Restaurant. ¿Su pedido es para recoger o delivery?'],
-   ['Cliente','Para recoger, por favor.'],
-   ['IA','Perfecto. ¿Qué desea ordenar?'],
-   ['Cliente','Una bandeja paisa y dos jugos de maracuyá.'],
-   ['IA','Anotado: una bandeja paisa a $16.99 y dos jugos de maracuyá a $4.50 cada uno. Su total es $32.50. ¿Algo más?'],
-   ['Cliente','No, eso es todo.'],
-   ['IA','Su pedido estará listo en 25 minutos. ¿A nombre de quién?'],
-   ['Cliente','De Andrés.'],
-   ['IA','Gracias Andrés. Lo esperamos. ¡Buen provecho!']]},
-  {cid:3,dt:'11 oct · 11:15 AM',dur:'1:58',cost:1.74,lang:'EN',result:'Pedido tomado · $24.00',
-   lines:[['IA','Hello! Thank you for calling La Caleñita. Would you like to order in English or español?'],
-   ['Cliente','English please.'],
-   ['IA','Of course! What would you like to order today?'],
-   ['Cliente','Two chicken empanadas and a cheese arepa.'],
-   ['IA','Got it: two chicken empanadas and one cheese arepa. Your total is $24.00. Pickup or delivery?'],
-   ['Cliente','Pickup.'],
-   ['IA','It will be ready in 20 minutes. Thank you!']]},
-  {cid:2,dt:'10 oct · 7:03 PM',dur:'3:12',cost:2.83,lang:'ES',result:'Pedido tomado · $45.75',
-   lines:[['IA','¡Hola! Bienvenido a Sabor Paisa. ¿En qué le puedo ayudar?'],
-   ['Cliente','Quiero hacer un pedido grande para una fiesta.'],
-   ['IA','¡Con gusto! ¿Para cuántas personas?'],
-   ['Cliente','Como para 8 personas.'],
-   ['IA','Le recomiendo 2 bandejas paisas familiares y una jarra de jugo. ¿Le parece?'],
-   ['Cliente','Sí, perfecto.'],
-   ['IA','Su total es $45.75. ¿Para recoger o delivery?'],
-   ['Cliente','Delivery, por favor.'],
-   ['IA','Anoto su dirección para el delivery…']]},
-  {cid:1,dt:'10 oct · 12:20 PM',dur:'0:45',cost:0.66,lang:'ES',result:'Sin pedido',
-   lines:[['IA','¡Hola! Gracias por llamar a Cali Colombian Restaurant. ¿Su pedido es para recoger o delivery?'],
-   ['Cliente','¿A qué hora cierran?'],
-   ['IA','Cerramos a las 11:00 PM. ¿Desea hacer un pedido?'],
-   ['Cliente','No, solo preguntaba. Gracias.'],
-   ['IA','¡Con gusto! Que tenga buen día.']]}
-];
+let transcripts=[];
 /* Normaliza costos de transcripciones desde RATE (dur 'M:SS' → min × RATE) */
 transcripts.forEach(t=>{const p=t.dur.split(':'),m=+p[0]+(+p[1])/60;t.cost=+((m*RATE).toFixed(2));});
-/* notificaciones extendidas (reemplaza render del dropdown) */
-notifs=[
-  {i:'🎉',t:'Nuevo cliente en prueba',d:'La Caleñita activó su asistente bilingüe.',tm:'hace 2 h',type:'info',read:false},
-  {i:'💰',t:'Factura pagada',d:'Cali Colombian Restaurant pagó INV-2026-1035 ($249).',tm:'ayer',type:'money',read:false},
-  {i:'⚠️',t:'Llamada sin contestar',d:'Sabor Paisa tuvo 1 llamada que la IA no pudo atender (línea ocupada).',tm:'ayer',type:'alert',read:false},
-  {i:'⏰',t:'Factura por vencer',d:'INV-2026-1038 de Tacos El Primo vence en 3 días ($149).',tm:'hace 2 días',type:'money',read:true},
-  {i:'📊',t:'Reporte semanal listo',d:'Tu resumen del 5–11 oct ya está disponible en Reportes.',tm:'hace 3 días',type:'info',read:true},
-  {i:'😴',t:'Cliente inactivo',d:'Sabor Paisa no recibe llamadas hace 5 días. Revisa su línea.',tm:'hace 4 días',type:'alert',read:true}
-];
-let recentReps=[
-  {n:'Reporte_Octubre2026_Cali.csv',d:'Generado hoy · 2.1 KB'},
-  {n:'Reporte_Septiembre2026_Todos.json',d:'Generado 3 oct · 14 KB'},
-  {n:'Resumen_Q3_2026.txt',d:'Generado 1 oct · 4.8 KB'}
-];
+/* notificaciones: solo datos reales de Firebase (sin ficticios) */
+notifs=[];
+let recentReps=[];
 
 /* ==================== RENDER: NUEVAS VISTAS ==================== */
 function clientName(id){const c=clients.find(x=>x.id===id);return c?c.name:'—';}
@@ -1855,6 +2607,122 @@ function showTemplate(id){
   $('templateDetail').style.display='block';
   $('templateDetail').scrollIntoView({behavior:'smooth'});
 }
+/* Crea agentes ElevenLabs para cada tipo de negocio */
+const BIZ_AGENTS = {
+  dental: {nombre:'Asistente Clínica Dental', saludo:'¡Hola! Gracias por llamar a su clínica dental. ¿Desea agendar una cita?', prompt:'Eres el asistente de una clínica dental. Agendas citas, confirmas seguros dentales y envías recordatorios. Pregunta: día preferido, si es paciente nuevo, y tipo de seguro.'},
+  taller: {nombre:'Asistente Taller Mecánico', saludo:'¡Hola! Gracias por llamar al taller. ¿En qué le ayudamos con su vehículo?', prompt:'Eres el asistente de un taller mecánico. Recibes diagnósticos, cotizas servicios y agendas citas. Pregunta: marca y modelo, falla que presenta, cuándo puede traerlo.'},
+  belleza: {nombre:'Asistente Salón de Belleza', saludo:'¡Hola! Bienvenido al salón. ¿Desea reservar un servicio?', prompt:'Eres el asistente de un salón de belleza. Reservas servicios, confirmas estilista y envías promociones. Pregunta: servicio deseado, estilista preferido, día y hora.'},
+  barberia: {nombre:'Asistente Barbería', saludo:'¡Hola! Bienvenido a la barbería. ¿Desea reservar un corte?', prompt:'Eres el asistente de una barbería. Reservas cortes y servicios, confirmas barbero y envías promociones. Pregunta: servicio deseado (corte, barba, etc.), barbero preferido, día y hora.'},
+  hotel: {nombre:'Asistente Hotel', saludo:'¡Hola! Gracias por llamar al hotel. ¿Desea hacer una reserva?', prompt:'Eres el asistente de un hotel. Manejas reservas, info de check-in y servicios 24/7. Pregunta: fechas, número de personas, tipo de habitación.'},
+  abogado: {nombre:'Asistente Abogado', saludo:'¡Hola! Gracias por llamar. ¿En qué caso le ayudamos?', prompt:'Eres el asistente de un abogado. Agendas consultas, tomas datos del caso y haces seguimiento. Pregunta: tipo de caso, si desea agendar consulta, nombre y teléfono.'},
+  veterinaria: {nombre:'Asistente Veterinaria', saludo:'¡Hola! Gracias por llamar a la veterinaria. ¿Su mascota necesita atención?', prompt:'Eres el asistente de una veterinaria. Agendas citas, atiendes emergencias y envías recordatorios de vacunas. Pregunta: tipo de mascota, síntomas, si es emergencia.'},
+  inmobiliaria: {nombre:'Asistente Inmobiliaria', saludo:'¡Hola! Gracias por llamar. ¿Busca comprar, vender o rentar?', prompt:'Eres el asistente de una inmobiliaria. Agendas visitas, das info de propiedades y haces seguimiento. Pregunta: compra/venta/renta, zona de interés, presupuesto.'},
+};
+
+/* Crea un agente ElevenLabs DEDICADO para un cliente específico */
+async function createClientAgent(clientId, clientName, bizType, clientInfo){
+  const key = getElKey();
+  if(!key){
+    console.warn('Sin API key de ElevenLabs - no se creó agente para', clientName);
+    return null;
+  }
+  const cfg = BIZ_AGENTS[bizType] || BIZ_AGENTS['belleza'] || {nombre:'Asistente', saludo:'¡Hola! ¿En qué le ayudamos?', prompt:'Eres un asistente virtual amable.'};
+  
+  // Construir prompt personalizado con info del cliente
+  let prompt = `Eres el asistente virtual de ${clientName}.\n\n`;
+  prompt += cfg.prompt + '\n\n';
+  if(clientInfo){
+    if(clientInfo.address) prompt += `Dirección: ${clientInfo.address}\n`;
+    if(clientInfo.phone) prompt += `Teléfono: ${clientInfo.phone}\n`;
+    if(clientInfo.city || clientInfo.country) prompt += `Ubicación: ${clientInfo.city||''} ${clientInfo.country||''}\n`;
+  }
+  prompt += `\nHabla de forma natural, amable y profesional en español (o inglés si el cliente lo prefiere).`;
+  
+  try{
+    const r = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
+      method: 'POST',
+      headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: clientName + ' - Asistente',
+        conversation_config: {
+          agent: {
+            first_message: cfg.saludo.replace(/\{negocio\}/g, clientName),
+            language: 'es',
+            prompt: { prompt: prompt, llm: 'gpt-4o-mini', temperature: 0.5 },
+          },
+          tts: { voice_id: 'EXAVITQu4vr4xnSDxMaL', model_id: 'eleven_turbo_v2_5' },
+        },
+      }),
+    });
+    const data = await r.json();
+    if(data.agent_id){
+      // Guardar el agent ID en el cliente
+      if(window.VoxiaDB && VoxiaDB.db){
+        await VoxiaDB.db.collection('clients').doc(clientId).update({
+          elevenlabsAgentId: data.agent_id,
+        });
+      }
+      console.log('Agente creado para', clientName, ':', data.agent_id);
+      return data.agent_id;
+    } else {
+      console.error('Error creando agente:', data);
+      return null;
+    }
+  }catch(e){
+    console.error('Error creando agente para', clientName, ':', e.message);
+    return null;
+  }
+}
+
+async function createAllBizAgents(){
+  const key = getElKey();
+  if(!key){ toast('⚠️ Conecta ElevenLabs primero en Integraciones','warn'); return; }
+  const btn = $('btnCreateAgents');
+  const status = $('agentsStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ Creando agentes...';
+
+  const results = [];
+  for(const [bizType, cfg] of Object.entries(BIZ_AGENTS)){
+    try{
+      status.innerHTML = `<div class="csub">Creando ${cfg.nombre}...</div>`;
+      const r = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Voxia - ' + cfg.nombre,
+          conversation_config: {
+            agent: {
+              first_message: cfg.saludo,
+              language: 'es',
+              prompt: { prompt: cfg.prompt, llm: 'gpt-4o-mini', temperature: 0.5 },
+            },
+            tts: { voice_id: 'EXAVITQu4vr4xnSDxMaL', model_id: 'eleven_turbo_v2_5' },
+          },
+        }),
+      });
+      const data = await r.json();
+      if(data.agent_id){
+        results.push({bizType, agentId: data.agent_id, nombre: cfg.nombre});
+        // Guardar en Firebase para uso automático
+        if(window.VoxiaDB && VoxiaDB.db){
+          await VoxiaDB.db.collection('biz_agents').doc(bizType).set({
+            agentId: data.agent_id, nombre: cfg.nombre, createdAt: new Date(),
+          });
+        }
+      }
+    }catch(e){
+      results.push({bizType, error: e.message});
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🤖 Crear agentes en ElevenLabs';
+  const ok = results.filter(r=>r.agentId).length;
+  status.innerHTML = `<div class="note" style="color:#22c55e">✅ ${ok} agentes creados. Ya están listos para asignarse automáticamente.</div>`;
+  toast(`✅ ${ok} agentes creados en ElevenLabs`);
+}
+
 function useTemplate(){
   toast('📋 Plantilla "'+activeTpl.name+'" aplicada · créala como cliente nuevo');
   openClientModal();
@@ -1864,12 +2732,18 @@ function useTemplate(){
 function hashPw(s){let h=5381;for(let i=0;i<s.length;i++){h=(((h<<5)+h)+s.charCodeAt(i))>>>0;}return 'h'+h.toString(36);}
 /* roles y permisos */
 const ROLES={
+  superadmin:{label:'Superadmin',edit:true,manageUsers:true,
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+  owner:{label:'Dueño',edit:false,manageUsers:false,
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','asistentes','voces','reportes','actividad','perfil']},
   admin:{label:'Administrador',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   gerente:{label:'Gerente',edit:true,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','clientes','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
   agente:{label:'Agente',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','clientes','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','perfil']},
+  viewer:{label:'Visualizador',edit:false,manageUsers:false,
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','perfil']},
 };
 const roleLabel=r=>(ROLES[r]||{}).label||r;
 const roleBadge=r=>r==='admin'?'<span class="badge b-adm">👑 Administrador</span>':r==='gerente'?'<span class="badge b-ger">🧭 Gerente</span>':'<span class="badge b-agt">🎧 Agente</span>';
@@ -1923,7 +2797,7 @@ async function logout(){
   $('loginPass').value='';$('loginErr').style.display='none';
   $('loginScreen').style.display='flex';
 }
-function applyPermissions(){
+async function applyPermissions(){
   if(!me)return;
   const R=ROLES[me.role];
   document.querySelectorAll('.nav button[data-view]').forEach(b=>{b.style.display=R.views.includes(b.dataset.view)?'':'none';});
@@ -1931,7 +2805,19 @@ function applyPermissions(){
   $('ucAvatar').textContent=initials(me.name);$('ucAvatar').style.background=ucolor(me);
   $('ucName').textContent=me.name;$('ucRole').textContent=roleLabel(me.role);
   $('topAvatar').textContent=initials(me.name);$('topAvatar').style.background=ucolor(me);$('topAvatar').title=me.name;
-  $('userDDName').textContent=me.name+' · '+me.email;
+  $('userDDName').textContent=me.name;$('userDDName').title=me.email;
+  $('userDDName').style.cssText='word-break:break-all;overflow-wrap:anywhere;font-size:13px';
+  // Mostrar logo de empresa en avatares si existe
+  try{
+    if(VoxiaDB&&VoxiaDB.clientId){
+      const cfg=await VoxiaDB.getClientConfig();
+      if(cfg&&cfg.logo){
+        const img=`<img src="${cfg.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        $('ucAvatar').innerHTML=img;$('ucAvatar').style.background='transparent';
+        $('topAvatar').innerHTML=img;$('topAvatar').style.background='transparent';
+      }
+    }
+  }catch(e){}
   if(!can(curView()))go('dashboard');
 }
 
@@ -2037,30 +2923,90 @@ function saveNewPw(){
 }
 
 /* ---------- mi perfil ---------- */
-function renderProfile(){
+async function loadMyPlan(){
+  try{
+    if(!VoxiaDB || !VoxiaDB.clientId) return;
+    const c = await VoxiaDB.getClient(VoxiaDB.clientId);
+    if(!c) return;
+    const planNames={basico:'Básico',pro:'Pro',premium:'Premium'};
+    $('mpPlan').textContent=planNames[c.plan]||c.plan||'–';
+    const isMaint=c.billingModel==='maintenance';
+    $('mpModel').textContent=isMaint?'Solo Mantenimiento':'Voxia Completo';
+    const country=c.country||'US';
+    const curr=country==='CO'?'COP':'USD';
+    // Calcular valores si no están guardados (clientes creados antes)
+    let monthly=c.monthly, install=c.installFee;
+    if(!monthly){
+      if(country==='CO')monthly=100000;
+      else monthly=isMaint?100:400;
+    }
+    if(!install){
+      const instUS={basico:700,pro:750,premium:800};
+      const instCO={basico:1500000,pro:1650000};
+      install=country==='CO'?(instCO[c.plan]||1500000):(instUS[c.plan]||700);
+    }
+    $('mpMonthly').textContent=monthly.toLocaleString()+' '+curr+'/mes';
+    $('mpInstall').textContent=install.toLocaleString()+' '+curr+' (una vez)';
+    const countryNames={US:'Estados Unidos',CO:'Colombia',OT:'Otro'};
+    $('mpCountry').textContent=countryNames[country]||country||'–';
+    const statusNames={active:'Activo',trial:'Prueba',off:'Pausado'};
+    $('mpStatus').textContent=statusNames[c.status]||c.status||'–';
+  }catch(e){ console.warn('loadMyPlan:', e.message); }
+}
+async function renderProfile(){
   if(!me)return;
   $('profAvatarPrev').innerHTML=uavatar(me,54);
   $('profNamePrev').textContent=me.name;$('profRolePrev').textContent=roleLabel(me.role)+' · '+me.email;
   $('pName').value=me.name;$('pEmail').value=me.email;
   $('profSwatches').innerHTML=AVC.map(c=>`<div class="swatch ${ucolor(me)===c?'sel':''}" style="background:${c}" onclick="setMyColor('${c}')" title="${c}"></div>`).join('');
+  loadMyPlan();
+  // Cargar logo existente de la empresa
+  try{
+    if(VoxiaDB&&VoxiaDB.clientId){
+      const cfg=await VoxiaDB.getClientConfig();
+      if(cfg&&cfg.logo){
+        $('bizLogoPrev').innerHTML=`<img src="${cfg.logo}" style="width:100%;height:100%;object-fit:cover">`;
+        // Mostrar logo también en el avatar del perfil
+        $('profAvatarPrev').innerHTML=`<img src="${cfg.logo}" style="width:54px;height:54px;border-radius:50%;object-fit:cover">`;
+      }
+    }
+  }catch(e){}
 }
 function setMyColor(c){me.color=c;saveUsers();renderProfile();applyPermissions();toast('🎨 Color actualizado');}
-function saveProfileName(){
+async function saveProfileName(){
   const n=$('pName').value.trim();
   if(!n){toast('Pon tu nombre','warn');return;}
   me.name=n;saveUsers();applyPermissions();renderProfile();renderTeam();
+  // Guardar logo de la empresa en Firestore (config del cliente)
+  if(_bizLogoData && VoxiaDB && VoxiaDB.clientId){
+    try{
+      await VoxiaDB.saveClientConfig({logo:_bizLogoData});
+      _bizLogoData=null;
+    }catch(e){console.warn('logo:',e.message);}
+  }
   logActivity(me.name,'👤','actualizó su perfil');
   toast('✓ Perfil actualizado');
 }
-function changeMyPw(){
+async function changeMyPw(){
   const cur=$('pwCur').value,nw=$('pwNew').value,nw2=$('pwNew2').value;
-  if(me.pw!==hashPw(cur)){toast('Tu contraseña actual no coincide','warn');return;}
   if(nw.length<6){toast('La nueva contraseña debe tener mínimo 6 caracteres','warn');return;}
   if(nw!==nw2){toast('La confirmación no coincide','warn');return;}
-  me.pw=hashPw(nw);saveUsers();
-  $('pwCur').value='';$('pwNew').value='';$('pwNew2').value='';
-  logActivity(me.name,'🔑','cambió su contraseña');
-  toast('🔑 Contraseña cambiada');
+  try{
+    const user=firebase.auth().currentUser;
+    if(!user){toast('No hay sesión activa','warn');return;}
+    // Re-autenticar con la clave actual (Firebase lo exige)
+    const cred=firebase.auth.EmailAuthProvider.credential(user.email,cur);
+    await user.reauthenticateWithCredential(cred);
+    await user.updatePassword(nw);
+    $('pwCur').value='';$('pwNew').value='';$('pwNew2').value='';
+    logActivity(me.name,'🔑','cambió su contraseña');
+    toast('🔑 Contraseña cambiada');
+  }catch(e){
+    console.warn('changeMyPw:',e.message);
+    if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential')
+      toast('Tu contraseña actual no coincide','warn');
+    else toast('⚠ '+e.message,'warn');
+  }
 }
 
 function renderIntegrations(){
@@ -2078,7 +3024,18 @@ function renderIntegrations(){
 }
 function toggleIntegration(id){
   const g=integrations.find(x=>x.id===id);
-  if(g.status==='on'){toast('⚙️ Abriendo configuración de '+g.name+'…');}
+  if(g.status==='on'){
+    // Ir a Configuración donde está el campo de la API key
+    if(id==='eleven'||id==='twilio'){
+      go('config');
+      setTimeout(()=>{
+        const target = id==='eleven' ? $('elKey') : $('twSid');
+        if(target){ target.scrollIntoView({behavior:'smooth',block:'center'}); target.focus(); }
+      }, 400);
+    } else {
+      toast('⚙️ '+g.name+' · configuración próximamente');
+    }
+  }
   else{g.status='on';g.detail='Conectado hoy · configura tus credenciales';toast('🔌 '+g.name+' conectado');renderIntegrations();}
 }
 
@@ -2239,7 +3196,7 @@ function modeBadgeHTML(){
   const any = live.el || live.tw;
   return any
     ? '<span class="badge b-live"><span class="pdot"></span>EN VIVO</span>'
-    : '<span class="badge b-demo">MODO DEMO</span>';
+    : '';
 }
 function refreshModeBadges(){
   ['connModeBadge','dashModeBadge','callsModeBadge'].forEach(id => { const el = $(id); if(el) el.innerHTML = modeBadgeHTML(); });
@@ -2369,17 +3326,32 @@ function twStatusBadge(s){
   return `<span class="badge ${m[0]}">${s==='in-progress'?'<span class="pdot"></span>':''}${m[1]}</span>`;
 }
 function liveAgentsBlock(){
-  if(!live.agents.length) return '';
+  // Para clientes: mostrar su agente dedicado aunque no tengan API key
+  let agents = live.agents || [];
+  try{
+    if(!agents.length){
+      let cData = null;
+      if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
+        cData = currentClient;
+      } else if(window.VoxiaDB && VoxiaDB.clientData && VoxiaDB.clientData.elevenlabsAgentId){
+        cData = { id: VoxiaDB.clientId, ...VoxiaDB.clientData };
+      }
+      if(cData){
+        agents = [{agent_id: cData.elevenlabsAgentId, name: cData.name || 'Mi asistente', created_at_unix_secs: Date.now()/1000}];
+      }
+    }
+  }catch(e){}
+  if(!agents.length) return '';
   return `<div class="card" style="margin:0 0 16px;border-color:rgba(52,211,153,.3)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="cell-main" style="font-size:15.5px">🤖 Agentes reales de ElevenLabs</div>
       <span class="badge b-live"><span class="pdot"></span>EN VIVO</span>
     </div>
-    ${live.agents.map(a=>{
+    ${agents.map(a=>{
       const dt = a.created_at_unix_secs ? new Date(a.created_at_unix_secs*1000).toLocaleDateString() : '—';
       return `<div class="set-row"><div><div class="st">${a.name || 'Sin nombre'}</div>
         <div class="sd mono">${a.agent_id} · creado ${dt}</div></div>
-        <a class="btn btn-ghost btn-sm" href="https://elevenlabs.io/app/agents/agents/${a.agent_id}" target="_blank" rel="noopener">Abrir ↗</a></div>`;
+        <button class="btn btn-ghost btn-sm" onclick="probarAgente('${a.agent_id}')">🎧 Probar</button></div>`;
     }).join('')}
     ${live.convos.length ? `<div class="csub" style="margin-top:10px">💬 ${live.convos.length} conversación(es) recientes en ElevenLabs (últimos 20 registros)</div>` : ''}
   </div>`;
@@ -2431,10 +3403,22 @@ function renderAll(){renderDashboard();renderClients();renderCalls();renderAssis
       $('loginScreen').style.display='none';
       applyPermissions();
       try { await loadClientsFromFirebase(); } catch(e) {}
+      try { await loadClientOrders(); } catch(e) {}
+      try { if(VoxiaDB&&VoxiaDB.clientId) currentClient=await VoxiaDB.getClient(VoxiaDB.clientId); } catch(e) {}
+      try { await loadGuide(); } catch(e) {}
+      try { await updateSidebarPlan(); } catch(e) {}
     }
     setTimeout(()=>{renderAll();try{restoreConns();}catch(e){}},650);
   });
 })();
+async function updateSidebarPlan(){
+  if(!VoxiaDB||!VoxiaDB.clientId)return;
+  const c=await VoxiaDB.getClient(VoxiaDB.clientId);
+  if(!c)return;
+  const planNames={basico:'Básico',pro:'Pro',premium:'Premium'};
+  const el=$('sidebarPlan');
+  if(el)el.textContent=planNames[c.plan]||c.plan||'–';
+}
 initShortcuts();
 </script>
 </body>
