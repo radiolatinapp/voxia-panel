@@ -2317,6 +2317,25 @@ async function renderAssistants(){
       if(toSelect) switchDemoAgent(toSelect.id);
     }
   }catch(e){ console.warn('Selector agente:', e.message); }
+  // Reintento diferido para Exclusive Hair (por si los datos cargan tarde)
+  setTimeout(()=>{
+    try{
+      const sidebarText = document.body.innerText || '';
+      if(sidebarText.includes('Exclusive Hair')){
+        document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+          let exists = false;
+          [...sel.options].forEach(opt=>{ if(opt.value==='agent_4601m4q6qnxrf2fbke358jhmtspw') exists=true; });
+          if(!exists){
+            const opt = document.createElement('option');
+            opt.value = 'agent_4601m4q6qnxrf2fbke358jhmtspw';
+            opt.textContent = '⭐ Exclusive Hair Estudio';
+            sel.insertBefore(opt, sel.firstChild);
+            sel.value = opt.value;
+          }
+        });
+      }
+    }catch(e){}
+  }, 2000);
   loadDemoWidget();
   const _dis=canEdit()?'':'disabled';
   $('assistantsList').innerHTML=liveAgentsBlock()+clients.map(c=>`
