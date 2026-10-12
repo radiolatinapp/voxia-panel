@@ -287,17 +287,20 @@
             clientId: clientId, role: 'owner',
             createdAt: now, createdBy: adminUid,
           });
+          // Enviar correo de recuperación para que el dueño ponga su propia clave
+          try {
+            await auth.sendPasswordResetEmail(ownerEmail);
+          } catch (e) { console.warn('Reset email:', e.message); }
         }
       } catch (e) { console.warn('Auth:', e.message); }
 
-      // 4. Excel
+      // 4. Excel (sin contraseña)
       try {
         await this._autoDownloadExcelAfterOnboarding({
           nombre: clientName, correo: ownerEmail, telefono: ownerPhone || '',
           estado: 'trial', plan: plan || 'basico',
           agenteElevenLabs: elevenlabsAgentId || '', numeroTwilio: '',
           creado: new Date().toLocaleDateString('es-CO'), id: clientId,
-          tempPassword: tempPassword,
         });
       } catch (e) {}
 
