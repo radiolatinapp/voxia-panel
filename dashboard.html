@@ -2175,13 +2175,21 @@ async function loadDemoWidget(){
     let agentId = "agent_0901m4mrx5xqfe0t2vcnz7zvr7ev"; // default restaurante
     let agentName = "Sofía";
     try {
-      const bizType = (currentClient && currentClient.bizType) || 'restaurante';
-      // Mapear barberia -> belleza (usan el mismo tipo de asistente)
-      const lookupType = bizType === 'barberia' ? 'belleza' : bizType;
-      const agentDoc = await db.collection('biz_agents').doc(lookupType).get();
-      if (agentDoc.exists && agentDoc.data().agentId) {
-        agentId = agentDoc.data().agentId;
-        agentName = agentDoc.data().nombre || agentName;
+      // Si el cliente tiene su propio agente asignado, usarlo
+      if(currentClient && currentClient.elevenlabsAgentId){
+        agentId = currentClient.elevenlabsAgentId;
+        agentName = currentClient.name || agentName;
+      } else {
+        const bizType = (currentClient && currentClient.bizType) || 'restaurante';
+        // Mapear barberia -> belleza (usan el mismo tipo de asistente)
+        const lookupType = bizType === 'barberia' ? 'belleza' : bizType;
+        if(window.VoxiaDB && VoxiaDB.db){
+          const agentDoc = await VoxiaDB.db.collection('biz_agents').doc(lookupType).get();
+          if (agentDoc.exists && agentDoc.data().agentId) {
+            agentId = agentDoc.data().agentId;
+            agentName = agentDoc.data().nombre || agentName;
+          }
+        }
       }
     } catch(e) { console.warn('Agent lookup:', e.message); }
     
