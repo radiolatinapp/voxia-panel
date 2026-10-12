@@ -219,11 +219,12 @@ async function main() {
         const conversations = convosData.conversations || [];
         
         // Filtrar por últimas 24 horas
-        const now = Date.now();
-        const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+        // La API devuelve start_time_unix_secs (Unix timestamp en segundos)
+        const nowSecs = Math.floor(Date.now() / 1000);
+        const twentyFourHoursAgoSecs = nowSecs - (24 * 60 * 60);
         const recentConversations = conversations.filter(c => {
-          const convoTime = new Date(c.start_time || c.created_at).getTime();
-          return convoTime >= twentyFourHoursAgo;
+          const convoSecs = c.start_time_unix_secs || 0;
+          return convoSecs >= twentyFourHoursAgoSecs;
         });
         
         for (const convo of recentConversations) {
