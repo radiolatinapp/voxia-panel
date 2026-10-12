@@ -1087,11 +1087,11 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <label class="flabel">Nombre del negocio *</label><input type="text" id="fName" placeholder="Ej: Cali Colombian Restaurant">
     <label class="flabel">Correo del dueño * (se crea su usuario automáticamente)</label><input type="email" id="fEmail" placeholder="dueno@restaurante.com">
     <div class="row2">
-      <div><label class="flabel">País</label><select id="fCountry" onchange="updatePlanOptions();updateDialCode()" style="font-size:15px"><option value="US">🇺🇸 Estados Unidos</option><option value="CO">🇨🇴 Colombia</option><option value="OT">🌎 Otro</option></select></div>
+      <div><label class="flabel">País</label><select id="fCountry" onchange="updatePlanOptions();updateDialCode()" style="font-size:15px"><option value="US">[US] 🇺🇸 Estados Unidos</option><option value="CO">[CO] 🇨🇴 Colombia</option><option value="OT">[--] 🌎 Otro</option></select></div>
       <div><label class="flabel">Ciudad</label><input type="text" id="fCity" placeholder="Charlotte, NC / Bogotá"></div>
     </div>
     <div class="row2">
-      <div><label class="flabel">Teléfono</label><div style="display:flex;gap:6px"><select id="fDialCode" style="max-width:110px;flex-shrink:0"><option value="+1">🇺🇸 +1</option><option value="+57">🇨🇴 +57</option><option value="+52">🇲🇽 +52</option><option value="+34">🇪🇸 +34</option><option value="+54">🇦🇷 +54</option><option value="+51">🇵🇪 +51</option><option value="+56">🇨🇱 +56</option><option value="+593">🇪🇨 +593</option><option value="+58">🇻🇪 +58</option><option value="">Otro</option></select><input type="tel" id="fPhone" placeholder="704 555-0100" style="flex:1"></div></div>
+      <div><label class="flabel">Teléfono</label><div style="display:flex;gap:6px"><select id="fDialCode" style="max-width:130px;flex-shrink:0"><option value="+1">[US] +1</option><option value="+57">[CO] +57</option><option value="+52">[MX] +52</option><option value="+34">[ES] +34</option><option value="+54">[AR] +54</option><option value="+51">[PE] +51</option><option value="+56">[CL] +56</option><option value="+593">[EC] +593</option><option value="+58">[VE] +58</option><option value="">Otro</option></select><input type="tel" id="fPhone" placeholder="704 555-0100" style="flex:1"></div></div>
       <div><label class="flabel">Plan</label><select id="fPlan" onchange="updateMonthly()"><option>Básico</option><option>Pro</option><option>Premium</option></select></div>
     </div>
     <div class="row2">
