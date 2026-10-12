@@ -2106,6 +2106,25 @@ async function saveClient(){
       });
       toast('🎉 Cliente creado: '+r.email);
       logActivity(me.name,'🎉','creó el negocio "'+name+'" en Firebase');
+      // Crear agente ElevenLabs DEDICADO automáticamente para este cliente
+      try{
+        toast('🤖 Creando asistente IA exclusivo...');
+        const agentId = await createClientAgent(
+          r.clientId || r.id,
+          name,
+          $('fBizType')?$('fBizType').value:'restaurante',
+          { address: '', phone: getFullPhone(), city: $('fCity').value, country: $('fCountry').value }
+        );
+        if(agentId){
+          toast('✅ Asistente IA creado para '+name);
+          logActivity(me.name,'🤖','creó asistente IA exclusivo para "'+name+'"');
+        } else {
+          toast('⚠️ Cliente creado pero no se pudo crear el asistente (verifica la API key de ElevenLabs)','warn');
+        }
+      }catch(e){
+        console.error('Error auto-creando agente:', e);
+        toast('⚠️ Cliente creado, asistente pendiente: '+e.message,'warn');
+      }
       // Mostrar clave temporal en modal (no depende del correo que Gmail quema)
       showTempPasswordModal(r.email, tempPw);
     }catch(e){
@@ -2511,6 +2530,61 @@ const BIZ_AGENTS = {
   veterinaria: {nombre:'Asistente Veterinaria', saludo:'¡Hola! Gracias por llamar a la veterinaria. ¿Su mascota necesita atención?', prompt:'Eres el asistente de una veterinaria. Agendas citas, atiendes emergencias y envías recordatorios de vacunas. Pregunta: tipo de mascota, síntomas, si es emergencia.'},
   inmobiliaria: {nombre:'Asistente Inmobiliaria', saludo:'¡Hola! Gracias por llamar. ¿Busca comprar, vender o rentar?', prompt:'Eres el asistente de una inmobiliaria. Agendas visitas, das info de propiedades y haces seguimiento. Pregunta: compra/venta/renta, zona de interés, presupuesto.'},
 };
+
+/* Crea un agente ElevenLabs DEDICADO para un cliente específico */
+async function createClientAgent(clientId, clientName, bizType, clientInfo){
+  const key = getElKey();
+  if(!key){
+    console.warn('Sin API key de ElevenLabs - no se creó agente para', clientName);
+    return null;
+  }
+  const cfg = BIZ_AGENTS[bizType] || BIZ_AGENTS['belleza'] || {nombre:'Asistente', saludo:'¡Hola! ¿En qué le ayudamos?', prompt:'Eres un asistente virtual amable.'};
+  
+  // Construir prompt personalizado con info del cliente
+  let prompt = `Eres el asistente virtual de ${clientName}.\n\n`;
+  prompt += cfg.prompt + '\n\n';
+  if(clientInfo){
+    if(clientInfo.address) prompt += `Dirección: ${clientInfo.address}\n`;
+    if(clientInfo.phone) prompt += `Teléfono: ${clientInfo.phone}\n`;
+    if(clientInfo.city || clientInfo.country) prompt += `Ubicación: ${clientInfo.city||''} ${clientInfo.country||''}\n`;
+  }
+  prompt += `\nHabla de forma natural, amable y profesional en español (o inglés si el cliente lo prefiere).`;
+  
+  try{
+    const r = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
+      method: 'POST',
+      headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: clientName + ' - Asistente',
+        conversation_config: {
+          agent: {
+            first_message: cfg.saludo.replace(/\{negocio\}/g, clientName),
+            language: 'es',
+            prompt: { prompt: prompt, llm: 'gpt-4o-mini', temperature: 0.5 },
+          },
+          tts: { voice_id: 'EXAVITQu4vr4xnSDxMaL', model_id: 'eleven_turbo_v2_5' },
+        },
+      }),
+    });
+    const data = await r.json();
+    if(data.agent_id){
+      // Guardar el agent ID en el cliente
+      if(window.VoxiaDB && VoxiaDB.db){
+        await VoxiaDB.db.collection('clients').doc(clientId).update({
+          elevenlabsAgentId: data.agent_id,
+        });
+      }
+      console.log('Agente creado para', clientName, ':', data.agent_id);
+      return data.agent_id;
+    } else {
+      console.error('Error creando agente:', data);
+      return null;
+    }
+  }catch(e){
+    console.error('Error creando agente para', clientName, ':', e.message);
+    return null;
+  }
+}
 
 async function createAllBizAgents(){
   const key = getElKey();
