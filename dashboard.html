@@ -1354,8 +1354,15 @@ async function loadClientsFromFirebase(){
       // Superadmin ve todos; owner/admin solo su cliente
       const ud = VoxiaDB.userData;
       if (ud.role !== 'superadmin' && ud.clientId !== doc.id) return;
+      // Cargar logo del cliente (si tiene)
+      let clientLogo = null;
+      try{
+        const cfgSnap = await VoxiaDB.db.collection('clients').doc(doc.id).collection('config').doc('settings').get();
+        if(cfgSnap.exists && cfgSnap.data().logo) clientLogo = cfgSnap.data().logo;
+      }catch(e){}
       clients.push({
         id: doc.id,
+        logo: clientLogo,
         name: d.name || 'Sin nombre',
         city: d.city || '',
         phone: d.phone || '',
@@ -1526,7 +1533,7 @@ const money = n => '$' + n.toLocaleString('en-US',{minimumFractionDigits:n<10?2:
 const cname = id => (clients.find(c=>c.id===id)||{}).name || '—';
 const avColor = name => { let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))%997; return AVC[h%AVC.length]; };
 const initials = name => name.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-const cavatar = (name,sz=38) => `<div class="cavatar" style="width:${sz}px;height:${sz}px;background:${avColor(name)};font-size:${sz*0.36}px">${initials(name)}</div>`;
+const cavatar = (name,sz=38,logo=null) => logo ? `<div class="cavatar" style="width:${sz}px;height:${sz}px;overflow:hidden"><img src="${logo}" style="width:100%;height:100%;object-fit:cover"></div>` : `<div class="cavatar" style="width:${sz}px;height:${sz}px;background:${avColor(name)};font-size:${sz*0.36}px">${initials(name)}</div>`;
 const statusBadge = s => s==='active'?'<span class="badge b-act"><span class="pdot"></span>Activo</span>':s==='trial'?'<span class="badge b-trial">En prueba</span>':'<span class="badge b-off">Pausado</span>';
 const planBadge = p => p==='Pro'?'<span class="badge b-pro">Pro</span>':p==='Premium'?'<span class="badge b-pro" style="background:rgba(255,158,46,.14);color:#ffcf9a;border-color:rgba(255,158,46,.3)">Premium</span>':'<span class="badge b-bas">Básico</span>';
 const invBadge = s => s==='paid'?'<span class="badge b-paid">Pagada</span>':s==='pending'?'<span class="badge b-pend">Pendiente</span>':s==='overdue'?'<span class="badge b-over">Vencida</span>':'<span class="badge b-trial">Prueba</span>';
@@ -1849,7 +1856,7 @@ function renderDashboard(anim=true){
   const on=act.length;
   $('agentsOnlineTag').textContent=on+' en línea';
   $('agentStatus').innerHTML=clients.map(c=>`
-    <div class="kpi-row"><span style="display:flex;align-items:center;gap:10px">${cavatar(c.name,32)}<span><b>${c.name}</b><br><span style="font-size:11.5px;color:var(--muted)">${c.voice}</span></span></span>
+    <div class="kpi-row"><span style="display:flex;align-items:center;gap:10px">${cavatar(c.name,32,c.logo)}<span><b>${c.name}</b><br><span style="font-size:11.5px;color:var(--muted)">${c.voice}</span></span></span>
     ${c.status==='off'?'<span class="badge b-off">Pausado</span>':'<span class="badge b-act"><span class="pdot"></span>En línea</span>'}</div>`).join('');
   /* recientes con mini player - cliente no ve Negocio ni Costo */
   const hideCols=me&&!(me.role==='admin'||me.role==='superadmin');
@@ -1940,7 +1947,7 @@ function renderClients(){
   $('clientsBody').innerHTML=list.map(c=>{
     const cm=calls.filter(x=>x.c===c.id).length;
     return `<tr>
-    <td><div class="row-client">${cavatar(c.name)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
+    <td><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
     <td class="mono">${c.phone}</td><td>${planBadge(c.plan)}</td>
     <td><b class="mono">$${c.monthly}</b><span style="color:var(--faint);font-size:11.5px">/mes</span></td>
     <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td>
@@ -2298,7 +2305,7 @@ async function renderAssistants(){
   $('assistantsList').innerHTML=liveAgentsBlock()+clients.map(c=>`
   <div class="card" style="margin:0">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-      <div class="row-client">${cavatar(c.name,44)}<div><div class="cell-main" style="font-size:15.5px">🎙️ ${c.name}</div>
+      <div class="row-client">${cavatar(c.name,44,c.logo)}<div><div class="cell-main" style="font-size:15.5px">🎙️ ${c.name}</div>
         <div class="cell-sub">${c.voice} · ${c.lang} · ${c.menu} platos en el menú</div></div></div>
       <div style="display:flex;align-items:center;gap:10px">
         ${c.status==='off'?'<span class="badge b-off">Pausado</span>':'<span class="badge b-act"><span class="pdot"></span>En línea</span>'}
