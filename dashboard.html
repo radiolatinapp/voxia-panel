@@ -1302,6 +1302,17 @@ async function loadClientsFromFirebase(){
 let calls = [];
 let invoices = [];
 let notifs = [];
+let clientOrders = [];
+
+/* Carga pedidos reales del cliente desde Firestore */
+async function loadClientOrders(){
+  clientOrders=[];
+  try{
+    if(!VoxiaDB||!VoxiaDB.clientId)return;
+    const snap=await db.collection('clients').doc(VoxiaDB.clientId).collection('orders').orderBy('createdAt','desc').limit(500).get();
+    snap.forEach(d=>clientOrders.push({id:d.id,...d.data()}));
+  }catch(e){console.warn('loadClientOrders:',e.message);}
+}
 
 /* ==================== UTILS ==================== */
 const $ = id => document.getElementById(id);
@@ -1570,9 +1581,17 @@ function renderDashboard(anim=true){
     {l:'Minutos de voz', v:Math.round(mins), d:minDetail, c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[0,0,0,0,0,0,0], sc:'#9d8fff'},
   ];
   // Clientes activos e Ingresos: solo admin (son métricas de Voxia, no del cliente)
+  // Para el cliente: Pedidos realizados e Ingresos por ventas (requiere tracking de pedidos)
   if(isAdmin){
     cards.push({l:'Clientes activos', v:act.length, d:act.length?'':'Sin clientes aún', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'});
     cards.push({l:'Ingresos mensuales', v:mrr, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'});
+  }else{
+    // Vista cliente: pedidos e ingresos por ventas (datos vienen de orders)
+    const orders=typeof clientOrders!=='undefined'?clientOrders:[];
+    const doneOrders=orders.filter(o=>o.status==='completed');
+    const salesTotal=doneOrders.reduce((a,o)=>a+(o.total||0),0);
+    cards.push({l:'Pedidos realizados', v:doneOrders.length, d:doneOrders.length?'':'Sin pedidos aún', c:'up', ic:'🛒', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'});
+    cards.push({l:'Ingresos por ventas', v:salesTotal, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'});
   }
   $('dashStats').innerHTML=cards.map((k,i)=>`
     <div class="stat"><div class="top"><div class="label">${k.l}</div><div class="sic" style="background:${k.bg}">${k.ic}</div></div>
@@ -2960,6 +2979,7 @@ function renderAll(){renderDashboard();renderClients();renderCalls();renderAssis
       $('loginScreen').style.display='none';
       applyPermissions();
       try { await loadClientsFromFirebase(); } catch(e) {}
+      try { await loadClientOrders(); } catch(e) {}
       try { await updateSidebarPlan(); } catch(e) {}
     }
     setTimeout(()=>{renderAll();try{restoreConns();}catch(e){}},650);
