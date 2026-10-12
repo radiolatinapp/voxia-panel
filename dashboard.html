@@ -1596,6 +1596,7 @@ function go(view){
   window.scrollTo({top:0,behavior:'smooth'});
   if(view==='pedidos'&&typeof renderOrders==='function')renderOrders();
   if(view==='miguia'&&typeof loadGuide==='function')loadGuide();
+  if(view==='asistentes'&&typeof renderAssistants==='function')renderAssistants();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
 $('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');
