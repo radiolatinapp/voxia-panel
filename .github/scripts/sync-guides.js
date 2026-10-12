@@ -13,41 +13,56 @@
 const admin = require('firebase-admin');
 
 // Extrae información de pedido del transcript de una conversación
-// VERSIÓN CONSERVADORA: solo crea pedido si hay confirmación explícita
+// Estados: pending_confirmation -> confirmed -> completed / cancelled
+// Solo crea pedido si el CLIENTE confirma explícitamente su pedido
 function extractOrderFromTranscript(transcript, agentId) {
   if (!transcript) return null;
   const text = transcript.toLowerCase();
+  const lines = transcript.split('\n');
   
-  // Detectar si se tomó un pedido
+  // Detectar si se mencionó un pedido
   const orderKeywords = ['pedido', 'orden', 'quiero pedir', 'voy a querer', 'me trae', 'para llevar', 'domicilio'];
   const hasOrder = orderKeywords.some(k => text.includes(k));
   if (!hasOrder) return null;
   
-  // REQUERIR confirmación explícita del pedido (no solo mención de precios)
-  const confirmKeywords = ['confirmado', 'confirmo', 'listo el pedido', 'queda registrado', 'anotado', 'total sería', 'su total es', 'van a ser'];
-  const hasConfirmation = confirmKeywords.some(k => text.includes(k));
-  if (!hasConfirmation) {
-    console.log(`⚠️ Posible pedido sin confirmación explícita, se omite (agent ${agentId})`);
+  // CONFIRMACIÓN FUERTE: el cliente debe confirmar explícitamente
+  // Buscar patrones donde el CLIENTE (user) confirma, no el agente
+  let clientConfirmed = false;
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    // Solo cuenta si es el usuario/cliente hablando
+    const isClient = lower.startsWith('user:') || lower.startsWith('cliente:') || lower.startsWith('customer:');
+    if (!isClient) continue;
+    // Frases de confirmación fuerte del cliente
+    const strongConfirm = ['sí, confirmo', 'si, confirmo', 'confirmo el pedido', 'está bien', 'esta bien',
+      'sí quiero', 'si quiero', 'adelante', 'de acuerdo', 'perfecto, sí', 'listo'];
+    if (strongConfirm.some(k => lower.includes(k))) {
+      clientConfirmed = true;
+      break;
+    }
+  }
+  if (!clientConfirmed) {
+    console.log('Pedido sin confirmación del cliente, se omite');
     return null;
   }
   
-  // Extraer total (buscar patrones como $18.99, 18.99, total 25)
+  // Extraer total
   let total = 0;
   const moneyMatches = text.match(/\$?\s*(\d+[.,]\d{2})/g);
   if (moneyMatches) {
-    // Tomar el último monto mencionado (suele ser el total)
     const last = moneyMatches[moneyMatches.length - 1].replace(/[$\s]/g, '').replace(',', '.');
     total = parseFloat(last) || 0;
   }
   
-  // Extraer nombre del cliente (patrones comunes)
+  // Extraer nombre del cliente
   let customer = 'Cliente por teléfono';
   const nameMatch = text.match(/(?:mi nombre es|me llamo|soy)\s+([a-záéíóúñ\s]+)/i);
   if (nameMatch) customer = nameMatch[1].trim().split(' ').slice(0, 2).join(' ');
   
-  if (total <= 0) return null; // Sin total no es un pedido válido
+  if (total <= 0) return null;
   
-  return { customer, total, detail: 'Pedido por llamada (auto)', status: 'completed', source: 'elevenlabs' };
+  // Estado inicial: pending_confirmation (requiere verificación manual o segunda pasada)
+  return { customer, total, detail: 'Pedido por llamada (auto)', status: 'pending_confirmation', source: 'elevenlabs' };
 }
 
 async function main() {
