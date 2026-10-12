@@ -1148,6 +1148,24 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   </div>
 </div>
 
+<!-- ============ MODAL: CLAVE TEMPORAL ============ -->
+<div class="modal-bg" id="tempPwModal">
+  <div class="modal">
+    <button class="mx" onclick="closeModal('tempPwModal')">✕</button>
+    <h3>🔑 Clave temporal creada</h3>
+    <div class="msub">Compártela con el cliente por WhatsApp o llamada. No se envía por correo (Gmail quema los links).</div>
+    <div style="background:#f8f9ff;border:2px dashed #00d4ff;border-radius:12px;padding:20px;text-align:center;margin:18px 0">
+      <div style="font-size:13px;color:#666;margin-bottom:8px" id="tpEmail"></div>
+      <div style="font-size:32px;font-weight:800;letter-spacing:3px;font-family:monospace" id="tpPassword"></div>
+      <button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="copyTempPw()">📋 Copiar clave</button>
+    </div>
+    <p style="font-size:13px;color:#666;line-height:1.6">El cliente entra con esta clave y la cambia en <b>Mi perfil → Cambiar contraseña</b>. Esta clave solo se muestra una vez.</p>
+    <div style="text-align:right;margin-top:16px">
+      <button class="btn btn-primary" onclick="closeModal('tempPwModal')">Entendido</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ MODAL: FACTURA ============ -->
 <div class="modal-bg" id="invModal">
   <div class="modal wide">
@@ -1752,6 +1770,15 @@ async function sendPasswordReset(){
   }
 }
 
+function showTempPasswordModal(email, tempPw){
+  $('tpEmail').textContent=email;
+  $('tpPassword').textContent=tempPw;
+  $('tempPwModal').classList.add('open');
+}
+function copyTempPw(){
+  const pw=$('tpPassword').textContent;
+  navigator.clipboard.writeText(pw).then(()=>toast('📋 Clave copiada'));
+}
 async function saveClient(){
   if(!canEdit()){toast('🔒 Tu rol no permite crear ni editar negocios','warn');return;}
   const id=$('fId').value,name=$('fName').value.trim();
@@ -1782,10 +1809,10 @@ async function saveClient(){
         bizType:$('fBizType')?$('fBizType').value:'restaurante',
         tempPassword:tempPw,
       });
-      toast('🎉 Cliente creado: '+r.email+' · clave temporal: '+tempPw+' (cámbiela pronto)');
+      toast('🎉 Cliente creado: '+r.email);
       logActivity(me.name,'🎉','creó el negocio "'+name+'" en Firebase');
-      // El onboarding cierra la sesión; recargar para volver a entrar
-      setTimeout(()=>location.reload(), 2500);
+      // Mostrar clave temporal en modal (no depende del correo que Gmail quema)
+      showTempPasswordModal(r.email, tempPw);
     }catch(e){
       toast('⚠ '+e.message,'warn');
     }
