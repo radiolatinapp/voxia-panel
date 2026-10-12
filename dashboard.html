@@ -2473,15 +2473,26 @@ function saveProfileName(){
   logActivity(me.name,'👤','actualizó su perfil');
   toast('✓ Perfil actualizado');
 }
-function changeMyPw(){
+async function changeMyPw(){
   const cur=$('pwCur').value,nw=$('pwNew').value,nw2=$('pwNew2').value;
-  if(me.pw!==hashPw(cur)){toast('Tu contraseña actual no coincide','warn');return;}
   if(nw.length<6){toast('La nueva contraseña debe tener mínimo 6 caracteres','warn');return;}
   if(nw!==nw2){toast('La confirmación no coincide','warn');return;}
-  me.pw=hashPw(nw);saveUsers();
-  $('pwCur').value='';$('pwNew').value='';$('pwNew2').value='';
-  logActivity(me.name,'🔑','cambió su contraseña');
-  toast('🔑 Contraseña cambiada');
+  try{
+    const user=firebase.auth().currentUser;
+    if(!user){toast('No hay sesión activa','warn');return;}
+    // Re-autenticar con la clave actual (Firebase lo exige)
+    const cred=firebase.auth.EmailAuthProvider.credential(user.email,cur);
+    await user.reauthenticateWithCredential(cred);
+    await user.updatePassword(nw);
+    $('pwCur').value='';$('pwNew').value='';$('pwNew2').value='';
+    logActivity(me.name,'🔑','cambió su contraseña');
+    toast('🔑 Contraseña cambiada');
+  }catch(e){
+    console.warn('changeMyPw:',e.message);
+    if(e.code==='auth/wrong-password'||e.code==='auth/invalid-credential')
+      toast('Tu contraseña actual no coincide','warn');
+    else toast('⚠ '+e.message,'warn');
+  }
 }
 
 function renderIntegrations(){
