@@ -2794,6 +2794,17 @@ async function logout(){
   if(me)logActivity(me.name,'🔒','cerró sesión');
   try{ await VoxiaDB.logout(); }catch(e){}
   me=null;
+  // Limpiar todo el estado del cliente anterior (evitar fuga entre sesiones)
+  clients = [];
+  currentClient = null;
+  clientOrders = [];
+  // Limpiar widgets de ElevenLabs
+  ['demoWidget','demoWidgetDash'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML='';
+  });
+  // Limpiar selectores de agentes
+  document.querySelectorAll('select[id*="agent"], select[id*="Agent"]').forEach(s=>{ s.innerHTML=''; });
   $('loginPass').value='';$('loginErr').style.display='none';
   $('loginScreen').style.display='flex';
 }
