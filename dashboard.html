@@ -2237,7 +2237,13 @@ function probarAgente(agentId){
   toast('🎧 Agente cargado en el demo');
 }
 
-function renderAssistants(){
+async function renderAssistants(){
+  // Asegurar que currentClient esté cargado
+  try{
+    if((typeof currentClient === 'undefined' || !currentClient) && window.VoxiaDB && VoxiaDB.clientId){
+      currentClient = await VoxiaDB.getClient(VoxiaDB.clientId);
+    }
+  }catch(e){}
   // Si el cliente tiene su propio agente, agregarlo al selector y seleccionarlo
   try{
     if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
@@ -2254,6 +2260,8 @@ function renderAssistants(){
         }
         sel.value = agentId;
       });
+      // Cargar directamente el agente del cliente en el widget
+      switchDemoAgent(currentClient.elevenlabsAgentId);
     }
   }catch(e){ console.warn('Selector agente:', e.message); }
   loadDemoWidget();
