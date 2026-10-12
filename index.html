@@ -1347,7 +1347,7 @@ async function loadClientsFromFirebase(){
     for(const doc of docs){
       const d = doc.data();
       // Cargar logo del cliente (si tiene)
-      let clientLogo = null;
+      let clientLogo = d.logoUrl || null; // Primero del documento principal
       try{
         const cfgSnap = await VoxiaDB.db.collection('clients').doc(doc.id).collection('config').doc('settings').get();
         if(cfgSnap.exists && cfgSnap.data().logo) clientLogo = cfgSnap.data().logo;
