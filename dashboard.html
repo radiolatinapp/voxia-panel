@@ -1096,7 +1096,11 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
     <div class="row2">
       <div><label class="flabel">Mensualidad (<span id="fCurrency">USD</span>)</label><input type="number" id="fMonthly" value="249"></div>
+      <div><label class="flabel">Instalación (<span id="fCurrencyInst">USD</span>)</label><input type="number" id="fInstall" value="550"></div>
+    </div>
+    <div class="row2">
       <div><label class="flabel">Modelo</label><select id="fBillingModel" onchange="updateMonthly();toggleClientKeys()"><option value="full">Voxia Completo</option><option value="maintenance">Solo Mantenimiento</option></select></div>
+      <div></div>
     </div>
     <div id="clientKeysSection" style="display:none;border:1px dashed #888;border-radius:8px;padding:10px;margin:8px 0;">
       <div class="msub">🔑 Credenciales del cliente (él paga su ElevenLabs y Twilio directo)</div>
@@ -1201,7 +1205,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   </div>
 </div>
 
-<script src="firebase-integration.js?v=20261011x"></script>
+<script src="firebase-integration.js?v=20261011y"></script>
 <script>
 /* ==================== DATOS ==================== */
 const RATE_TWILIO = 0.0085, RATE_ELEVEN = 0.08, RATE_NUM = 1.15;
@@ -1642,31 +1646,36 @@ function updateMonthly(){
   const country=$('fCountry')?$('fCountry').value:'US';
   const model=$('fBillingModel')?$('fBillingModel').value:'full';
   const plan=$('fPlan').value;
+  // Instalación por plan (US)
+  const installUS={'Básico':500,'Pro':550,'Premium':600};
+  const installCO={'Básico':1500000,'Pro':1650000};
   if(model==='maintenance'){
-    // Solo mantenimiento: cliente paga su infra directo
     if(country==='CO'){
-      $('fCurrency').textContent='COP';
+      $('fCurrency').textContent='COP';$('fCurrencyInst').textContent='COP';
       $('fMonthly').value=100000;
+      $('fInstall').value=installCO[plan]||1500000;
     }else{
-      $('fCurrency').textContent='USD';
+      $('fCurrency').textContent='USD';$('fCurrencyInst').textContent='USD';
       $('fMonthly').value=100;
+      $('fInstall').value=installUS[plan]||500;
     }
     return;
   }
-  // Voxia Completo
   const preciosUS={'Básico':149,'Pro':249,'Premium':399};
   const preciosCO={'Básico':400000,'Pro':400000};
   if(country==='CO'){
-    $('fCurrency').textContent='COP';
+    $('fCurrency').textContent='COP';$('fCurrencyInst').textContent='COP';
     if(preciosCO[plan]) $('fMonthly').value=preciosCO[plan];
+    $('fInstall').value=installCO[plan]||1500000;
   }else{
-    $('fCurrency').textContent='USD';
+    $('fCurrency').textContent='USD';$('fCurrencyInst').textContent='USD';
     if(preciosUS[plan]) $('fMonthly').value=preciosUS[plan];
+    $('fInstall').value=installUS[plan]||500;
   }
 }
 
 function openClientModal(id){
-  const c=id?clients.find(x=>x.id==id):{id:'',name:'',country:'US',city:'',phone:'',plan:'Pro',monthly:249,billingModel:'full',status:'active',voice:'Luisa · ES amable'};
+  const c=id?clients.find(x=>x.id==id):{id:'',name:'',country:'US',city:'',phone:'',plan:'Pro',monthly:249,installFee:550,billingModel:'full',status:'active',voice:'Luisa · ES amable'};
   if(id&&!c){toast('Cliente no encontrado: '+id,'warn');return;}
   try{
     $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
@@ -1679,7 +1688,7 @@ function openClientModal(id){
       const pl=planVal.toLowerCase();
       planVal = pl.includes('premium')?'Premium':pl.includes('pro')?'Pro':'Básico';
     }
-    $('fPlan').value=planVal;$('fMonthly').value=c.monthly||'';$('fStatus').value=c.status||'trial';$('fVoice').value=c.voice||'';
+    $('fPlan').value=planVal;$('fMonthly').value=c.monthly||'';$('fInstall').value=c.installFee||'';$('fStatus').value=c.status||'trial';$('fVoice').value=c.voice||'';
     const emailField=$('fEmail')||$('fOwnerEmail');
     if(emailField){ emailField.value=c.email||''; emailField.disabled=!!id; }
     // Tipo de negocio
@@ -1727,6 +1736,8 @@ async function saveClient(){
         city:$('fCity').value,
         plan:$('fPlan').value==='Pro'?'pro':($('fPlan').value==='Premium'?'premium':'basico'),
         billingModel:$('fBillingModel').value,
+        monthly:parseFloat($('fMonthly').value)||0,
+        installFee:parseFloat($('fInstall').value)||0,
         clientElevenKey:$('fClientElevenKey')?$('fClientElevenKey').value:'',
         clientTwilioSid:$('fClientTwilioSid')?$('fClientTwilioSid').value:'',
         clientTwilioToken:$('fClientTwilioToken')?$('fClientTwilioToken').value:'',
@@ -1748,7 +1759,7 @@ async function saveClient(){
   const planMap={'Básico':'basico','Pro':'pro','Premium':'premium','basico':'basico','pro':'pro','premium':'premium'};
   const planKey=planMap[$('fPlan').value]||'basico';
   const bizType=$('fBizType')?$('fBizType').value:'restaurante';
-  const d={name,country:$('fCountry').value,city:$('fCity').value,phone:$('fPhone').value,plan:planKey,billingModel:$('fBillingModel').value,status:$('fStatus').value,bizType};
+  const d={name,country:$('fCountry').value,city:$('fCity').value,phone:$('fPhone').value,plan:planKey,billingModel:$('fBillingModel').value,monthly:parseFloat($('fMonthly').value)||0,installFee:parseFloat($('fInstall').value)||0,status:$('fStatus').value,bizType};
   try{
     toast('Guardando en Firebase…');
     await VoxiaDB.updateClient(id,d);
