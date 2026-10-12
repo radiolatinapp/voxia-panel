@@ -1349,7 +1349,7 @@ async function loadClientsFromFirebase(){
   try {
     const snap = await VoxiaDB.db.collection('clients').get();
     clients = [];
-    snap.forEach(doc => {
+    for(const doc of snap.docs){
       const d = doc.data();
       // Superadmin ve todos; owner/admin solo su cliente
       const ud = VoxiaDB.userData;
@@ -1379,7 +1379,7 @@ async function loadClientsFromFirebase(){
         bizType: d.bizType || 'restaurante',
         _fb: true,
       });
-    });
+    }
   } catch(e) {
     console.warn('No se pudieron cargar clientes de Firebase:', e.message);
   }
