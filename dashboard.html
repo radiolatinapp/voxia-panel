@@ -2178,6 +2178,9 @@ function loadDemoWidget(){
       if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
         agentId = currentClient.elevenlabsAgentId;
         agentName = currentClient.name || agentName;
+      } else if(window.VoxiaDB && VoxiaDB.clientData && VoxiaDB.clientData.elevenlabsAgentId){
+        agentId = VoxiaDB.clientData.elevenlabsAgentId;
+        agentName = VoxiaDB.clientData.name || agentName;
       }
     }catch(e){}
     ['demoWidget','demoWidgetDash'].forEach(id=>{
@@ -2238,9 +2241,14 @@ function probarAgente(agentId){
 }
 
 async function renderAssistants(){
-  // Asegurar que currentClient esté cargado
+  // Asegurar que currentClient esté cargado (usar VoxiaDB.clientData como fuente confiable)
   try{
-    if((typeof currentClient === 'undefined' || !currentClient) && window.VoxiaDB && VoxiaDB.clientId){
+    if(window.VoxiaDB && VoxiaDB.clientData && VoxiaDB.clientData.elevenlabsAgentId){
+      // VoxiaDB.clientData ya tiene los datos del cliente logueado
+      if(typeof currentClient === 'undefined' || !currentClient || !currentClient.elevenlabsAgentId){
+        currentClient = { id: VoxiaDB.clientId, ...VoxiaDB.clientData };
+      }
+    } else if((typeof currentClient === 'undefined' || !currentClient) && window.VoxiaDB && VoxiaDB.clientId){
       currentClient = await VoxiaDB.getClient(VoxiaDB.clientId);
     }
   }catch(e){}
@@ -3306,8 +3314,16 @@ function liveAgentsBlock(){
   // Para clientes: mostrar su agente dedicado aunque no tengan API key
   let agents = live.agents || [];
   try{
-    if(!agents.length && typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
-      agents = [{agent_id: currentClient.elevenlabsAgentId, name: currentClient.name || 'Mi asistente', created_at_unix_secs: Date.now()/1000}];
+    if(!agents.length){
+      let cData = null;
+      if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
+        cData = currentClient;
+      } else if(window.VoxiaDB && VoxiaDB.clientData && VoxiaDB.clientData.elevenlabsAgentId){
+        cData = { id: VoxiaDB.clientId, ...VoxiaDB.clientData };
+      }
+      if(cData){
+        agents = [{agent_id: cData.elevenlabsAgentId, name: cData.name || 'Mi asistente', created_at_unix_secs: Date.now()/1000}];
+      }
     }
   }catch(e){}
   if(!agents.length) return '';
