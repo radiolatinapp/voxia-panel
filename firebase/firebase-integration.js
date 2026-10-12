@@ -280,7 +280,7 @@
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, clientElevenKey, clientTwilioSid, clientTwilioToken, elevenlabsAgentId, tempPassword, bizType } = data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, monthly, installFee, clientElevenKey, clientTwilioSid, clientTwilioToken, elevenlabsAgentId, tempPassword, bizType } = data;
 
       if (!clientName || !ownerEmail || !tempPassword) {
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
@@ -306,6 +306,7 @@
         name: clientName, email: ownerEmail, phone: ownerPhone || '',
         country: country || 'US', city: city || '',
         status: 'trial', plan: plan || 'basico', billingModel: billingModel || 'full',
+        monthly: monthly || 0, installFee: installFee || 0,
         bizType: bizType || 'restaurante',
         elevenlabsAgentId: elevenlabsAgentId || '', twilioNumber: '',
         createdAt: now, createdBy: adminUid,
