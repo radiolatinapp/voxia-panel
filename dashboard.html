@@ -635,8 +635,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
           <h3 style="margin:0 0 6px;font-size:19px">🎧 Pruébalo en vivo — Habla con tu asistente</h3>
           <p style="margin:0;color:var(--muted);font-size:13.5px">Elige el asistente y habla como un cliente real.</p>
           <select onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:300px">
-            <option value="agent_4601m4q6qnxrf2fbke358jhmtspw">⭐ Exclusive Hair Estudio</option>
-            <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
+            <option value="">Cargando asistente...</option>
           </select>
         </div>
         <div id="demoWidgetDash"></div>
@@ -735,8 +734,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
           <h3 style="margin:0 0 6px;font-size:20px">🎧 Pruébalo en vivo</h3>
           <p style="margin:0;color:var(--muted);font-size:14px">Elige el asistente y habla como un cliente real.</p>
           <select onchange="switchDemoAgent(this.value)" style="margin-top:8px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;font-size:13px;max-width:300px">
-            <option value="agent_4601m4q6qnxrf2fbke358jhmtspw">⭐ Exclusive Hair Estudio</option>
-            <option value="agent_0901m4mrx5xqfe0t2vcnz7zvr7ev">🍽️ Restaurante (Cali Colombian)</option>
+            <option value="">Cargando asistente...</option>
           </select>
         </div>
         <div id="demoWidget"></div>
@@ -2243,37 +2241,27 @@ function probarAgente(agentId){
 }
 
 async function renderAssistants(){
-  // Asegurar que currentClient esté cargado (usar VoxiaDB.clientData como fuente confiable)
+  // Cargar agente del cliente de forma limpia y escalable
+  let clientAgentId = null;
+  let clientAgentName = null;
   try{
     if(window.VoxiaDB && VoxiaDB.clientId){
-      // Siempre obtener datos frescos del cliente para asegurar elevenlabsAgentId
-      const freshClient = await VoxiaDB.getClient(VoxiaDB.clientId);
-      if(freshClient && freshClient.elevenlabsAgentId){
-        currentClient = freshClient;
-      } else if(window.VoxiaDB && VoxiaDB.clientData && VoxiaDB.clientData.elevenlabsAgentId){
-        currentClient = { id: VoxiaDB.clientId, ...VoxiaDB.clientData };
+      const clientDoc = await VoxiaDB.getClient(VoxiaDB.clientId);
+      if(clientDoc && clientDoc.elevenlabsAgentId){
+        clientAgentId = clientDoc.elevenlabsAgentId;
+        clientAgentName = clientDoc.name || 'Mi asistente';
+        currentClient = clientDoc;
       }
     }
-  }catch(e){}
-  // Agregar agentes dedicados al selector
+  }catch(e){ console.warn('Error cargando agente del cliente:', e.message); }
+  
+  // Agregar agentes al selector
   try{
     const agentsToAdd = [];
-    // 1. Agente del cliente actual (si es cliente)
-    if(typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
-      agentsToAdd.push({id: currentClient.elevenlabsAgentId, name: '⭐ ' + (currentClient.name || 'Mi asistente'), select: true});
+    // 1. Agente del cliente actual (SOLO su agente, nada más)
+    if(clientAgentId){
+      agentsToAdd.push({id: clientAgentId, name: '⭐ ' + clientAgentName, select: true});
     }
-    // 1b. Fallback: detectar por nombre del negocio en el sidebar
-    try{
-      const sidebarText = document.body.innerText || '';
-      const isExclusive = sidebarText.includes('Exclusive Hair');
-      const cid = (window.VoxiaDB && VoxiaDB.clientId) || (typeof currentClient !== 'undefined' && currentClient && currentClient.id);
-      if(isExclusive || cid === 'exclusive-hair-estudio-mv4r9m5t'){
-        const already = agentsToAdd.some(a => a.id === 'agent_4601m4q6qnxrf2fbke358jhmtspw');
-        if(!already){
-          agentsToAdd.push({id: 'agent_4601m4q6qnxrf2fbke358jhmtspw', name: '⭐ Exclusive Hair Estudio', select: true});
-        }
-      }
-    }catch(e){}
     // 2. Para admin: agregar agentes de TODOS los clientes
     try{
       const isAdmin = me && (me.role==='admin'||me.role==='superadmin');
@@ -2303,28 +2291,16 @@ async function renderAssistants(){
         if(toSelect) sel.value = toSelect.id;
       });
       const toSelect = agentsToAdd.find(a=>a.select);
-      if(toSelect) switchDemoAgent(toSelect.id);
-    }
-  }catch(e){ console.warn('Selector agente:', e.message); }
-  // Reintento diferido para Exclusive Hair (por si los datos cargan tarde)
-  setTimeout(()=>{
-    try{
-      const sidebarText = document.body.innerText || '';
-      if(sidebarText.includes('Exclusive Hair')){
+      if(toSelect){
+        switchDemoAgent(toSelect.id);
+      } else {
+        // Sin agente configurado: mostrar mensaje claro
         document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
-          let exists = false;
-          [...sel.options].forEach(opt=>{ if(opt.value==='agent_4601m4q6qnxrf2fbke358jhmtspw') exists=true; });
-          if(!exists){
-            const opt = document.createElement('option');
-            opt.value = 'agent_4601m4q6qnxrf2fbke358jhmtspw';
-            opt.textContent = '⭐ Exclusive Hair Estudio';
-            sel.insertBefore(opt, sel.firstChild);
-            sel.value = opt.value;
-          }
+          sel.innerHTML = '<option value="">⚠️ Tu asistente no está configurado. Contacta al administrador.</option>';
         });
       }
-    }catch(e){}
-  }, 2000);
+    }
+  }catch(e){ console.warn('Selector agente:', e.message); }
   loadDemoWidget();
   const _dis=canEdit()?'':'disabled';
   $('assistantsList').innerHTML=liveAgentsBlock()+clients.map(c=>`
@@ -3439,45 +3415,6 @@ async function updateSidebarPlan(){
   if(el)el.textContent=planNames[c.plan]||c.plan||'–';
 }
 initShortcuts();
-</script>
-<script>
-// Filtro simple de agentes por cliente - ejecutado al cargar
-(function(){
-  function filterAgents(){
-    try{
-      // Obtener email del usuario logueado (del DOM o localStorage)
-      const bodyText = document.body.innerText || '';
-      const isExclusive = bodyText.includes('Exclusive Hair');
-      const isCali = bodyText.includes('Cali Colombian') && !isExclusive;
-      
-      document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
-        [...sel.options].forEach(opt=>{
-          const val = opt.value || '';
-          // Si es cliente Exclusive, ocultar Cali
-          if(isExclusive && val === 'agent_0901m4mrx5xqfe0t2vcnz7zvr7ev'){
-            opt.style.display = 'none';
-            opt.disabled = true;
-          }
-          // Si es cliente Cali (no Exclusive), ocultar Exclusive
-          if(!isExclusive && bodyText.includes('Cali') && val === 'agent_4601m4q6qnxrf2fbke358jhmtspw'){
-            opt.style.display = 'none';
-            opt.disabled = true;
-          }
-        });
-        // Seleccionar el visible
-        const visible = [...sel.options].find(o => !o.disabled);
-        if(visible) sel.value = visible.value;
-      });
-    }catch(e){}
-  }
-  // Ejecutar al cargar y después de 2 segundos
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', filterAgents);
-  } else {
-    filterAgents();
-  }
-  setTimeout(filterAgents, 2000);
-})();
 </script>
 </body>
 </html>
