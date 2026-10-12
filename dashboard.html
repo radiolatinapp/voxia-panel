@@ -2495,12 +2495,25 @@ async function loadMyPlan(){
     if(!c) return;
     const planNames={basico:'Básico',pro:'Pro',premium:'Premium'};
     $('mpPlan').textContent=planNames[c.plan]||c.plan||'–';
-    $('mpModel').textContent=c.billingModel==='maintenance'?'Solo Mantenimiento':'Voxia Completo';
-    const curr=c.country==='CO'?'COP':'USD';
-    $('mpMonthly').textContent=(c.monthly||0).toLocaleString()+' '+curr+'/mes';
-    $('mpInstall').textContent=(c.installFee||0).toLocaleString()+' '+curr+' (una vez)';
+    const isMaint=c.billingModel==='maintenance';
+    $('mpModel').textContent=isMaint?'Solo Mantenimiento':'Voxia Completo';
+    const country=c.country||'US';
+    const curr=country==='CO'?'COP':'USD';
+    // Calcular valores si no están guardados (clientes creados antes)
+    let monthly=c.monthly, install=c.installFee;
+    if(!monthly){
+      if(country==='CO')monthly=100000;
+      else monthly=isMaint?100:400;
+    }
+    if(!install){
+      const instUS={basico:700,pro:750,premium:800};
+      const instCO={basico:1500000,pro:1650000};
+      install=country==='CO'?(instCO[c.plan]||1500000):(instUS[c.plan]||700);
+    }
+    $('mpMonthly').textContent=monthly.toLocaleString()+' '+curr+'/mes';
+    $('mpInstall').textContent=install.toLocaleString()+' '+curr+' (una vez)';
     const countryNames={US:'Estados Unidos',CO:'Colombia',OT:'Otro'};
-    $('mpCountry').textContent=countryNames[c.country]||c.country||'–';
+    $('mpCountry').textContent=countryNames[country]||country||'–';
     const statusNames={active:'Activo',trial:'Prueba',off:'Pausado'};
     $('mpStatus').textContent=statusNames[c.status]||c.status||'–';
   }catch(e){ console.warn('loadMyPlan:', e.message); }
