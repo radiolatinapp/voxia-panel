@@ -1345,13 +1345,21 @@ async function loadClientsFromFirebase(){
   if (typeof VoxiaDB === 'undefined' || !VoxiaDB.user) return;
   clientsLoading = true;
   try {
-    const snap = await VoxiaDB.db.collection('clients').get();
+    const ud = VoxiaDB.userData;
+    const isSuper = ud.role === 'superadmin';
     clients = [];
-    for(const doc of snap.docs){
+    let docs = [];
+    if(isSuper){
+      // Superadmin puede listar todos
+      const snap = await VoxiaDB.db.collection('clients').get();
+      docs = snap.docs;
+    } else if(ud.clientId){
+      // Cliente solo puede leer su propio documento
+      const doc = await VoxiaDB.db.collection('clients').doc(ud.clientId).get();
+      if(doc.exists) docs = [doc];
+    }
+    for(const doc of docs){
       const d = doc.data();
-      // Superadmin ve todos; owner/admin solo su cliente
-      const ud = VoxiaDB.userData;
-      if (ud.role !== 'superadmin' && ud.clientId !== doc.id) return;
       // Cargar logo del cliente (si tiene)
       let clientLogo = null;
       try{
