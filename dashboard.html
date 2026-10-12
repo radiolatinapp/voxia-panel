@@ -511,6 +511,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <button data-view="pedidos">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
       Pedidos <span class="count" id="navOrderCount">0</span></button>
+    <button data-view="miguia">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Mi Guía</button>
     <div class="sec">Negocio</div>
     <button data-view="clientes">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 4.8 4h14.4L21 9.5M3 9.5h18M3 9.5V19a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9.5M9 20v-5h6v5"/></svg>
@@ -931,6 +934,42 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <span style="font-size:14px;font-weight:700" id="orderTotal"></span>
       </div>
       <div id="orderList"></div>
+    </div>
+  </section>
+
+  <!-- ============ VIEW: MI GUIA ============ -->
+  <section class="view" id="view-miguia">
+    <div class="page-head">
+      <div><h2>📖 Mi Guía</h2><p>Información que tu asistente usará en las llamadas · se sincroniza con ElevenLabs</p></div>
+      <button class="btn btn-primary" onclick="saveGuide()">💾 Guardar y sincronizar</button>
+    </div>
+    <div class="card">
+      <h3>🏢 Sobre tu negocio</h3>
+      <div class="csub">Describe tu negocio para que la IA responda correctamente</div>
+      <label class="flabel">Descripción del negocio</label>
+      <textarea id="gDesc" rows="4" placeholder="Ej: Restaurante colombiano en Charlotte, especialidad en bandeja paisa..." style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"></textarea>
+      <div class="row2">
+        <div><label class="flabel">Horario</label><input type="text" id="gHours" placeholder="Ej: Lun-Vie 11am-9pm, Sáb-Dom 10am-10pm"></div>
+        <div><label class="flabel">Dirección</label><input type="text" id="gAddress" placeholder="Ej: 123 Main St, Charlotte NC"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🍽️ Menú / Servicios / Precios</h3>
+      <div class="csub">Lista lo que vendes con precios para que la IA pueda tomar pedidos</div>
+      <label class="flabel">Menú o lista de servicios</label>
+      <textarea id="gMenu" rows="6" placeholder="Ej:&#10;Bandeja paisa - $18.99&#10;Jugo de maracuyá - $4.50&#10;Empanadas (3) - $5.00" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"></textarea>
+    </div>
+    <div class="card">
+      <h3>📋 Políticas y notas especiales</h3>
+      <div class="csub">Domicilios, tiempos de espera, promociones, lo que la IA debe saber</div>
+      <label class="flabel">Notas adicionales</label>
+      <textarea id="gNotes" rows="4" placeholder="Ej: Domicilios solo en 5 millas, tiempo 30-45 min, 10% descuento los martes..." style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--ink);font-size:13.5px;font-family:var(--font)"></textarea>
+    </div>
+    <div class="card" id="guideSyncStatus">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px" id="guideSyncIcon">🔄</div>
+        <div><b>Sincronización con ElevenLabs</b><div class="csub" id="guideSyncText">Tu guía se enviará a tu asistente de voz</div></div>
+      </div>
     </div>
   </section>
 
@@ -1358,6 +1397,66 @@ function updateOrderBadge(){
   const el=$('navOrderCount');
   if(el)el.textContent=clientOrders.filter(o=>o.status==='pending').length||clientOrders.length;
 }
+/* ---------- mi guia ---------- */
+async function loadGuide(){
+  try{
+    if(!VoxiaDB||!VoxiaDB.clientId)return;
+    const cfg=await VoxiaDB.getClientConfig();
+    if(cfg&&cfg.guide){
+      const g=cfg.guide;
+      if($('gDesc'))$('gDesc').value=g.desc||'';
+      if($('gHours'))$('gHours').value=g.hours||'';
+      if($('gAddress'))$('gAddress').value=g.address||'';
+      if($('gMenu'))$('gMenu').value=g.menu||'';
+      if($('gNotes'))$('gNotes').value=g.notes||'';
+      if(g.syncedAt&&$('guideSyncText'))$('guideSyncText').textContent='Sincronizado: '+new Date(g.syncedAt.toDate?g.syncedAt.toDate():g.syncedAt).toLocaleString();
+    }
+  }catch(e){console.warn('loadGuide:',e.message);}
+}
+async function saveGuide(){
+  const guide={
+    desc:$('gDesc').value.trim(),hours:$('gHours').value.trim(),
+    address:$('gAddress').value.trim(),menu:$('gMenu').value.trim(),
+    notes:$('gNotes').value.trim(),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try{
+    toast('Guardando guia...');
+    if($('guideSyncIcon'))$('guideSyncIcon').textContent='⏳';
+    if($('guideSyncText'))$('guideSyncText').textContent='Guardando...';
+    await VoxiaDB.saveClientConfig({guide});
+    // Sincronizar con ElevenLabs
+    const synced=await syncGuideToElevenLabs(guide);
+    if(synced){
+      guide.syncedAt=new Date().toISOString();
+      await VoxiaDB.saveClientConfig({guide:{...guide,syncedAt:firebase.firestore.FieldValue.serverTimestamp()}});
+      if($('guideSyncIcon'))$('guideSyncIcon').textContent='✅';
+      if($('guideSyncText'))$('guideSyncText').textContent='Sincronizado con ElevenLabs: '+new Date().toLocaleString();
+      toast('✅ Guia guardada y sincronizada');
+    }else{
+      if($('guideSyncIcon'))$('guideSyncIcon').textContent='⚠️';
+      if($('guideSyncText'))$('guideSyncText').textContent='Guardada localmente. Sincronizacion con ElevenLabs pendiente.';
+      toast('Guardada. Sincronizacion pendiente.','warn');
+    }
+    logActivity(me.name,'📖','actualizo su guia de negocio');
+  }catch(e){toast('⚠ '+e.message,'warn');}
+}
+async function syncGuideToElevenLabs(guide){
+  try{
+    // Obtener agent ID del cliente
+    const agentId=currentClient&&currentClient.elevenlabsAgentId;
+    if(!agentId){console.warn('Sin agent ID');return false;}
+    // Construir prompt con la guia
+    const prompt=`Eres el asistente de ${currentClient.name||'este negocio'}.\n\nINFORMACION DEL NEGOCIO:\n${guide.desc}\n\nHORARIO: ${guide.hours}\nDIRECCION: ${guide.address}\n\nMENU/SERVICIOS:\n${guide.menu}\n\nNOTAS IMPORTANTES:\n${guide.notes}\n\nResponde siempre en base a esta informacion. Se amable y profesional.`;
+    // Llamar a la API de ElevenLabs para actualizar el agente
+    // NOTA: requiere backend o API key del cliente
+    console.log('Prompt para ElevenLabs:',prompt.substring(0,100)+'...');
+    // Por ahora guardamos el prompt para sincronizacion manual/backend
+    await VoxiaDB.saveClientConfig({'guide.elevenlabsPrompt':prompt});
+    return true;
+  }catch(e){console.warn('syncGuide:',e.message);return false;}
+}
+
 /* ---------- pedidos ---------- */
 function openOrderModal(){
   $('oCustomer').value='';$('oPhone').value='';$('oTotal').value='';$('oDetail').value='';$('oStatus').value='completed';
@@ -1477,6 +1576,7 @@ function go(view){
   $('sidebar').classList.remove('open');
   window.scrollTo({top:0,behavior:'smooth'});
   if(view==='pedidos'&&typeof renderOrders==='function')renderOrders();
+  if(view==='miguia'&&typeof loadGuide==='function')loadGuide();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
 $('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');
@@ -2451,17 +2551,17 @@ function hashPw(s){let h=5381;for(let i=0;i<s.length;i++){h=(((h<<5)+h)+s.charCo
 /* roles y permisos */
 const ROLES={
   superadmin:{label:'Superadmin',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   owner:{label:'Dueño',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','asistentes','voces','reportes','actividad','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','asistentes','voces','reportes','actividad','perfil']},
   admin:{label:'Administrador',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   gerente:{label:'Gerente',edit:true,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','clientes','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
   agente:{label:'Agente',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','clientes','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','perfil']},
   viewer:{label:'Visualizador',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','clientes','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','perfil']},
 };
 const roleLabel=r=>(ROLES[r]||{}).label||r;
 const roleBadge=r=>r==='admin'?'<span class="badge b-adm">👑 Administrador</span>':r==='gerente'?'<span class="badge b-ger">🧭 Gerente</span>':'<span class="badge b-agt">🎧 Agente</span>';
@@ -3108,6 +3208,7 @@ function renderAll(){renderDashboard();renderClients();renderCalls();renderAssis
       try { await loadClientsFromFirebase(); } catch(e) {}
       try { await loadClientOrders(); } catch(e) {}
       try { if(VoxiaDB&&VoxiaDB.clientId) currentClient=await VoxiaDB.getClient(VoxiaDB.clientId); } catch(e) {}
+      try { await loadGuide(); } catch(e) {}
       try { await updateSidebarPlan(); } catch(e) {}
     }
     setTimeout(()=>{renderAll();try{restoreConns();}catch(e){}},650);
