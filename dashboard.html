@@ -3303,13 +3303,20 @@ function twStatusBadge(s){
   return `<span class="badge ${m[0]}">${s==='in-progress'?'<span class="pdot"></span>':''}${m[1]}</span>`;
 }
 function liveAgentsBlock(){
-  if(!live.agents.length) return '';
+  // Para clientes: mostrar su agente dedicado aunque no tengan API key
+  let agents = live.agents || [];
+  try{
+    if(!agents.length && typeof currentClient !== 'undefined' && currentClient && currentClient.elevenlabsAgentId){
+      agents = [{agent_id: currentClient.elevenlabsAgentId, name: currentClient.name || 'Mi asistente', created_at_unix_secs: Date.now()/1000}];
+    }
+  }catch(e){}
+  if(!agents.length) return '';
   return `<div class="card" style="margin:0 0 16px;border-color:rgba(52,211,153,.3)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="cell-main" style="font-size:15.5px">🤖 Agentes reales de ElevenLabs</div>
       <span class="badge b-live"><span class="pdot"></span>EN VIVO</span>
     </div>
-    ${live.agents.map(a=>{
+    ${agents.map(a=>{
       const dt = a.created_at_unix_secs ? new Date(a.created_at_unix_secs*1000).toLocaleDateString() : '—';
       return `<div class="set-row"><div><div class="st">${a.name || 'Sin nombre'}</div>
         <div class="sd mono">${a.agent_id} · creado ${dt}</div></div>
