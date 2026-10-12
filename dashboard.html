@@ -1443,18 +1443,16 @@ async function saveGuide(){
 }
 async function syncGuideToElevenLabs(guide){
   try{
-    // Obtener agent ID del cliente
-    const agentId=currentClient&&currentClient.elevenlabsAgentId;
-    if(!agentId){console.warn('Sin agent ID');return false;}
-    // Construir prompt con la guia
-    const prompt=`Eres el asistente de ${currentClient.name||'este negocio'}.\n\nINFORMACION DEL NEGOCIO:\n${guide.desc}\n\nHORARIO: ${guide.hours}\nDIRECCION: ${guide.address}\n\nMENU/SERVICIOS:\n${guide.menu}\n\nNOTAS IMPORTANTES:\n${guide.notes}\n\nResponde siempre en base a esta informacion. Se amable y profesional.`;
-    // Llamar a la API de ElevenLabs para actualizar el agente
-    // NOTA: requiere backend o API key del cliente
-    console.log('Prompt para ElevenLabs:',prompt.substring(0,100)+'...');
-    // Por ahora guardamos el prompt para sincronizacion manual/backend
-    await VoxiaDB.saveClientConfig({'guide.elevenlabsPrompt':prompt});
+    if(!VoxiaDB||!VoxiaDB.clientId){console.warn('Sin clientId');return false;}
+    const syncFn=firebase.functions().httpsCallable('syncGuideToElevenLabs');
+    const result=await syncFn({clientId:VoxiaDB.clientId,guide});
+    console.log('Sync OK:',result.data);
     return true;
-  }catch(e){console.warn('syncGuide:',e.message);return false;}
+  }catch(e){
+    console.warn('syncGuide:',e.message);
+    try{await VoxiaDB.saveClientConfig({'guide.pendingSync':true});}catch(_){}
+    return false;
+  }
 }
 
 /* ---------- pedidos ---------- */
