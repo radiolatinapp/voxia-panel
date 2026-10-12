@@ -1328,7 +1328,8 @@ const titles={dashboard:['Dashboard'],clientes:['Clientes'],llamadas:['Llamadas'
 function go(view){
   if(me&&!can(view)){toast('🔒 Tu rol no tiene acceso a esta sección','warn');return;}
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
-  document.querySelector(`.nav button[data-view="${view}"]`).classList.add('active');
+  const nb=document.querySelector(`.nav button[data-view="${view}"]`);
+  if(nb)nb.classList.add('active');
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   $('view-'+view).classList.add('active');
   $('sidebar').classList.remove('open');
