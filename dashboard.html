@@ -597,7 +597,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div class="dd" id="userDD" style="width:240px">
           <h4 id="userDDName">Mi cuenta</h4>
           <div style="padding:4px 10px 12px;display:flex;flex-direction:column;gap:6px">
-            <button class="btn btn-ghost btn-sm" style="justify-content:flex-start" onclick="$('userDD').classList.remove('open');go('perfil')">👤 Mi perfil</button>
+            <button class="btn btn-ghost btn-sm" style="justify-content:flex-start" onclick="$('userDD').classList.remove('open');openProfile()">👤 Mi perfil</button>
             <button class="btn btn-ghost btn-sm" style="justify-content:flex-start;color:var(--red)" onclick="logout()">⎋ Cerrar sesión</button>
           </div>
         </div>
@@ -1325,6 +1325,14 @@ function hideTip(){ tip.style.display='none'; }
 
 /* ==================== NAV ==================== */
 const titles={dashboard:['Dashboard'],clientes:['Clientes'],llamadas:['Llamadas'],asistentes:['Asistentes'],finanzas:['Finanzas'],facturacion:['Facturación'],config:['Configuración'],transcripciones:['Transcripciones'],notifcenter:['Notificaciones'],comparativa:['Comparativa'],plantillas:['Plantillas'],voces:['Voces'],reportes:['Reportes'],equipo:['Equipo'],integraciones:['Integraciones'],actividad:['Actividad'],perfil:['Mi perfil']};
+function openProfile(){
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $('view-perfil').classList.add('active');
+  $('sidebar').classList.remove('open');
+  window.scrollTo({top:0,behavior:'smooth'});
+  if(typeof renderProfile==='function')renderProfile();
+}
 function go(view){
   if(me&&!can(view)){toast('🔒 Tu rol no tiene acceso a esta sección','warn');return;}
   document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
