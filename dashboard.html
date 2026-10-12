@@ -1649,29 +1649,23 @@ function updateMonthly(){
   // Instalación por plan (US)
   const installUS={'Básico':500,'Pro':550,'Premium':600};
   const installCO={'Básico':1500000,'Pro':1650000};
-  if(model==='maintenance'){
-    if(country==='CO'){
-      $('fCurrency').textContent='COP';$('fCurrencyInst').textContent='COP';
-      $('fMonthly').value=100000;
-      $('fInstall').value=installCO[plan]||1500000;
-    }else{
-      $('fCurrency').textContent='USD';$('fCurrencyInst').textContent='USD';
-      $('fMonthly').value=100;
-      $('fInstall').value=installUS[plan]||500;
-    }
-    return;
-  }
-  const preciosUS={'Básico':149,'Pro':249,'Premium':399};
-  const preciosCO={'Básico':400000,'Pro':400000};
   if(country==='CO'){
     $('fCurrency').textContent='COP';$('fCurrencyInst').textContent='COP';
-    if(preciosCO[plan]) $('fMonthly').value=preciosCO[plan];
+    // Colombia: solo mantenimiento, cliente pone su infra
+    $('fMonthly').value=100000;
     $('fInstall').value=installCO[plan]||1500000;
-  }else{
-    $('fCurrency').textContent='USD';$('fCurrencyInst').textContent='USD';
-    if(preciosUS[plan]) $('fMonthly').value=preciosUS[plan];
-    $('fInstall').value=installUS[plan]||500;
+    return;
   }
+  // EE.UU.
+  $('fCurrency').textContent='USD';$('fCurrencyInst').textContent='USD';
+  if(model==='maintenance'){
+    // Solo mantenimiento: cliente paga su ElevenLabs + Twilio directo
+    $('fMonthly').value=100;
+  }else{
+    // Voxia Completo: nosotros manejamos todo
+    $('fMonthly').value=400;
+  }
+  $('fInstall').value=installUS[plan]||500;
 }
 
 function openClientModal(id){
