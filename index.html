@@ -83,38 +83,93 @@ button{font-family:var(--font)}
   background:rgba(255,158,46,.08);border:1px solid rgba(255,158,46,.22);border-radius:11px;padding:9px 12px}
 .plan-pill b{color:#ffcf9a;font-weight:700}
 
-/* ============ AUTH · LOGIN ============ */
+/* ============ AUTH · LOGIN V7 (SETTIGATION style) ============ */
 .login-screen{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(1000px 500px at 80% -10%,rgba(255,138,42,.10),transparent 60%),
-  radial-gradient(800px 500px at 10% 110%,rgba(124,108,255,.12),transparent 60%),#070b16;overflow:auto;padding:24px}
-.login-orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.5;pointer-events:none}
-.login-orb.o1{width:420px;height:420px;background:#ff7a1a;top:-120px;right:-100px;opacity:.22}
-.login-orb.o2{width:380px;height:380px;background:#7c6cff;bottom:-120px;left:-100px;opacity:.20}
-.login-card{position:relative;width:400px;max-width:100%;background:rgba(14,21,40,.86);backdrop-filter:blur(20px);
-  border:1px solid var(--line2);border-radius:22px;padding:38px 36px;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:viewIn .45s var(--ease)}
-.login-card.hide{display:none}
-.login-logo{width:64px;height:64px;border-radius:18px;overflow:hidden;margin:0 auto 14px;box-shadow:var(--glow)}
-.login-logo img{width:100%;height:100%;display:block}
-.login-card h1{text-align:center;font-size:32px;font-weight:800;letter-spacing:-.5px}
-.login-card h1 em{font-style:normal;background:var(--acc-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.login-sub{text-align:center;color:var(--muted);font-size:13px;margin:6px 0 22px;letter-spacing:.4px}
-.login-card input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:11px;color:var(--ink);
-  padding:12px 14px;font-size:14px;margin-bottom:4px;transition:.18s;font-family:var(--font)}
-.login-card input:focus{border-color:rgba(255,158,46,.55);box-shadow:0 0 0 3px rgba(255,158,46,.12);outline:none}
-.login-err{display:none;background:rgba(248,113,113,.10);border:1px solid rgba(248,113,113,.35);color:#fca5a5;
-  font-size:13px;border-radius:11px;padding:10px 13px;margin:12px 0 0}
-.login-btn{width:100%;margin-top:18px;padding:13px;font-size:15px;font-weight:700}
-.login-link{display:block;margin:14px auto 0;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer}
-.login-link:hover{color:var(--acc1)}
-.login-demo{margin-top:20px;background:rgba(255,255,255,.03);border:1px dashed var(--line2);border-radius:13px;padding:14px}
-.ld-t{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--faint);text-transform:uppercase;margin-bottom:10px;text-align:center}
-.ld-row{display:flex;flex-direction:column;gap:8px}
-.ld-row button{background:var(--surface);border:1px solid var(--line);color:var(--ink2);border-radius:10px;
-  padding:9px 12px;font-size:13px;cursor:pointer;text-align:left;transition:.15s;font-family:var(--font)}
-.ld-row button:hover{border-color:rgba(255,158,46,.5);color:#fff;background:rgba(255,158,46,.07)}
-.login-note{text-align:center;font-size:11.5px;color:var(--faint);margin-top:16px}
+  background:#040404;overflow:auto;padding:28px 20px}
+.login-screen::before{content:'';position:fixed;inset:-25%;pointer-events:none;
+  background:
+    linear-gradient(112deg,transparent 38%,rgba(255,176,58,.10) 45%,rgba(255,150,30,.20) 50%,rgba(255,176,58,.10) 55%,transparent 62%),
+    linear-gradient(112deg,transparent 52%,rgba(255,200,100,.08) 60%,rgba(255,170,50,.14) 64%,transparent 72%),
+    linear-gradient(68deg,transparent 28%,rgba(255,160,40,.10) 36%,rgba(255,150,30,.16) 40%,transparent 48%),
+    radial-gradient(700px 340px at 50% 120%,rgba(255,140,20,.10),transparent 65%),
+    radial-gradient(500px 260px at 85% 0%,rgba(255,180,60,.08),transparent 60%);
+  filter:blur(28px);animation:v7drift 26s ease-in-out infinite alternate}
+@keyframes v7drift{from{transform:translate3d(-2%,1%,0) rotate(-1deg)}to{transform:translate3d(2%,-1%,0) rotate(1deg)}}
+.v7-card{position:relative;width:452px;max-width:100%;background:rgba(16,16,19,.78);
+  backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  border:1px solid rgba(255,255,255,.13);border-radius:22px;padding:38px 38px 30px;
+  box-shadow:0 40px 100px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,255,255,.09);
+  animation:viewIn .45s var(--ease)}
+.v7-card.hide{display:none}
+.v7-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:22px}
+.v7-brand img{width:38px;height:38px;border-radius:11px;box-shadow:0 6px 22px rgba(255,158,46,.35)}
+.v7-brand span{font-size:19px;font-weight:800;letter-spacing:-.3px;color:#fff}
+.v7-brand span em{font-style:normal;color:#ffd60a}
+.v7-title{font-size:29px;font-weight:800;color:#fff;letter-spacing:-.5px;margin:0 0 6px}
+.v7-title em{font-style:normal;color:#ffd60a}
+.v7-sub{font-size:13.5px;color:#9aa0ad;margin:0 0 26px}
+.v7-label{display:block;font-size:12.5px;font-weight:600;color:#d8dbe2;margin:0 0 7px 2px}
+.v7-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.v7-input{position:relative;margin-bottom:15px}
+.v7-input>svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#878d99;pointer-events:none}
+.v7-input input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;color:#fff;padding:13px 14px 13px 42px;font-size:14.5px;transition:.18s;font-family:var(--font)}
+.v7-input input::placeholder{color:#63676f}
+.v7-input input:focus{border-color:rgba(255,214,10,.55);box-shadow:0 0 0 3px rgba(255,214,10,.13);outline:none;background:rgba(255,255,255,.075)}
+.v7-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#878d99;
+  cursor:pointer;padding:7px;border-radius:8px;display:flex;transition:.15s}
+.v7-eye:hover{color:#ffd60a}
+.v7-eye svg{width:18px;height:18px}
+.v7-check{display:flex;gap:10px;align-items:flex-start;margin:2px 0 20px;font-size:13px;color:#b9bdc7;cursor:pointer;line-height:1.5}
+.v7-check input{appearance:none;-webkit-appearance:none;width:19px;height:19px;border-radius:6px;flex-shrink:0;margin-top:1px;
+  border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.06);cursor:pointer;position:relative;transition:.15s}
+.v7-check input:checked{background:#ffd60a;border-color:#ffd60a}
+.v7-check input:checked::after{content:'';position:absolute;left:6px;top:2.5px;width:5px;height:9px;
+  border:solid #151515;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.v7-check a{color:#ffd60a;text-decoration:none;font-weight:600}
+.v7-check a:hover{text-decoration:underline}
+.v7-btn{width:100%;background:linear-gradient(180deg,#ffe45e,#ffd60a);color:#17171a;border:none;border-radius:12px;
+  padding:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;
+  box-shadow:0 10px 30px rgba(255,214,10,.32),inset 0 1px 0 rgba(255,255,255,.5);transition:.2s;font-family:var(--font)}
+.v7-btn:hover{transform:translateY(-1px);box-shadow:0 14px 38px rgba(255,214,10,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+.v7-btn:active{transform:translateY(0)}
+.v7-btn:disabled{opacity:.65;cursor:wait;transform:none}
+.v7-btn svg{width:17px;height:17px}
+.v7-switch{text-align:center;font-size:13.5px;color:#9aa0ad;margin-top:22px}
+.v7-switch button{background:none;border:none;color:#ffd60a;font-weight:700;font-size:13.5px;cursor:pointer;padding:0;font-family:var(--font)}
+.v7-switch button:hover{text-decoration:underline}
+.v7-forgot{display:block;text-align:right;font-size:12.5px;color:#9aa0ad;background:none;border:none;
+  cursor:pointer;margin:-6px 2px 16px auto;padding:0;font-family:var(--font)}
+.v7-forgot:hover{color:#ffd60a}
+.v7-err{display:none;background:rgba(255,82,82,.10);border:1px solid rgba(255,82,82,.42);color:#ffa3a3;
+  font-size:13px;border-radius:12px;padding:11px 14px;margin:0 0 16px;line-height:1.5}
+.v7-ok{display:none;background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.4);color:#8ff0c6;
+  font-size:13px;border-radius:12px;padding:11px 14px;margin:0 0 16px;line-height:1.5}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
-.login-card.shake{animation:shake .35s}
+.v7-card.shake{animation:shake .35s}
+.v7-fade{animation:v7fade .3s ease}
+@keyframes v7fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.v7-demo{margin-top:26px;text-align:center}
+.v7-demo summary{font-size:11.5px;color:#5d6270;cursor:pointer;letter-spacing:.6px;text-transform:uppercase;font-weight:700}
+.v7-demo summary:hover{color:#ffd60a}
+.v7-demo-row{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.v7-demo-row button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#c9cdd6;
+  border-radius:10px;padding:8px 13px;font-size:12.5px;cursor:pointer;transition:.15s;font-family:var(--font)}
+.v7-demo-row button:hover{border-color:rgba(255,214,10,.55);color:#ffd60a}
+.v7-terms-modal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.7);
+  backdrop-filter:blur(6px);padding:20px}
+.v7-terms-modal.open{display:flex}
+.v7-terms-box{width:520px;max-width:100%;max-height:80vh;overflow:auto;background:#141416;border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;padding:30px 32px;color:#d8dbe2;font-size:13.5px;line-height:1.7}
+.v7-terms-box h3{color:#fff;font-size:18px;margin:0 0 4px}
+.v7-terms-box h3 em{font-style:normal;color:#ffd60a}
+.v7-terms-box h4{color:#ffd60a;font-size:13.5px;margin:18px 0 6px}
+.v7-terms-box p{margin:0 0 10px;color:#a9adb8}
+.v7-terms-close{margin-top:20px;width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:#fff;
+  border-radius:11px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.v7-terms-close:hover{border-color:rgba(255,214,10,.5);color:#ffd60a}
+@media(max-width:520px){.v7-card{padding:30px 24px 26px}.v7-row2{grid-template-columns:1fr}.v7-title{font-size:25px}}
+/* (conservados: los usa el resto del panel) */
 .b-adm{background:rgba(255,158,46,.13);color:#ffcf9a;border-color:rgba(255,158,46,.35)}
 .b-ger{background:rgba(124,108,255,.13);color:#b7aefc;border-color:rgba(124,108,255,.35)}
 .b-agt{background:rgba(56,214,245,.12);color:#9be9f9;border-color:rgba(56,214,245,.3)}
@@ -126,8 +181,6 @@ button{font-family:var(--font)}
 .act-meta{font-size:12px;color:var(--muted);margin-top:3px}
 .swatch{width:34px;height:34px;border-radius:11px;cursor:pointer;border:2px solid transparent;transition:.15s}
 .swatch.sel{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.15)}
-html[data-theme="light"] .login-card{background:rgba(255,255,255,.94)}
-html[data-theme="light"] .ld-row button{background:rgba(15,23,42,.04)}
 
 /* ============ MAIN / TOPBAR ============ */
 .main{margin-left:272px;flex:1;min-width:0;display:flex;flex-direction:column}
@@ -461,29 +514,97 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
 </head>
 <body>
 
-<!-- ============ LOGIN ============ -->
+<!-- ============ LOGIN V7 ============ -->
 <div class="login-screen" id="loginScreen">
-  <div class="login-orb o1"></div><div class="login-orb o2"></div>
-  <div class="login-card" id="loginCard">
-    <div class="login-logo"><img src="logo.svg" alt="Voxia"></div>
-    <h1>Vox<em>ia</em></h1>
-    <p class="login-sub">La voz inteligente de tu negocio</p>
-    <label class="flabel">Correo electrónico</label>
-    <input type="email" id="loginEmail" placeholder="tu@empresa.com" autocomplete="username">
-    <label class="flabel">Contraseña</label>
-    <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
-    <div class="login-err" id="loginErr"></div>
-    <button class="btn btn-primary login-btn" id="loginBtn" onclick="login()">Entrar al panel</button>
-    <button class="login-link" onclick="toast('📩 Contacta a tu administrador para restablecer tu contraseña','warn')">¿Olvidaste tu contraseña?</button>
-    <div class="login-demo">
-      <div class="ld-t">Cuentas demo · clic para autocompletar</div>
-      <div class="ld-row">
-        <button onclick="fillLogin('admin@voxia.ai','voxia2026')">👑 <b>admin@voxia.ai</b> — Administrador</button>
-        <button onclick="fillLogin('gerente@voxia.ai','gerente2026')">🧭 <b>gerente@voxia.ai</b> — Gerente</button>
-        <button onclick="fillLogin('agente@voxia.ai','agente2026')">🎧 <b>agente@voxia.ai</b> — Agente</button>
+  <div style="width:100%;display:flex;flex-direction:column;align-items:center">
+  <div class="v7-card" id="v7Card">
+    <div class="v7-brand"><img src="logo.svg" alt="Voxia"><span>Vox<em>ia</em></span></div>
+
+    <!-- MODO: CREAR CUENTA -->
+    <div id="v7Signup" class="v7-fade">
+      <h2 class="v7-title">Crear <em>cuenta</em></h2>
+      <p class="v7-sub">Únete hoy para acceder a tu espacio de trabajo seguro</p>
+      <div class="v7-err" id="v7ErrUp"></div>
+      <label class="v7-label" for="v7Name">Nombre completo</label>
+      <div class="v7-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <input type="text" id="v7Name" placeholder="Alex Johnson" autocomplete="name">
       </div>
+      <label class="v7-label" for="v7EmailUp">Correo electrónico</label>
+      <div class="v7-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+        <input type="email" id="v7EmailUp" placeholder="nombre@empresa.com" autocomplete="email">
+      </div>
+      <div class="v7-row2">
+        <div>
+          <label class="v7-label" for="v7Pass">Contraseña</label>
+          <div class="v7-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="v7Pass" placeholder="••••••••" autocomplete="new-password">
+            <button type="button" class="v7-eye" onclick="v7TogglePw('v7Pass',this)" aria-label="Mostrar contraseña"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+        </div>
+        <div>
+          <label class="v7-label" for="v7Pass2">Confirmar contraseña</label>
+          <div class="v7-input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="v7Pass2" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')v7SignUp()">
+            <button type="button" class="v7-eye" onclick="v7TogglePw('v7Pass2',this)" aria-label="Mostrar contraseña"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <label class="v7-check"><input type="checkbox" id="v7Terms"><span>Acepto los <a href="#" onclick="v7TermsModal(event)">Términos</a> y la <a href="#" onclick="v7TermsModal(event)">Política de Privacidad</a></span></label>
+      <button class="v7-btn" id="v7BtnUp" onclick="v7SignUp()">Crear cuenta <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>
+      <p class="v7-switch">¿Ya tienes una cuenta? <button onclick="v7Mode('signin')">Iniciar sesión</button></p>
     </div>
-    <div class="login-note">🔒 Demo local: las cuentas se guardan solo en tu navegador.</div>
+
+    <!-- MODO: INICIAR SESIÓN -->
+    <div id="v7Signin" class="v7-fade" style="display:none">
+      <h2 class="v7-title">Bienvenido de <em>nuevo</em></h2>
+      <p class="v7-sub">Inicia sesión para acceder a tu espacio de trabajo seguro</p>
+      <div class="v7-err" id="v7ErrIn"></div>
+      <div class="v7-ok" id="v7OkIn"></div>
+      <label class="v7-label" for="v7EmailIn">Correo electrónico</label>
+      <div class="v7-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+        <input type="email" id="v7EmailIn" placeholder="nombre@empresa.com" autocomplete="username">
+      </div>
+      <label class="v7-label" for="v7PassIn">Contraseña</label>
+      <div class="v7-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input type="password" id="v7PassIn" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')v7SignIn()">
+        <button type="button" class="v7-eye" onclick="v7TogglePw('v7PassIn',this)" aria-label="Mostrar contraseña"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <button class="v7-forgot" onclick="toast('📩 Contacta a tu administrador para restablecer tu contraseña','warn')">¿Olvidaste tu contraseña?</button>
+      <button class="v7-btn" id="v7BtnIn" onclick="v7SignIn()">Iniciar sesión <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>
+      <p class="v7-switch">¿No tienes una cuenta? <button onclick="v7Mode('signup')">Crear cuenta</button></p>
+    </div>
+  </div>
+  <details class="v7-demo">
+    <summary>Cuentas demo</summary>
+    <div class="v7-demo-row">
+      <button onclick="v7FillDemo('admin@voxia.ai','voxia2026')">👑 admin@voxia.ai</button>
+      <button onclick="v7FillDemo('gerente@voxia.ai','gerente2026')">🧭 gerente@voxia.ai</button>
+      <button onclick="v7FillDemo('agente@voxia.ai','agente2026')">🎧 agente@voxia.ai</button>
+    </div>
+  </details>
+  </div>
+</div>
+
+<!-- Modal Términos y Privacidad -->
+<div class="v7-terms-modal" id="v7TermsModal" onclick="if(event.target===this)v7TermsModal(event)">
+  <div class="v7-terms-box">
+    <h3>Términos y <em>Privacidad</em></h3>
+    <p>Voxia · La voz inteligente de tu negocio</p>
+    <h4>1. El servicio</h4>
+    <p>Voxia provee asistentes de voz con inteligencia artificial que atienden llamadas, toman pedidos y gestionan reservas para tu negocio.</p>
+    <h4>2. Tu cuenta</h4>
+    <p>Eres responsable de mantener la confidencialidad de tu contraseña. No compartas tu acceso con terceros no autorizados.</p>
+    <h4>3. Privacidad</h4>
+    <p>Tus datos se usan únicamente para operar el servicio: autenticación, configuración de tu asistente y facturación. No vendemos tu información personal.</p>
+    <h4>4. Uso aceptable</h4>
+    <p>No uses el servicio para actividades ilegales, spam o para vulnerar la seguridad de la plataforma.</p>
+    <button class="v7-terms-close" onclick="v7TermsModal(event)">Entendido</button>
   </div>
 </div>
 
@@ -2758,38 +2879,98 @@ function canManageUsers(){return !!(me&&ROLES[me.role]&&ROLES[me.role].manageUse
 function curView(){const v=document.querySelector('.view.active');return v?v.id.replace('view-',''):'';}
 
 /* ---------- autenticación ---------- */
-function fillLogin(e,p){$('loginEmail').value=e;$('loginPass').value=p;$('loginErr').style.display='none';$('loginPass').focus();}
-async function login(){
-  const e=$('loginEmail').value.trim().toLowerCase(),p=$('loginPass').value,err=$('loginErr');
-  err.style.display='none';
-  $('loginBtn').textContent='Verificando…';
-  try{
-    // Login con Firebase Auth
-    await VoxiaDB.login(e, p);
-    const ud = VoxiaDB.userData;
-    // Mapear datos de Firestore al formato del panel
-    me = {
-      id: VoxiaDB.user.uid,
-      name: ud.displayName || e,
-      email: ud.email,
-      role: ud.role === 'superadmin' ? 'admin' : (ud.role || 'agente'),
-      active: true,
-      color: '#ffa02e'
-    };
-    $('loginScreen').style.display='none';
-    logActivity(me.name,'🔓','inició sesión');
-    applyPermissions();
-    // Cargar clientes reales de Firebase
-    try { await loadClientsFromFirebase(); } catch(e) {}
-    renderAll();go('dashboard');
-    toast('👋 Hola, '+me.name.split(' ')[0]+' · '+roleLabel(me.role));
-  }catch(ex){
-    err.textContent='⚠ '+(ex.code==='auth/invalid-credential'?'Correo o contraseña incorrectos':ex.message);
-    err.style.display='block';
-    $('loginCard').classList.remove('shake');void $('loginCard').offsetWidth;$('loginCard').classList.add('shake');
-  }
-  $('loginBtn').textContent='Entrar';
+/* ---------- autenticación V7 ---------- */
+function v7Mode(m){
+  const up=m==='signup';
+  $('v7Signup').style.display=up?'':'none';
+  $('v7Signin').style.display=up?'none':'';
+  $('v7ErrUp').style.display='none';$('v7ErrIn').style.display='none';
+  const f=up?$('v7Signup'):$('v7Signin');
+  f.classList.remove('v7-fade');void f.offsetWidth;f.classList.add('v7-fade');
 }
+function v7TogglePw(id,btn){
+  const i=$(id),show=i.type==='password';
+  i.type=show?'text':'password';
+  btn.innerHTML=show
+    ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 8 10 8a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>'
+    :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  i.focus();
+}
+function v7TermsModal(ev){ev.preventDefault();ev.stopPropagation();$('v7TermsModal').classList.toggle('open');}
+function v7FillDemo(e,p){v7Mode('signin');$('v7EmailIn').value=e;$('v7PassIn').value=p;$('v7ErrIn').style.display='none';$('v7PassIn').focus();}
+function v7Err(id,msg){
+  const el=$(id);el.textContent='⚠ '+msg;el.style.display='block';
+  const card=$('v7Card');card.classList.remove('shake');void card.offsetWidth;card.classList.add('shake');
+}
+function v7AuthMsg(ex){
+  const c=ex&&ex.code;
+  if(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found')return 'Correo o contraseña incorrectos.';
+  if(c==='auth/email-already-in-use')return 'Este correo ya está registrado. Inicia sesión.';
+  if(c==='auth/invalid-email')return 'El correo electrónico no es válido.';
+  if(c==='auth/weak-password')return 'La contraseña debe tener al menos 6 caracteres.';
+  if(c==='auth/too-many-requests')return 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
+  if(c==='auth/network-request-failed')return 'Sin conexión. Revisa tu internet e inténtalo de nuevo.';
+  if(c==='permission-denied')return 'Sin permiso. Contacta al administrador.';
+  return (ex&&ex.message)||'Ocurrió un error. Inténtalo de nuevo.';
+}
+async function v7PostLogin(){
+  const ud=VoxiaDB.userData,e=VoxiaDB.user.email;
+  me={id:VoxiaDB.user.uid,name:ud.displayName||e,email:ud.email,
+    role:ud.role==='superadmin'?'admin':(ud.role||'agente'),active:true,color:'#ffa02e'};
+  $('loginScreen').style.display='none';
+  try{logActivity(me.name,'🔓','inició sesión');}catch(x){}
+  applyPermissions();
+  try{await loadClientsFromFirebase();}catch(x){}
+  renderAll();go('dashboard');
+  toast('👋 Hola, '+me.name.split(' ')[0]+' · '+roleLabel(me.role));
+}
+async function v7SignIn(){
+  const e=$('v7EmailIn').value.trim().toLowerCase(),p=$('v7PassIn').value;
+  $('v7ErrIn').style.display='none';$('v7OkIn').style.display='none';
+  if(!e||!p){v7Err('v7ErrIn','Escribe tu correo y tu contraseña.');return;}
+  const btn=$('v7BtnIn');btn.disabled=true;btn.innerHTML='Verificando…';
+  try{
+    await VoxiaDB.login(e,p);
+    await v7PostLogin();
+  }catch(ex){v7Err('v7ErrIn',v7AuthMsg(ex));}
+  btn.disabled=false;
+  btn.innerHTML='Iniciar sesión <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
+}
+async function v7SignUp(){
+  const name=$('v7Name').value.trim(),
+        e=$('v7EmailUp').value.trim().toLowerCase(),
+        p1=$('v7Pass').value,p2=$('v7Pass2').value;
+  $('v7ErrUp').style.display='none';
+  if(name.length<2){v7Err('v7ErrUp','Escribe tu nombre completo.');$('v7Name').focus();return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){v7Err('v7ErrUp','El correo electrónico no es válido.');$('v7EmailUp').focus();return;}
+  if(p1.length<6){v7Err('v7ErrUp','La contraseña debe tener al menos 6 caracteres.');$('v7Pass').focus();return;}
+  if(p1!==p2){v7Err('v7ErrUp','Las contraseñas no coinciden.');$('v7Pass2').focus();return;}
+  if(!$('v7Terms').checked){v7Err('v7ErrUp','Debes aceptar los Términos y la Política de Privacidad.');return;}
+  const btn=$('v7BtnUp');btn.disabled=true;btn.innerHTML='Creando tu cuenta…';
+  let cred=null;
+  try{
+    cred=await VoxiaDB.auth.createUserWithEmailAndPassword(e,p1);
+    try{await cred.user.updateProfile({displayName:name});}catch(x){}
+    try{
+      await VoxiaDB.db.collection('users').doc(cred.user.uid).set({
+        email:e,displayName:name,role:'owner',clientId:'',
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),provider:'password'
+      });
+    }catch(docErr){
+      try{await cred.user.delete();}catch(x){}
+      throw new Error('No se pudo crear tu perfil ('+(docErr.code||'error')+'). Contacta al administrador.');
+    }
+    await VoxiaDB.loadUserData(cred.user.uid);
+    try{await VoxiaDB.logActivity('signup',{});}catch(x){}
+    await v7PostLogin();
+    toast('🎉 ¡Cuenta creada! Bienvenido a Voxia, '+name.split(' ')[0]);
+  }catch(ex){v7Err('v7ErrUp',v7AuthMsg(ex));}
+  btn.disabled=false;
+  btn.innerHTML='Crear cuenta <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
+}
+// Compatibilidad con llamadas antiguas
+function fillLogin(e,p){v7FillDemo(e,p);}
+async function login(){v7Mode('signin');v7SignIn();}
 async function logout(){
   if(me){ try{ logActivity(me.name,'🔒','cerró sesión'); }catch(e){} }
   let firebaseOk = true;
@@ -2812,12 +2993,14 @@ async function logout(){
     ['ucAvatar','topAvatar'].forEach(id=>{ const el=$(id); if(el){ el.innerHTML=''; el.style.background=''; } });
     ['ucName','ucRole','userDDName'].forEach(id=>{ const el=$(id); if(el) el.textContent=''; });
   }catch(e){}
-  $('loginPass').value='';$('loginErr').style.display='none';
+  $('v7PassIn').value='';$('v7Pass').value='';$('v7Pass2').value='';
+  $('v7ErrIn').style.display='none';$('v7ErrUp').style.display='none';$('v7OkIn').style.display='none';
+  v7Mode('signin');
   // Solo mostrar login como confirmado si Firebase cerró bien;
   // si falló, mostrar aviso pero igual limpiar la vista local
   if(!firebaseOk){
-    $('loginErr').textContent='⚠️ Sesión local cerrada, pero hubo un error con el servidor. Recargue si es necesario.';
-    $('loginErr').style.display='block';
+    $('v7ErrIn').textContent='⚠️ Sesión local cerrada, pero hubo un error con el servidor. Recargue si es necesario.';
+    $('v7ErrIn').style.display='block';
   }
   $('loginScreen').style.display='flex';
   // Volver a la vista inicial para evitar datos residuales visibles
