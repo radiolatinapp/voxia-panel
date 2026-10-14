@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voxia · Maqueta V10</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--font:'Inter',system-ui,sans-serif;--ease:cubic-bezier(.22,1,.36,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:#040404;color:#fff;min-height:100vh}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+/* ============ AUTH · LOGIN V7 (SETTIGATION style) ============ */
+.login-screen{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
+  background:#040404;overflow:auto;padding:28px 20px}
+.login-screen::before{content:'';position:fixed;inset:-25%;pointer-events:none;
+  background:
+    linear-gradient(112deg,transparent 38%,rgba(255,176,58,.10) 45%,rgba(255,150,30,.20) 50%,rgba(255,176,58,.10) 55%,transparent 62%),
+    linear-gradient(112deg,transparent 52%,rgba(255,200,100,.08) 60%,rgba(255,170,50,.14) 64%,transparent 72%),
+    linear-gradient(68deg,transparent 28%,rgba(255,160,40,.10) 36%,rgba(255,150,30,.16) 40%,transparent 48%),
+    radial-gradient(700px 340px at 50% 120%,rgba(255,140,20,.10),transparent 65%),
+    radial-gradient(500px 260px at 85% 0%,rgba(255,180,60,.08),transparent 60%);
+  filter:blur(28px);animation:v7drift 26s ease-in-out infinite alternate}
+@keyframes v7drift{from{transform:translate3d(-2%,1%,0) rotate(-1deg)}to{transform:translate3d(2%,-1%,0) rotate(1deg)}}
+.v7-card{position:relative;width:452px;max-width:100%;background:rgba(16,16,19,.78);
+  backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  border:1px solid rgba(255,255,255,.13);border-radius:22px;padding:38px 38px 30px;
+  box-shadow:0 40px 100px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,255,255,.09);
+  animation:viewIn .45s var(--ease)}
+.v7-card.hide{display:none}
+.v7-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:22px}
+.v7-brand img{width:38px;height:38px;border-radius:11px;box-shadow:0 6px 22px rgba(255,158,46,.35)}
+.v7-brand span{font-size:19px;font-weight:800;letter-spacing:-.3px;color:#fff}
+.v7-brand span em{font-style:normal;color:#ffd60a}
+.v7-title{font-size:29px;font-weight:800;color:#fff;letter-spacing:-.5px;margin:0 0 6px}
+.v7-title em{font-style:normal;color:#ffd60a}
+.v7-sub{font-size:13.5px;color:#9aa0ad;margin:0 0 26px}
+.v7-label{display:block;font-size:12.5px;font-weight:600;color:#d8dbe2;margin:0 0 7px 2px}
+.v7-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.v7-input{position:relative;margin-bottom:15px}
+.v7-input>svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#878d99;pointer-events:none}
+.v7-input input{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;color:#fff;padding:13px 14px 13px 42px;font-size:14.5px;transition:.18s;font-family:var(--font)}
+.v7-input input::placeholder{color:#63676f}
+.v7-input input:focus{border-color:rgba(255,214,10,.55);box-shadow:0 0 0 3px rgba(255,214,10,.13);outline:none;background:rgba(255,255,255,.075)}
+.v7-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#878d99;
+  cursor:pointer;padding:7px;border-radius:8px;display:flex;transition:.15s}
+.v7-eye:hover{color:#ffd60a}
+.v7-eye svg{width:18px;height:18px}
+.v7-check{display:flex;gap:10px;align-items:flex-start;margin:2px 0 20px;font-size:13px;color:#b9bdc7;cursor:pointer;line-height:1.5}
+.v7-check input{appearance:none;-webkit-appearance:none;width:19px;height:19px;border-radius:6px;flex-shrink:0;margin-top:1px;
+  border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.06);cursor:pointer;position:relative;transition:.15s}
+.v7-check input:checked{background:#ffd60a;border-color:#ffd60a}
+.v7-check input:checked::after{content:'';position:absolute;left:6px;top:2.5px;width:5px;height:9px;
+  border:solid #151515;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.v7-check a{color:#ffd60a;text-decoration:none;font-weight:600}
+.v7-check a:hover{text-decoration:underline}
+.v7-btn{width:100%;background:linear-gradient(180deg,#ffe45e,#ffd60a);color:#17171a;border:none;border-radius:12px;
+  padding:14px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;
+  box-shadow:0 10px 30px rgba(255,214,10,.32),inset 0 1px 0 rgba(255,255,255,.5);transition:.2s;font-family:var(--font)}
+.v7-btn:hover{transform:translateY(-1px);box-shadow:0 14px 38px rgba(255,214,10,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+.v7-btn:active{transform:translateY(0)}
+.v7-btn:disabled{opacity:.65;cursor:wait;transform:none}
+.v7-btn svg{width:17px;height:17px}
+.v7-switch{text-align:center;font-size:13.5px;color:#9aa0ad;margin-top:22px}
+.v7-switch button{background:none;border:none;color:#ffd60a;font-weight:700;font-size:13.5px;cursor:pointer;padding:0;font-family:var(--font)}
+.v7-switch button:hover{text-decoration:underline}
+.v7-forgot{display:block;text-align:right;font-size:12.5px;color:#9aa0ad;background:none;border:none;
+  cursor:pointer;margin:-6px 2px 16px auto;padding:0;font-family:var(--font)}
+.v7-forgot:hover{color:#ffd60a}
+.v7-err{display:none;background:rgba(255,82,82,.10);border:1px solid rgba(255,82,82,.42);color:#ffa3a3;
+  font-size:13px;border-radius:12px;padding:11px 14px;margin:0 0 16px;line-height:1.5}
+.v7-ok{display:none;background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.4);color:#8ff0c6;
+  font-size:13px;border-radius:12px;padding:11px 14px;margin:0 0 16px;line-height:1.5}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.v7-card.shake{animation:shake .35s}
+.v7-fade{animation:v7fade .3s ease}
+@keyframes v7fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.v7-demo{margin-top:26px;text-align:center}
+.v7-demo summary{font-size:11.5px;color:#5d6270;cursor:pointer;letter-spacing:.6px;text-transform:uppercase;font-weight:700}
+.v7-demo summary:hover{color:#ffd60a}
+.v7-demo-row{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.v7-demo-row button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#c9cdd6;
+  border-radius:10px;padding:8px 13px;font-size:12.5px;cursor:pointer;transition:.15s;font-family:var(--font)}
+.v7-demo-row button:hover{border-color:rgba(255,214,10,.55);color:#ffd60a}
+.v7-terms-modal{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.7);
+  backdrop-filter:blur(6px);padding:20px}
+.v7-terms-modal.open{display:flex}
+.v7-terms-box{width:520px;max-width:100%;max-height:80vh;overflow:auto;background:#141416;border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;padding:30px 32px;color:#d8dbe2;font-size:13.5px;line-height:1.7}
+.v7-terms-box h3{color:#fff;font-size:18px;margin:0 0 4px}
+.v7-terms-box h3 em{font-style:normal;color:#ffd60a}
+.v7-terms-box h4{color:#ffd60a;font-size:13.5px;margin:18px 0 6px}
+.v7-terms-box p{margin:0 0 10px;color:#a9adb8}
+.v7-terms-close{margin-top:20px;width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:#fff;
+  border-radius:11px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.v7-terms-close:hover{border-color:rgba(255,214,10,.5);color:#ffd60a}
+@media(max-width:520px){.v7-card{padding:30px 24px 26px}.v7-row2{grid-template-columns:1fr}.v7-title{font-size:25px}}
+/* ============ LOGIN V9 · HERO LAMPARA + ROBOT ============ */
+.v9-hero{position:relative;margin:-38px -38px 22px;border-radius:22px 22px 0 0;overflow:hidden;
+  aspect-ratio:3/3.2;max-height:430px;background:#0a0a0c;animation:v9heroIn .6s var(--ease)}
+@keyframes v9heroIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
+.v9-hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%}
+.v9-hero::after{content:'';position:absolute;left:0;right:0;bottom:0;height:80px;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(16,16,19,.9))}
+.v9-wordmark{text-align:center;font-size:11px;letter-spacing:6px;color:#8a7a45;font-weight:700;margin:0 0 18px}
+@media(max-width:520px){.v9-hero{margin:-30px -24px 20px;max-height:380px}}
+/* (conservados: los usa el resto del panel) */
+.b-adm{background:rgba(255,158,46,.13);color:#ffcf9a;border-color:rgba(255,158,46,.35)}
+.b-ger{background:rgba(124,108,255,.13);color:#b7aefc;border-color:rgba(124,108,255,.35)}
+.b-agt{background:rgba(56,214,245,.12);color:#9be9f9;border-color:rgba(56,214,245,.3)}
+.act-row{display:flex;gap:13px;padding:13px 4px;border-bottom:1px solid var(--line);align-items:flex-start}
+.act-row:last-child{border-bottom:none}
+.act-ico{width:38px;height:38px;border-radius:12px;background:rgba(255,158,46,.09);display:flex;align-items:center;
+  justify-content:center;font-size:17px;flex-shrink:0}
+.act-tx{font-size:13.5px;font-weight:500}
+.act-meta{font-size:12px;color:var(--muted);margin-top:3px}
+.swatch{width:34px;height:34px;border-radius:11px;cursor:pointer;border:2px solid transparent;transition:.15s}
+.swatch.sel{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.15)}
+
+
+/* ============ LOGIN V10 · DOS COLUMNAS ============ */
+.v10-card{position:relative;width:920px;max-width:96vw;background:rgba(16,16,19,.84);
+  backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  border:1px solid rgba(255,255,255,.13);border-radius:22px;overflow:hidden;display:flex;
+  box-shadow:0 40px 100px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,255,255,.09);
+  animation:viewIn .45s cubic-bezier(.22,1,.36,1)}
+.v10-visual{position:relative;flex:1.05;min-height:580px;background:#050505;overflow:hidden}
+.v10-visual img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.v10-visual::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,transparent 60%,rgba(10,10,12,.5)),
+             linear-gradient(0deg,rgba(10,10,12,.66),transparent 42%)}
+.v10-welcome{position:absolute;top:36px;left:0;right:0;text-align:center;z-index:2}
+.v10-welcome h3{font-size:32px;font-weight:800;letter-spacing:-.5px;margin:0;
+  background:linear-gradient(110deg,#fff 30%,#ffd60a 44%,#ff8a1e 50%,#ffd60a 56%,#fff 70%);
+  background-size:230% auto;-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  animation:v10shine 3.4s linear infinite,v10float 4.2s ease-in-out infinite}
+.v10-welcome p{color:#ffb03a;font-size:13px;letter-spacing:6px;font-weight:700;margin:8px 0 0;
+  text-shadow:0 0 18px rgba(255,150,30,.6);animation:v10float 4.2s ease-in-out infinite}
+@keyframes v10shine{to{background-position:230% center}}
+@keyframes v10float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.v10-form{flex:1;padding:48px 48px 40px;display:flex;flex-direction:column;justify-content:center}
+@media(max-width:780px){.v10-card{flex-direction:column;width:452px;max-width:94vw}
+  .v10-visual{min-height:360px;flex:none}.v10-form{padding:36px 30px 30px}}
+
+</style>
+</head>
+<body>
+<div class="login-screen">
+  <div style="width:100%;display:flex;flex-direction:column;align-items:center">
+  <div class="v10-card">
+    <div class="v10-visual">
+      <img src="voxia-hero.jpg" alt="Voxia">
+      <div class="v10-welcome"><h3>Bienvenido</h3><p>A VOXIA</p></div>
+    </div>
+    <div class="v10-form">
+<div id="v7Signin" class="v7-fade">
+      <h2 class="v7-title">Iniciar <em>sesión</em></h2>
+      <p class="v7-sub">Accede a tu espacio de trabajo seguro</p>
+      <div class="v7-err" id="v7ErrIn"></div>
+      <div class="v7-ok" id="v7OkIn"></div>
+      <label class="v7-label" for="v7EmailIn">Correo electrónico</label>
+      <div class="v7-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+        <input type="email" id="v7EmailIn" placeholder="nombre@empresa.com" autocomplete="username">
+      </div>
+      <label class="v7-label" for="v7PassIn">Contraseña</label>
+      <div class="v7-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input type="password" id="v7PassIn" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')v7SignIn()">
+        <button type="button" class="v7-eye" onclick="v7TogglePw('v7PassIn',this)" aria-label="Mostrar contraseña"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+      <button class="v7-forgot" onclick="toast('📩 Contacta a tu administrador para restablecer tu contraseña','warn')">¿Olvidaste tu contraseña?</button>
+      <button class="v7-btn" id="v7BtnIn" onclick="v7SignIn()">Iniciar sesión <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>
+    </div>
+    </div>
+  </div>
+  <details class="v7-demo">
+    <summary>Cuentas demo</summary>
+    <div class="v7-demo-row">
+      <button onclick="v7FillDemo('admin@voxia.ai','voxia2026')">👑 admin@voxia.ai</button>
+      <button onclick="v7FillDemo('gerente@voxia.ai','gerente2026')">🧭 gerente@voxia.ai</button>
+      <button onclick="v7FillDemo('agente@voxia.ai','agente2026')">🎧 agente@voxia.ai</button>
+    </div>
+  </details>
+  </div>
+</div>
+</body>
+</html>
