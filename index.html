@@ -520,48 +520,10 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   <div class="v7-card" id="v7Card">
     <div class="v7-brand"><img src="logo.svg" alt="Voxia"><span>Vox<em>ia</em></span></div>
 
-    <!-- MODO: CREAR CUENTA -->
-    <div id="v7Signup" class="v7-fade">
-      <h2 class="v7-title">Crear <em>cuenta</em></h2>
-      <p class="v7-sub">Únete hoy para acceder a tu espacio de trabajo seguro</p>
-      <div class="v7-err" id="v7ErrUp"></div>
-      <label class="v7-label" for="v7Name">Nombre completo</label>
-      <div class="v7-input">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <input type="text" id="v7Name" placeholder="Alex Johnson" autocomplete="name">
-      </div>
-      <label class="v7-label" for="v7EmailUp">Correo electrónico</label>
-      <div class="v7-input">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
-        <input type="email" id="v7EmailUp" placeholder="nombre@empresa.com" autocomplete="email">
-      </div>
-      <div class="v7-row2">
-        <div>
-          <label class="v7-label" for="v7Pass">Contraseña</label>
-          <div class="v7-input">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <input type="password" id="v7Pass" placeholder="••••••••" autocomplete="new-password">
-            <button type="button" class="v7-eye" onclick="v7TogglePw('v7Pass',this)" aria-label="Mostrar contraseña"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          </div>
-        </div>
-        <div>
-          <label class="v7-label" for="v7Pass2">Confirmar contraseña</label>
-          <div class="v7-input">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <input type="password" id="v7Pass2" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')v7SignUp()">
-            <button type="button" class="v7-eye" onclick="v7TogglePw('v7Pass2',this)" aria-label="Mostrar contraseña"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          </div>
-        </div>
-      </div>
-      <label class="v7-check"><input type="checkbox" id="v7Terms"><span>Acepto los <a href="#" onclick="v7TermsModal(event)">Términos</a> y la <a href="#" onclick="v7TermsModal(event)">Política de Privacidad</a></span></label>
-      <button class="v7-btn" id="v7BtnUp" onclick="v7SignUp()">Crear cuenta <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>
-      <p class="v7-switch">¿Ya tienes una cuenta? <button onclick="v7Mode('signin')">Iniciar sesión</button></p>
-    </div>
-
-    <!-- MODO: INICIAR SESIÓN -->
-    <div id="v7Signin" class="v7-fade" style="display:none">
-      <h2 class="v7-title">Bienvenido de <em>nuevo</em></h2>
-      <p class="v7-sub">Inicia sesión para acceder a tu espacio de trabajo seguro</p>
+    <!-- MODO: INICIAR SESIÓN (único) -->
+    <div id="v7Signin" class="v7-fade">
+      <h2 class="v7-title">Iniciar <em>sesión</em></h2>
+      <p class="v7-sub">Accede a tu espacio de trabajo seguro</p>
       <div class="v7-err" id="v7ErrIn"></div>
       <div class="v7-ok" id="v7OkIn"></div>
       <label class="v7-label" for="v7EmailIn">Correo electrónico</label>
@@ -577,7 +539,6 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       </div>
       <button class="v7-forgot" onclick="toast('📩 Contacta a tu administrador para restablecer tu contraseña','warn')">¿Olvidaste tu contraseña?</button>
       <button class="v7-btn" id="v7BtnIn" onclick="v7SignIn()">Iniciar sesión <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>
-      <p class="v7-switch">¿No tienes una cuenta? <button onclick="v7Mode('signup')">Crear cuenta</button></p>
     </div>
   </div>
   <details class="v7-demo">
@@ -592,23 +553,6 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
 </div>
 
 <!-- Modal Términos y Privacidad -->
-<div class="v7-terms-modal" id="v7TermsModal" onclick="if(event.target===this)v7TermsModal(event)">
-  <div class="v7-terms-box">
-    <h3>Términos y <em>Privacidad</em></h3>
-    <p>Voxia · La voz inteligente de tu negocio</p>
-    <h4>1. El servicio</h4>
-    <p>Voxia provee asistentes de voz con inteligencia artificial que atienden llamadas, toman pedidos y gestionan reservas para tu negocio.</p>
-    <h4>2. Tu cuenta</h4>
-    <p>Eres responsable de mantener la confidencialidad de tu contraseña. No compartas tu acceso con terceros no autorizados.</p>
-    <h4>3. Privacidad</h4>
-    <p>Tus datos se usan únicamente para operar el servicio: autenticación, configuración de tu asistente y facturación. No vendemos tu información personal.</p>
-    <h4>4. Uso aceptable</h4>
-    <p>No uses el servicio para actividades ilegales, spam o para vulnerar la seguridad de la plataforma.</p>
-    <button class="v7-terms-close" onclick="v7TermsModal(event)">Entendido</button>
-  </div>
-</div>
-
-
 <!-- ============ SIDEBAR ============ -->
 <aside class="sidebar" id="sidebar">
   <div class="brand">
@@ -2879,15 +2823,7 @@ function canManageUsers(){return !!(me&&ROLES[me.role]&&ROLES[me.role].manageUse
 function curView(){const v=document.querySelector('.view.active');return v?v.id.replace('view-',''):'';}
 
 /* ---------- autenticación ---------- */
-/* ---------- autenticación V7 ---------- */
-function v7Mode(m){
-  const up=m==='signup';
-  $('v7Signup').style.display=up?'':'none';
-  $('v7Signin').style.display=up?'none':'';
-  $('v7ErrUp').style.display='none';$('v7ErrIn').style.display='none';
-  const f=up?$('v7Signup'):$('v7Signin');
-  f.classList.remove('v7-fade');void f.offsetWidth;f.classList.add('v7-fade');
-}
+/* ---------- autenticación V7 (solo inicio de sesión) ---------- */
 function v7TogglePw(id,btn){
   const i=$(id),show=i.type==='password';
   i.type=show?'text':'password';
@@ -2896,8 +2832,7 @@ function v7TogglePw(id,btn){
     :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
   i.focus();
 }
-function v7TermsModal(ev){ev.preventDefault();ev.stopPropagation();$('v7TermsModal').classList.toggle('open');}
-function v7FillDemo(e,p){v7Mode('signin');$('v7EmailIn').value=e;$('v7PassIn').value=p;$('v7ErrIn').style.display='none';$('v7PassIn').focus();}
+function v7FillDemo(e,p){$('v7EmailIn').value=e;$('v7PassIn').value=p;$('v7ErrIn').style.display='none';$('v7PassIn').focus();}
 function v7Err(id,msg){
   const el=$(id);el.textContent='⚠ '+msg;el.style.display='block';
   const card=$('v7Card');card.classList.remove('shake');void card.offsetWidth;card.classList.add('shake');
@@ -2936,41 +2871,9 @@ async function v7SignIn(){
   btn.disabled=false;
   btn.innerHTML='Iniciar sesión <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
 }
-async function v7SignUp(){
-  const name=$('v7Name').value.trim(),
-        e=$('v7EmailUp').value.trim().toLowerCase(),
-        p1=$('v7Pass').value,p2=$('v7Pass2').value;
-  $('v7ErrUp').style.display='none';
-  if(name.length<2){v7Err('v7ErrUp','Escribe tu nombre completo.');$('v7Name').focus();return;}
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){v7Err('v7ErrUp','El correo electrónico no es válido.');$('v7EmailUp').focus();return;}
-  if(p1.length<6){v7Err('v7ErrUp','La contraseña debe tener al menos 6 caracteres.');$('v7Pass').focus();return;}
-  if(p1!==p2){v7Err('v7ErrUp','Las contraseñas no coinciden.');$('v7Pass2').focus();return;}
-  if(!$('v7Terms').checked){v7Err('v7ErrUp','Debes aceptar los Términos y la Política de Privacidad.');return;}
-  const btn=$('v7BtnUp');btn.disabled=true;btn.innerHTML='Creando tu cuenta…';
-  let cred=null;
-  try{
-    cred=await VoxiaDB.auth.createUserWithEmailAndPassword(e,p1);
-    try{await cred.user.updateProfile({displayName:name});}catch(x){}
-    try{
-      await VoxiaDB.db.collection('users').doc(cred.user.uid).set({
-        email:e,displayName:name,role:'owner',clientId:'',
-        createdAt:firebase.firestore.FieldValue.serverTimestamp(),provider:'password'
-      });
-    }catch(docErr){
-      try{await cred.user.delete();}catch(x){}
-      throw new Error('No se pudo crear tu perfil ('+(docErr.code||'error')+'). Contacta al administrador.');
-    }
-    await VoxiaDB.loadUserData(cred.user.uid);
-    try{await VoxiaDB.logActivity('signup',{});}catch(x){}
-    await v7PostLogin();
-    toast('🎉 ¡Cuenta creada! Bienvenido a Voxia, '+name.split(' ')[0]);
-  }catch(ex){v7Err('v7ErrUp',v7AuthMsg(ex));}
-  btn.disabled=false;
-  btn.innerHTML='Crear cuenta <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
-}
 // Compatibilidad con llamadas antiguas
 function fillLogin(e,p){v7FillDemo(e,p);}
-async function login(){v7Mode('signin');v7SignIn();}
+async function login(){v7SignIn();}
 async function logout(){
   if(me){ try{ logActivity(me.name,'🔒','cerró sesión'); }catch(e){} }
   let firebaseOk = true;
@@ -2993,9 +2896,8 @@ async function logout(){
     ['ucAvatar','topAvatar'].forEach(id=>{ const el=$(id); if(el){ el.innerHTML=''; el.style.background=''; } });
     ['ucName','ucRole','userDDName'].forEach(id=>{ const el=$(id); if(el) el.textContent=''; });
   }catch(e){}
-  $('v7PassIn').value='';$('v7Pass').value='';$('v7Pass2').value='';
-  $('v7ErrIn').style.display='none';$('v7ErrUp').style.display='none';$('v7OkIn').style.display='none';
-  v7Mode('signin');
+  $('v7PassIn').value='';
+  $('v7ErrIn').style.display='none';$('v7OkIn').style.display='none';
   // Solo mostrar login como confirmado si Firebase cerró bien;
   // si falló, mostrar aviso pero igual limpiar la vista local
   if(!firebaseOk){
