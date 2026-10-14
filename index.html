@@ -169,6 +169,60 @@ button{font-family:var(--font)}
   border-radius:11px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)}
 .v7-terms-close:hover{border-color:rgba(255,214,10,.5);color:#ffd60a}
 @media(max-width:520px){.v7-card{padding:30px 24px 26px}.v7-row2{grid-template-columns:1fr}.v7-title{font-size:25px}}
+/* ============ LOGIN V8 · LÁMPARA + MASCOTA VOXIA ============ */
+.v8-scene{position:relative;height:242px;margin:-2px -2px 2px;overflow:visible}
+.v8-stage{position:absolute;top:0;left:31%;transform:translateX(-50%);width:180px;height:242px;
+  animation:v8sceneIn .5s var(--ease)}
+@keyframes v8sceneIn{from{opacity:0;transform:translateX(-50%) translateY(-14px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.v8-cord{position:absolute;top:0;left:50%;transform:translateX(-50%);width:3px;height:54px;
+  background:linear-gradient(180deg,#3d3d44,#232327);border-radius:2px}
+.v8-socket{position:absolute;top:50px;left:50%;transform:translateX(-50%);width:16px;height:15px;
+  background:linear-gradient(180deg,#4c4c55,#26262b);border-radius:4px}
+.v8-shade{position:absolute;top:61px;left:50%;transform:translateX(-50%);width:104px;height:52px;
+  background:linear-gradient(180deg,#2e2e35 0%,#17171b 70%,#0d0d10 100%);
+  clip-path:polygon(38% 0,62% 0,100% 100%,0 100%);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.14)}
+.v8-rim{position:absolute;top:111px;left:50%;transform:translateX(-50%);width:102px;height:5px;border-radius:3px;
+  background:linear-gradient(90deg,transparent,#ffd60a 30%,#ffd60a 70%,transparent);filter:blur(1px)}
+.v8-bulb{position:absolute;top:99px;left:50%;transform:translateX(-50%);width:30px;height:30px;border-radius:50%;
+  background:radial-gradient(circle at 50% 42%,#fffbe8 0%,#ffe45e 34%,#ffd60a 62%,#ff9a1f 100%);
+  box-shadow:0 0 24px 6px rgba(255,214,10,.85),0 0 60px 18px rgba(255,170,40,.35);
+  animation:v8glow 2s ease-in-out infinite}
+@keyframes v8glow{0%,100%{box-shadow:0 0 22px 5px rgba(255,214,10,.8),0 0 55px 15px rgba(255,170,40,.3)}
+  50%{box-shadow:0 0 34px 10px rgba(255,214,10,.95),0 0 85px 26px rgba(255,170,40,.45)}}
+.v8-cone{position:absolute;top:117px;left:50%;transform:translateX(-50%);width:172px;height:114px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,205,80,.20) 0%,rgba(255,180,50,.08) 55%,transparent 100%);
+  clip-path:polygon(42% 0,58% 0,100% 100%,0 100%);
+  animation:v8cone 2s ease-in-out infinite}
+@keyframes v8cone{0%,100%{opacity:.72}50%{opacity:1}}
+.v8-robot{position:absolute;top:158px;left:50%;width:74px;height:74px;transform:translateX(-50%);
+  animation:v8pop .55s cubic-bezier(.34,1.56,.64,1) .65s both,v8float 3.2s ease-in-out 1.35s infinite}
+@keyframes v8pop{from{opacity:0;transform:translateX(-50%) scale(0)}
+  60%{opacity:1;transform:translateX(-50%) scale(1.12)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@keyframes v8float{0%,100%{margin-top:0}50%{margin-top:-7px}}
+.v8-ear{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#ffe9a8,#ff9a1f 75%);
+  box-shadow:0 0 12px rgba(255,180,50,.7)}
+.v8-ear.left{left:-9px;transform:translateY(-50%)}
+.v8-ear.right{right:-9px;transform:translateY(-50%)}
+.v8-face{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 50% 38%,#fff3c4 0%,#ffdf8a 30%,#ffbe45 62%,#ff9a1f 100%);
+  box-shadow:0 0 26px 8px rgba(255,190,60,.55),inset 0 -6px 14px rgba(200,110,10,.35),inset 0 4px 10px rgba(255,255,255,.5);
+  overflow:hidden}
+.v8-face::after{content:'';position:absolute;top:6px;left:15px;width:20px;height:12px;border-radius:50%;
+  background:rgba(255,255,255,.55);filter:blur(3px);transform:rotate(-18deg)}
+.v8-eye{position:absolute;top:25px;width:13px;height:17px}
+.v8-eye.left{left:19px}.v8-eye.right{right:19px}
+.v8-eye span{display:block;width:100%;height:100%;border-radius:50%;background:#241503;
+  box-shadow:0 0 6px rgba(255,220,120,.9);transform-origin:center;
+  animation:v8blink 4.6s ease-in-out infinite}
+@keyframes v8blink{0%,90%,100%{transform:scaleY(1)}93%{transform:scaleY(.08)}95.5%{transform:scaleY(1)}
+  97%,98.5%{transform:scaleY(.12)}99.5%{transform:scaleY(1)}}
+.v8-smile{position:absolute;left:50%;top:44px;transform:translateX(-50%);width:30px;height:15px;
+  border-bottom:3.5px solid #241503;border-radius:0 0 30px 30px}
+.v8-pool{position:absolute;top:230px;left:50%;transform:translateX(-50%);width:124px;height:16px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,200,70,.35),transparent 70%);filter:blur(3px)}
+.v8-wordmark{text-align:center;font-size:11px;letter-spacing:6px;color:#8a7a45;font-weight:700;margin:4px 0 18px}
 /* (conservados: los usa el resto del panel) */
 .b-adm{background:rgba(255,158,46,.13);color:#ffcf9a;border-color:rgba(255,158,46,.35)}
 .b-ger{background:rgba(124,108,255,.13);color:#b7aefc;border-color:rgba(124,108,255,.35)}
@@ -518,7 +572,27 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
 <div class="login-screen" id="loginScreen">
   <div style="width:100%;display:flex;flex-direction:column;align-items:center">
   <div class="v7-card" id="v7Card">
-    <div class="v7-brand"><img src="logo.svg" alt="Voxia"><span>Vox<em>ia</em></span></div>
+    <div class="v8-scene">
+      <div class="v8-stage">
+        <div class="v8-cord"></div>
+        <div class="v8-socket"></div>
+        <div class="v8-shade"></div>
+        <div class="v8-rim"></div>
+        <div class="v8-bulb"></div>
+        <div class="v8-cone"></div>
+        <div class="v8-robot">
+          <div class="v8-ear left"></div>
+          <div class="v8-ear right"></div>
+          <div class="v8-face">
+            <div class="v8-eye left"><span></span></div>
+            <div class="v8-eye right"><span></span></div>
+            <div class="v8-smile"></div>
+          </div>
+        </div>
+        <div class="v8-pool"></div>
+      </div>
+    </div>
+    <div class="v8-wordmark">VOXIA</div>
 
     <!-- MODO: INICIAR SESIÓN (único) -->
     <div id="v7Signin" class="v7-fade">
