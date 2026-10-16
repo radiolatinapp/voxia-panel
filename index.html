@@ -1097,7 +1097,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       <div><h2>📦 Inventario</h2><p>Stock en tiempo real · tu asistente lo consulta en cada llamada</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input type="file" id="stkExcelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importInventoryExcel(this.files[0]);this.value=''">
-        <button class="btn btn-ghost" onclick="$('invExcelInput').click()">📥 Importar Excel</button>
+        <button class="btn btn-ghost" onclick="$('stkExcelInput').click()">📥 Importar Excel</button>
         <button class="btn btn-ghost" onclick="syncInventoryToAgent()">🔄 Sincronizar con asistente</button>
         <button class="btn btn-primary" onclick="openProductModal()">+ Nuevo producto</button>
       </div>
@@ -1949,7 +1949,7 @@ function openProductModal(id){
   $('ipId').value=p?p.id:''; $('ipName').value=p?p.name||'':''; $('ipSku').value=p?p.sku||'':'';
   $('ipCategory').value=p?(p.category||''):''; $('ipPrice').value=p?(p.price||0):'';
   $('ipStock').value=p?(p.stock||0):''; $('ipMin').value=p?((p.minStock==null?5:p.minStock)):'5';
-  openModal('productModal'); setTimeout(()=>$('ipName').focus(),120);
+  $('productModal').classList.add('open'); setTimeout(()=>$('ipName').focus(),120);
 }
 
 async function saveProduct(){
