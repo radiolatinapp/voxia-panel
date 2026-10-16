@@ -297,7 +297,7 @@
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, monthly, installFee, clientElevenKey, clientTwilioSid, clientTwilioToken, elevenlabsAgentId, tempPassword, bizType } = data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, monthly, installFee, clientElevenKey, clientTwilioSid, clientTwilioToken, posProvider, posApiKey, elevenlabsAgentId, tempPassword, bizType } = data;
 
       if (!clientName || !ownerEmail || !tempPassword) {
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
@@ -354,6 +354,18 @@
           twilioConfigured: !!(clientTwilioSid && clientTwilioToken),
           twilioSidHint: hint(clientTwilioSid),
           note: 'Claves reales gestionadas por canal seguro. Este documento solo guarda referencias.',
+          updatedAt: now,
+        });
+      }
+      // 2c. Programa de ventas / POS (referencia; la sincronización real la hace el backend con la key segura)
+      if (posProvider) {
+        const hint = (s) => s ? '****' + String(s).slice(-4) : '';
+        await db.collection('clients').doc(clientId).collection('config').doc('pos').set({
+          provider: posProvider,
+          apiKeyConfigured: !!posApiKey,
+          apiKeyHint: hint(posApiKey),
+          syncStatus: posApiKey ? 'pending' : 'waiting_key',
+          note: 'Clave real por canal seguro. Sin API, usar importación Excel en Inventario.',
           updatedAt: now,
         });
       }
