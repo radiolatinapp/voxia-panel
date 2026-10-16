@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSuperadmin() {
+      return request.auth != null && request.auth.uid == 'GLm4YodaHTcNyblfkFjV6T9jgfH2';
+    }
+
+    function isSelf(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function userClientId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.clientId;
+    }
+
+    function belongsToClient(clientId) {
+      return request.auth != null && userClientId() == clientId;
+    }
+
+    // Usuarios: leer propio o admin; escribir propio (perfil) o admin.
+    // Las cuentas las crea únicamente el superadmin desde su panel.
+    match /users/{userId} {
+      allow read: if isSelf(userId) || isSuperadmin();
+      allow create: if isSuperadmin();
+      allow update: if isSelf(userId) || isSuperadmin();
+      allow delete: if isSuperadmin();
+    }
+
+    // Clientes: solo admin crea/elimina; admin o miembro del cliente lee/actualiza
+    match /clients/{clientId} {
+      allow read: if isSuperadmin() || belongsToClient(clientId);
+      allow create, delete: if isSuperadmin();
+      allow update: if isSuperadmin() || belongsToClient(clientId);
+
+      match /config/{doc} {
+        allow read: if isSuperadmin() || belongsToClient(clientId);
+        // credentials: solo admin escribe (referencias, no secretos)
+        allow write: if isSuperadmin() || (belongsToClient(clientId) && doc != 'credentials');
+      }
+
+      match /usage/{periodo} {
+        allow read: if isSuperadmin() || belongsToClient(clientId);
+        allow write: if isSuperadmin();
+      }
+
+      match /alerts/{alertId} {
+        allow read: if isSuperadmin() || belongsToClient(clientId);
+        allow create: if request.auth != null;
+        allow update, delete: if isSuperadmin();
+      }
+
+      match /orders/{orderId} {
+        allow read: if isSuperadmin() || belongsToClient(clientId);
+        allow create: if isSuperadmin() || belongsToClient(clientId);
+        // Cliente puede actualizar solo el estado de sus pedidos
+        allow update: if isSuperadmin() || (belongsToClient(clientId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
+        allow delete: if isSuperadmin();
+      }
+
+      // Inventario del cliente: admin y el propio cliente lo gestionan
+      match /inventory/{productId} {
+        allow read: if isSuperadmin() || belongsToClient(clientId);
+        allow create, update, delete: if isSuperadmin() || belongsToClient(clientId);
+      }
+    }
+
+    match /activity/{activityId} {
+      allow read: if isSuperadmin() || (request.auth != null && resource.data.clientId == userClientId());
+      allow create: if request.auth != null;
+      allow update, delete: if isSuperadmin();
+    }
+
+    match /admin_alerts/{alertId} {
+      allow read, update, delete: if isSuperadmin();
+      allow create: if request.auth != null;
+    }
+
+    match /mail/{mailId} {
+      allow read: if isSuperadmin();
+      allow create: if request.auth != null;
+      allow update, delete: if false;
+    }
+
+    match /biz_agents/{bizType} {
+      allow read: if request.auth != null;
+      allow write: if isSuperadmin();
+    }
+  }
+}
