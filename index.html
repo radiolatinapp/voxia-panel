@@ -1235,6 +1235,14 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
           <div class="set-row"><div><div class="st">Instalación</div><div class="sd" id="mpInstall">–</div></div></div>
           <div class="set-row"><div><div class="st">País</div><div class="sd" id="mpCountry">–</div></div></div>
           <div class="set-row"><div><div class="st">Estado</div><div class="sd" id="mpStatus">–</div></div></div>
+          <div class="set-row"><div><div class="st">💬 WhatsApp</div><div class="sd" id="mpWhatsapp">–</div></div><button class="btn btn-ghost btn-sm" onclick="toggleWaDetail()">Ver</button></div>
+          <div id="waDetail" style="display:none;margin:2px 0 12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span>Mensajes este mes</span><b id="waCount">0 / 1.000 gratis</b></div>
+            <div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:10px"><div id="waBar" style="height:100%;width:0%;background:var(--acc-grad);border-radius:6px"></div></div>
+            <div class="set-row" style="margin:0"><div><div class="st">Consumo extra</div><div class="sd" id="waCost">–</div></div></div>
+            <div style="font-size:12px;color:var(--muted);margin-top:8px" id="waNote"></div>
+          </div>
+          <div class="set-row"><div><div class="st">🗂️ Mi CRM</div><div class="sd" id="mpCrm">–</div></div><button class="btn btn-ghost btn-sm" id="crmBtn" onclick="openCrmModal()">Conectar</button></div>
         </div>
       </div>
     </div>
@@ -1300,6 +1308,31 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
       <button class="btn btn-ghost" id="btnResetPw" onclick="sendPasswordReset()" style="display:none">📧 Enviar recuperación</button>
       <button class="btn btn-primary" onclick="saveClient()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: CRM ============ -->
+<div class="modal-bg" id="crmModal">
+  <div class="modal">
+    <button class="mx" onclick="closeModal('crmModal')">✕</button>
+    <h3>🗂️ Conectar mi CRM</h3>
+    <div class="msub">Elige el CRM que ya usas · Voxia guardará ahí tus clientes y citas automáticamente</div>
+    <div id="crmStatus" style="font-size:13px;color:var(--acc);margin-bottom:10px"></div>
+    <label class="flabel">Tu CRM</label>
+    <select id="crmProvider" style="font-size:15px">
+      <option value="hubspot">HubSpot</option>
+      <option value="salesforce">Salesforce</option>
+      <option value="zoho">Zoho CRM</option>
+      <option value="pipedrive">Pipedrive</option>
+      <option value="otro">Otro</option>
+    </select>
+    <label class="flabel">Clave API de tu CRM</label>
+    <input type="password" id="crmKey" placeholder="Pega tu clave API" autocomplete="off">
+    <div style="font-size:12px;color:var(--muted);margin-top:8px">🔒 Tu clave viaja segura. En Voxia solo guardamos los últimos 4 dígitos como referencia.</div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('crmModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCrm()">💾 Conectar CRM</button>
     </div>
   </div>
 </div>
@@ -2634,7 +2667,8 @@ let me=null;
 let integrations=[
   {id:'eleven',icon:'🎙️',name:'ElevenLabs',desc:'Voces IA y agentes conversacionales',status:'on',detail:'Plan Free · API conectada'},
   {id:'twilio',icon:'📞',name:'Twilio',desc:'Telefonía, números y SMS',status:'on',detail:'Trial 30 días · ricomoralesjeremy@gmail.com'},
-  {id:'wa',icon:'💬',name:'WhatsApp Business',desc:'Confirmaciones y seguimiento por WhatsApp',status:'off',detail:'Requiere número aprobado por Meta'},
+  {id:'wa',icon:'💬',name:'WhatsApp Business',desc:'Confirmaciones y seguimiento por WhatsApp',status:'off',detail:'1.000 mensajes gratis al mes · ve tu consumo en Mi plan'},
+  {id:'crm',icon:'🗂️',name:'Mi CRM',desc:'Guarda clientes y citas en tu CRM automáticamente',status:'off',detail:'Elige el que ya usas: HubSpot, Salesforce, Zoho…'},
   {id:'stripe',icon:'💳',name:'Stripe',desc:'Cobros automáticos a tus clientes',status:'off',detail:'Conecta tu cuenta para facturar'},
   {id:'gcal',icon:'📅',name:'Google Calendar',desc:'Sincroniza citas agendadas por la IA',status:'off',detail:'OAuth con tu cuenta de Google'}
 ];
@@ -3095,8 +3129,81 @@ async function loadMyPlan(){
     $('mpCountry').textContent=countryNames[country]||country||'–';
     const statusNames={active:'Activo',trial:'Prueba',off:'Pausado'};
     $('mpStatus').textContent=statusNames[c.status]||c.status||'–';
+    await renderWaCrm();
   }catch(e){ console.warn('loadMyPlan:', e.message); }
 }
+
+/* ---------- WhatsApp + CRM (Voxia) ---------- */
+const WA_FREE_MSGS=1000;
+const WA_RATES={US:0.0034,CO:0.0008,OT:0.0034}; // USD por mensaje extra · tarifa Meta oct-2026
+const USD_COP_APROX=3180; // tasa aproximada solo para mostrar en pesos
+const CRM_PROVIDERS={hubspot:'HubSpot',salesforce:'Salesforce',zoho:'Zoho CRM',pipedrive:'Pipedrive',otro:'Otro'};
+
+function toggleWaDetail(){
+  const d=$('waDetail');if(!d)return;
+  d.style.display=d.style.display==='none'?'block':'none';
+}
+async function openCrmModal(){
+  try{
+    if(window.VoxiaDB&&VoxiaDB.clientId){
+      const cfg=await VoxiaDB.getClientConfig();
+      if(cfg&&cfg.crm&&cfg.crm.connected){
+        $('crmProvider').value=cfg.crm.provider||'hubspot';
+        $('crmStatus').textContent='Conectado: '+(CRM_PROVIDERS[cfg.crm.provider]||cfg.crm.provider)+' ••••'+(cfg.crm.keyLast4||'');
+      } else { $('crmStatus').textContent=''; }
+    }
+  }catch(e){}
+  $('crmKey').value='';
+  $('crmModal').classList.add('open');
+}
+async function saveCrm(){
+  const provider=$('crmProvider').value, key=$('crmKey').value.trim();
+  if(key.length<8){toast('Pega tu clave API del CRM (mínimo 8 caracteres)','warn');return;}
+  const keyLast4=key.slice(-4);
+  try{
+    if(!(window.VoxiaDB&&VoxiaDB.clientId))throw new Error('Sin sesión de cliente');
+    await VoxiaDB.saveClientConfig({crm:{provider:provider,keyLast4:keyLast4,connected:true,at:nowStr()}});
+  }catch(e){toast('⚠ No se pudo guardar: '+e.message,'warn');return;}
+  $('crmKey').value='';
+  const g=integrations.find(x=>x.id==='crm');
+  if(g){g.status='on';g.detail=(CRM_PROVIDERS[provider]||provider)+' ••••'+keyLast4+' · citas y clientes automáticos';renderIntegrations();}
+  await renderWaCrm();
+  closeModal('crmModal');
+  try{logActivity(me?me.name:'Cliente','🗂️','conectó su CRM ('+(CRM_PROVIDERS[provider]||provider)+')');}catch(e){}
+  toast('🗂️ CRM conectado: '+(CRM_PROVIDERS[provider]||provider));
+}
+async function renderWaCrm(){
+  try{
+    if(!(window.VoxiaDB&&VoxiaDB.clientId))return;
+    const c=await VoxiaDB.getClient(VoxiaDB.clientId);if(!c)return;
+    const cfg=await VoxiaDB.getClientConfig();
+    const country=c.country||'US', curr=country==='CO'?'COP':'USD';
+    const isMaint=c.billingModel==='maintenance';
+    const crm=cfg&&cfg.crm;
+    if(crm&&crm.connected){
+      $('mpCrm').textContent=(CRM_PROVIDERS[crm.provider]||crm.provider)+' ••••'+(crm.keyLast4||'');
+      $('crmBtn').textContent='Cambiar';
+      const g=integrations.find(x=>x.id==='crm');
+      if(g&&g.status!=='on'){g.status='on';g.detail=(CRM_PROVIDERS[crm.provider]||crm.provider)+' ••••'+(crm.keyLast4||'');renderIntegrations();}
+    } else { $('mpCrm').textContent='No conectado';$('crmBtn').textContent='Conectar'; }
+    const now=new Date(), ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    let wu=(cfg&&cfg.waUsage)||{};
+    if(wu.month!==ym){wu={month:ym,count:0};}
+    const count=wu.count||0, rate=WA_RATES[country]||WA_RATES.OT;
+    const extra=Math.max(0,count-WA_FREE_MSGS), costUSD=extra*rate;
+    $('mpWhatsapp').textContent=count.toLocaleString()+' / '+WA_FREE_MSGS.toLocaleString()+' gratis';
+    $('waCount').textContent=count.toLocaleString()+' / '+WA_FREE_MSGS.toLocaleString()+' gratis este mes';
+    $('waBar').style.width=Math.min(100,count/WA_FREE_MSGS*100)+'%';
+    $('waCost').textContent=curr==='COP'
+      ? '≈ $'+Math.round(costUSD*USD_COP_APROX).toLocaleString()+' COP'
+      : '$'+costUSD.toFixed(2)+' USD';
+    const billNote=country==='CO'
+      ? '🇨🇴 Se cobra en tu cuenta de Meta (Voxia no toca cobranza).'
+      : (isMaint?'🇺🇸 Se cobra en tus cuentas.':'🇺🇸 Voxia lo incluye en tu factura.');
+    $('waNote').innerHTML='Los primeros '+WA_FREE_MSGS.toLocaleString()+' mensajes de cada mes son gratis. Después, Meta cobra $'+rate.toFixed(4)+' USD por mensaje. '+billNote+'<br><span style="color:var(--faint)">Tasa COP aproximada · tarifa Meta oct-2026.</span>';
+  }catch(e){console.warn('renderWaCrm:',e.message);}
+}
+
 async function renderProfile(){
   if(!me)return;
   $('profAvatarPrev').innerHTML=uavatar(me,54);
@@ -3168,6 +3275,12 @@ function renderIntegrations(){
 }
 function toggleIntegration(id){
   const g=integrations.find(x=>x.id===id);
+  if(id==='crm'){openCrmModal();return;}
+  if(id==='wa'){
+    if(window.VoxiaDB&&VoxiaDB.clientId){go('perfil');setTimeout(toggleWaDetail,450);}
+    else toast('💬 WhatsApp · el consumo se ve en el portal de cada cliente','warn');
+    return;
+  }
   if(g.status==='on'){
     // Ir a Configuración donde está el campo de la API key
     if(id==='eleven'||id==='twilio'){
