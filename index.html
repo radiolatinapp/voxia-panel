@@ -924,6 +924,25 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
   </section>
 
+  <!-- MODAL: NUEVA FACTURA -->
+  <div class="modal-bg" id="invoiceModal">
+    <div class="modal">
+      <button class="mx" onclick="closeModal('invoiceModal')">✕</button>
+      <h3>Nueva factura</h3>
+      <div class="msub">Se crea solo al pulsar "Crear factura"</div>
+      <label class="flabel">Cliente *</label><select id="invClient"></select>
+      <div class="row2">
+        <div><label class="flabel">Período *</label><input type="month" id="invPeriod"></div>
+        <div><label class="flabel">Vence *</label><input type="date" id="invDue"></div>
+      </div>
+      <label class="flabel">Monto (USD) *</label><input type="number" id="invAmount" min="0" step="0.01">
+      <div class="mrow" style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="closeModal('invoiceModal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveInvoice()">Crear factura</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ VIEW: CONFIGURACIÓN ============ -->
   <section class="view" id="view-config">
     <div class="page-head">
@@ -2742,7 +2761,7 @@ async function upd(id,k,v){
 }
 
 /* ==================== FINANZAS ==================== */
-function clientMinutes(id){return calls.filter(c=>c.c===id).reduce((a,c)=>a+c.min,0)+(id===1?412:id===2?188:id===3?96:40);}
+function clientMinutes(id){return calls.filter(c=>c.c===id).reduce((a,c)=>a+(c.min||0),0);}
 function renderFin(){
   const rows=clients.filter(c=>c.status!=='off').map(c=>{
     const mins=clientMinutes(c.id),cost=mins*RATE,profit=c.monthly-cost;
@@ -2774,6 +2793,7 @@ function renderFin(){
       <td><b class="mono">$${r.c.monthly}</b></td><td class="cost mono">$${r.cost.toFixed(2)}</td>
       <td class="profit mono"><b>$${r.profit.toFixed(2)}</b></td>
       <td><span class="badge ${r.margin>50?'b-ok':'b-pend'}">${r.margin.toFixed(0)}%</span></td></tr>`).join('');
+  try{calc();}catch(e){} /* calculadora con valores iniciales al cargar */
 }
 function calc(){
   const n=+$('calcCalls').value,avg=+$('calcMin').value,price=+$('calcPrice').value||0;
@@ -2832,9 +2852,28 @@ function markPaid(id){if(!canEdit()){toast('🔒 Tu rol no permite gestionar fac
 function newInvoice(){
   if(!canEdit()){toast('🔒 Tu rol no permite crear facturas','warn');return;}
   const act=clients.filter(c=>c.status!=='off'); if(!act.length){toast('Agrega un cliente primero','warn');return;}
-  const c=act[0], n=1043+invoices.length;
-  invoices.unshift({id:'INV-2026-'+n,c:c.id,period:'Noviembre 2026',amount:c.monthly,due:'2026-12-01',status:'pending',
-    lines:[['Plan '+c.plan+' · Asistente de voz IA',c.monthly+'.00'],['Minutos incluidos','—']]});
+  /* Llenar el formulario (no se crea nada hasta pulsar "Crear factura") */
+  $('invClient').innerHTML=act.map(c=>`<option value="${c.id}">${c.name} — $${c.monthly}/mes</option>`).join('');
+  const now=new Date(), ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  $('invPeriod').value=ym;
+  const due=new Date(now.getFullYear(),now.getMonth()+1,1); /* vence el 1 del mes siguiente */
+  $('invDue').value=due.toISOString().slice(0,10);
+  $('invAmount').value=act[0].monthly||0;
+  $('invClient').onchange=()=>{const c=act.find(x=>x.id===$('invClient').value); if(c)$('invAmount').value=c.monthly||0;};
+  $('invoiceModal').classList.add('open');
+}
+function saveInvoice(){
+  const cid=$('invClient').value, per=$('invPeriod').value, due=$('invDue').value, amt=parseFloat($('invAmount').value);
+  const c=clients.find(x=>x.id===cid);
+  if(!c){toast('Selecciona un cliente','warn');return;}
+  if(!per){toast('Selecciona el período','warn');return;}
+  if(!(amt>=0)){toast('Monto inválido','warn');return;}
+  const n=1043+invoices.length;
+  const perLabel=new Date(per+'-02').toLocaleDateString('es',{month:'long',year:'numeric'});
+  const perCap=perLabel.charAt(0).toUpperCase()+perLabel.slice(1);
+  invoices.unshift({id:'INV-2026-'+n,c:c.id,period:perCap,amount:amt,due:due||'',status:'pending',
+    lines:[['Plan '+c.plan+' · Asistente de voz IA',amt.toFixed(2)],['Minutos incluidos','—']]});
+  closeModal('invoiceModal');
   toast('🧾 Factura creada para '+c.name);renderInvoices();
 }
 
@@ -2893,8 +2932,8 @@ if(!activity.length){
 }
 let me=null;
 let integrations=[
-  {id:'eleven',icon:'🎙️',name:'ElevenLabs',desc:'Voces IA y agentes conversacionales',status:'on',detail:'Plan Free · API conectada'},
-  {id:'twilio',icon:'📞',name:'Twilio',desc:'Telefonía, números y SMS',status:'on',detail:'Trial 30 días · ricomoralesjeremy@gmail.com'},
+  {id:'eleven',icon:'🎙️',name:'ElevenLabs',desc:'Voces IA y agentes conversacionales',status:'off',detail:'Pega tu API key en Configuración → Conexiones en vivo'},
+  {id:'twilio',icon:'📞',name:'Twilio',desc:'Telefonía, números y SMS',status:'off',detail:'Pega tu SID y Token en Configuración → Conexiones en vivo'},
   {id:'wa',icon:'💬',name:'WhatsApp Business',desc:'Confirmaciones y seguimiento por WhatsApp',status:'off',detail:'1.000 mensajes gratis al mes · ve tu consumo en Mi plan'},
   {id:'crm',icon:'🗂️',name:'Mi CRM',desc:'Guarda clientes y citas en tu CRM automáticamente',status:'off',detail:'Elige el que ya usas: HubSpot, Salesforce, Zoho…'},
   {id:'stripe',icon:'💳',name:'Stripe',desc:'Cobros automáticos a tus clientes',status:'off',detail:'Conecta tu cuenta para facturar'},
@@ -3499,6 +3538,14 @@ async function changeMyPw(){
 }
 
 function renderIntegrations(){
+  /* Sincronizar ElevenLabs y Twilio con el estado REAL (validado contra sus APIs) */
+  try{
+    const elG=integrations.find(x=>x.id==='eleven'), twG=integrations.find(x=>x.id==='twilio');
+    if(elG){ const ok=!!(window.live&&live.el); elG.status=ok?'on':'off';
+      elG.detail=ok?('✓ '+(live.agents||[]).length+' agente(s) en vivo · API validada'):'Pega tu API key en Configuración → Conexiones en vivo'; }
+    if(twG){ const ok=!!(window.live&&live.tw); twG.status=ok?'on':'off';
+      twG.detail=ok?('✓ '+(live.acctInfo&&live.acctInfo.friendly_name||'Cuenta Twilio')+' · '+(live.numbers||[]).length+' número(s)'):'Pega tu SID y Token en Configuración → Conexiones en vivo'; }
+  }catch(e){}
   $('integrationsGrid').innerHTML=integrations.map(g=>`
     <div class="card" style="margin:0">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
@@ -3516,7 +3563,7 @@ function toggleIntegration(id){
   if(id==='crm'){openCrmModal();return;}
   if(id==='wa'){
     if(window.VoxiaDB&&VoxiaDB.clientId){go('perfil');setTimeout(toggleWaDetail,450);}
-    else toast('💬 WhatsApp · el consumo se ve en el portal de cada cliente','warn');
+    else{go('clientes');toast('💬 WhatsApp · revisa la columna Conexiones de cada cliente','info');}
     return;
   }
   if(g.status==='on'){
@@ -3531,7 +3578,14 @@ function toggleIntegration(id){
       toast('⚙️ '+g.name+' · configuración próximamente');
     }
   }
-  else{g.status='on';g.detail='Conectado hoy · configura tus credenciales';toast('🔌 '+g.name+' conectado');renderIntegrations();}
+  else{
+    /* Stripe y Google Calendar requieren OAuth/API real: NO simular conexión */
+    if(id==='stripe'||id==='gcal'){
+      toast('🔌 '+g.name+' · la conexión real requiere OAuth (próximamente). No se marcó como conectada.','warn');
+      return;
+    }
+    g.status='on';g.detail='Conectado hoy · configura tus credenciales';toast('🔌 '+g.name+' conectado');renderIntegrations();
+  }
 }
 
 function renderTranscripts(){
@@ -3576,29 +3630,34 @@ function updateNotifBadge(){const u=notifs.filter(n=>!n.read).length;$('navNotif
 
 function renderCompare(){
   const p=$('cmpPeriod').value;
-  const rows=clients.filter(c=>c.status!=='off').map((c,i)=>{
-    const base={1:[412,826,371,92],2:[238,470,198,71],3:[156,290,121,58],4:[89,151,52,33]}[c.id]||[100,200,80,50];
-    const f=p==='7'?0.28:p==='90'?2.6:1;
-    const callsN=Math.round(base[0]*f),mins=Math.round(base[1]*f),orders=Math.round(base[2]*f);
-    const conv=(orders/callsN*100),cost=mins*RATE,rev=c.monthly*(p==='30'?1:p==='7'?0.25:3),profit=rev-cost;
+  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-+p); cutoff.setHours(0,0,0,0);
+  /* Datos REALES de llamadas (sin inventos): si no hay llamadas, todo es 0 */
+  const rows=clients.filter(c=>c.status!=='off').map(c=>{
+    const cc=calls.filter(x=>x.c===c.id&&x.ts&&new Date(x.ts)>=cutoff);
+    const callsN=cc.length, mins=Math.round(cc.reduce((a,x)=>a+(x.min||0),0));
+    const orders=cc.filter(x=>x.res==='ok').length;
+    const conv=callsN?(orders/callsN*100):0, cost=mins*RATE, rev=c.monthly, profit=rev-cost;
     return {c,callsN,mins,orders,conv,cost,rev,profit};
   }).sort((a,b)=>b.profit-a.profit);
   const best=rows[0];
+  const totCalls=rows.reduce((s,r)=>s+r.callsN,0), totProfit=rows.reduce((s,r)=>s+r.profit,0);
   $('cmpTop').innerHTML=`
-    <div class="stat"><div class="sl">🏆 Mejor rendimiento</div><div class="sv" style="font-size:20px">${best?best.c.name:'—'}</div><div class="ss">+$${best?money(best.profit):'0'} ganancia</div></div>
-    <div class="stat"><div class="sl">📞 Total llamadas</div><div class="sv" data-count="${rows.reduce((s,r)=>s+r.callsN,0)}">0</div><div class="ss">últimos ${p} días</div></div>
-    <div class="stat"><div class="sl">💰 Ganancia total</div><div class="sv">$${money(rows.reduce((s,r)=>s+r.profit,0))}</div><div class="ss">todos los clientes</div></div>`;
+    <div class="stat"><div class="sl">🏆 Mejor rendimiento</div><div class="sv" style="font-size:20px">${best?best.c.name:'—'}</div><div class="ss">${best?('+'+money(best.profit)+' ganancia'):'sin datos'}</div></div>
+    <div class="stat"><div class="sl">📞 Total llamadas</div><div class="sv" data-count="${totCalls}">0</div><div class="ss">últimos ${p} días</div></div>
+    <div class="stat"><div class="sl">💰 Ganancia total</div><div class="sv">${money(totProfit)}</div><div class="ss">todos los clientes</div></div>
+    ${totCalls===0?'<div class="note" style="grid-column:1/-1">Sin llamadas registradas en este período · los números se activan con llamadas reales.</div>':''}`;
   $('cmpBody').innerHTML=rows.map((r,i)=>{
     const pct=r.profit>0?Math.min(100,r.profit/(best.profit||1)*100):0;
     return `<tr><td><b>${i===0?'🏆 ':''}${r.c.name}</b></td><td>${r.callsN}</td><td>${r.mins}</td><td>${r.orders}</td>
     <td><b style="color:${r.conv>=80?'#6ee7b7':r.conv>=60?'#ffcf9a':'#fca5a5'}">${r.conv.toFixed(0)}%</b></td>
-    <td>$${money(r.rev)}</td><td>$${money(r.cost)}</td><td><b style="color:#6ee7b7">+$${money(r.profit)}</b></td>
+    <td>${money(r.rev)}</td><td>${money(r.cost)}</td><td><b style="color:#6ee7b7">+${money(r.profit)}</b></td>
     <td><div style="width:110px;height:8px;background:rgba(255,255,255,.07);border-radius:5px"><div style="width:${pct}%;height:100%;background:var(--acc-grad);border-radius:5px"></div></div></td></tr>`;}).join('');
   animateCounts();
 }
 
 function renderReports(){
-  const totCalls=calls.length*42, totMin=Math.round(totCalls*2.1), totCost=totMin*RATE;
+  /* Datos REALES (sin multiplicadores inventados) */
+  const totCalls=calls.length, totMin=Math.round(calls.reduce((a,c)=>a+(c.min||0),0)), totCost=totMin*RATE;
   $('repStats').innerHTML=`
     <div class="stat"><div class="sl">📞 Llamadas (oct)</div><div class="sv" data-count="${totCalls}">0</div><div class="ss">≈ $${money(totCost)} en voz</div></div>
     <div class="stat"><div class="sl">⏱️ Minutos (oct)</div><div class="sv" data-count="${totMin}">0</div><div class="ss">Twilio $0.0085 + Eleven $0.08</div></div>
@@ -3614,13 +3673,17 @@ function downloadReport(){
   let content='',fname=`Reporte_${per.replace(/\s/g,'')}_${cli==='Todos los negocios'?'Todos':clientName($('repClient').value).replace(/\s/g,'')}`;
   if(fmt==='csv'){
     fname+='.csv';
-    content='negocio,llamadas,minutos,costo_usd,pedidos,conversion_pct\n'+clients.map(c=>`${c.name},${120+c.id*40},${250+c.id*80},${money((250+c.id*80)*RATE)},${100+c.id*30},82`).join('\n');
+    content='negocio,llamadas,minutos,costo_usd,pedidos,conversion_pct\n'+clients.map(c=>{
+      const cc=calls.filter(x=>x.c===c.id), cn=cc.length, mn=Math.round(cc.reduce((a,x)=>a+(x.min||0),0));
+      const od=cc.filter(x=>x.res==='ok').length, cv=cn?(od/cn*100).toFixed(0):0;
+      return `${c.name},${cn},${mn},${money(mn*RATE)},${od},${cv}`;
+    }).join('\n');
   }else if(fmt==='json'){
     fname+='.json';
     content=JSON.stringify({periodo:per,negocio:cli,generado:'2026-10-11',tarifas:{twilio_min:0.0085,eleven_min:0.08},clientes:clients.map(c=>({nombre:c.name,plan:c.plan,mensualidad:c.monthly}))},null,2);
   }else{
     fname+='.txt';
-    content=`VOXIA · REPORTE ${per.toUpperCase()}\n${'='.repeat(40)}\nNegocio: ${cli}\nGenerado: 11 oct 2026\n\nRESUMEN\n- Llamadas: ~420\n- Minutos: ~880\n- Costo voz: $${money(880*RATE)}\n- Ingresos: $${clients.reduce((s,c)=>s+c.monthly,0)}\n`;
+    content=`VOXIA · REPORTE ${per.toUpperCase()}\n${'='.repeat(40)}\nNegocio: ${cli}\nGenerado: ${new Date().toLocaleDateString('es',{day:'numeric',month:'short',year:'numeric'})}\n\nRESUMEN\n- Llamadas: ${calls.length}\n- Minutos: ${Math.round(calls.reduce((a,c)=>a+(c.min||0),0))}\n- Costo voz: ${money(calls.reduce((a,c)=>a+(c.min||0),0)*RATE)}\n- Ingresos: ${money(clients.reduce((s,c)=>s+c.monthly,0))}\n`;
   }
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([content],{type:'text/plain'}));a.download=fname;a.click();
