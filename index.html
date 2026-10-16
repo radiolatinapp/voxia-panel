@@ -1612,8 +1612,24 @@ async function loadClientsFromFirebase(){
   clientsLoading = false;
   try { renderClients(); } catch(e) {}
 }
-/* Datos reales desde Firebase — sin ejemplos falsos. */
+/* Carga el historial de llamadas desde Firestore (lo escribe el webhook de Twilio) */
 let calls = [];
+async function loadCallsFromFirebase(){
+  if(typeof VoxiaDB==='undefined'||!VoxiaDB.user)return;
+  try{
+    const ud=VoxiaDB.userData, isSuper=ud.role==='superadmin';
+    let q=VoxiaDB.db.collection('calls').orderBy('ts','desc').limit(500);
+    const snap=await q.get();
+    calls=[];
+    snap.forEach(doc=>{
+      const d=doc.data();
+      if(!isSuper&&ud.clientId&&d.c!==ud.clientId)return; /* cliente solo ve las suyas */
+      const ts=d.ts?(d.ts.toDate?d.ts.toDate():new Date(d.ts)):new Date();
+      calls.push({id:doc.id,c:d.c||'unknown',d:d.d||ts.toLocaleString('es'),
+        ts:ts,min:+d.min||0,lang:d.lang||'ES',res:d.res||'miss',order:d.order||''});
+    });
+  }catch(e){console.warn('No se pudo cargar historial de llamadas:',e.message);}
+}
 let invoices = [];
 let notifs = [];
 let clientOrders = [];
@@ -3256,6 +3272,7 @@ async function v7PostLogin(){
   try{logActivity(me.name,'🔓','inició sesión');}catch(x){}
   applyPermissions();
   try{await loadClientsFromFirebase();}catch(x){}
+  try{await loadCallsFromFirebase();}catch(x){}
   renderAll();go('dashboard');
   toast('👋 Hola, '+me.name.split(' ')[0]+' · '+roleLabel(me.role));
 }
@@ -4028,6 +4045,7 @@ function renderAll(){renderDashboard();renderClients();renderCalls();renderAssis
       $('loginScreen').style.display='none';
       applyPermissions();
       try { await loadClientsFromFirebase(); } catch(e) {}
+      try { await loadCallsFromFirebase(); } catch(e) {}
       try { await loadClientOrders(); } catch(e) {}
       try { if(VoxiaDB&&VoxiaDB.clientId) currentClient=await VoxiaDB.getClient(VoxiaDB.clientId); } catch(e) {}
       try { await loadGuide(); } catch(e) {}
