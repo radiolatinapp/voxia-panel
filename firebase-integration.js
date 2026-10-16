@@ -165,6 +165,13 @@
         preguntas: ['¿Qué marca y modelo?', '¿Qué falla presenta?', '¿Cuándo puede traerlo?'],
         pickup: false, delivery: false, citas: true,
       },
+      ferreteria: {
+        nombre: 'Ferretería', icono: '🔩',
+        saludo: '¡Hola! Gracias por llamar a {negocio}. ¿Qué herramienta o material necesita?',
+        servicios: ['Consultar disponibilidad', 'Cotizar productos', 'Apartar pedidos'],
+        preguntas: ['¿Qué producto busca?', '¿Qué cantidad necesita?', '¿Para recoger o delivery?'],
+        pickup: true, delivery: true, citas: false,
+      },
       belleza: {
         nombre: 'Salón de belleza', icono: '💇',
         saludo: '¡Hola! Bienvenido a {negocio}. ¿Desea reservar un servicio?',
