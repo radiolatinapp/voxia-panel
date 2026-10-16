@@ -846,6 +846,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   <section class="view" id="view-asistentes">
     <div class="page-head">
       <div><h2>Asistentes</h2><p>Una voz IA por negocio · cambios publicados al instante</p></div>
+      <button class="btn btn-primary" data-edit onclick="openAssistantModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Nuevo asistente</button>
     </div>
     <!-- DEMO EN VIVO: prueba tu asistente con voz real -->
     <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(255,158,46,.08),rgba(124,108,255,.08));border:1px solid rgba(255,158,46,.2);overflow:hidden;position:relative">
@@ -865,6 +868,23 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
     <div id="assistantsList" style="display:grid;gap:16px"></div>
   </section>
+
+  <!-- MODAL: NUEVO ASISTENTE (crea el agente en ElevenLabs y lo enlaza al cliente) -->
+  <div class="modal-bg" id="assistantModal">
+    <div class="modal">
+      <button class="mx" onclick="closeModal('assistantModal')">✕</button>
+      <h3>Nuevo asistente</h3>
+      <div class="msub">Se crea en ElevenLabs y queda enlazado al cliente automáticamente</div>
+      <label class="flabel">Cliente *</label><select id="asClient"></select>
+      <label class="flabel">Tipo de negocio *</label><select id="asBiz"></select>
+      <label class="flabel">Saludo inicial</label><textarea id="asGreeting" rows="2" style="width:100%"></textarea>
+      <div class="note" id="asKeyNote" style="margin-top:10px"></div>
+      <div class="mrow" style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="closeModal('assistantModal')">Cancelar</button>
+        <button class="btn btn-primary" id="asCreateBtn" onclick="saveAssistant()">Crear asistente</button>
+      </div>
+    </div>
+  </div>
   <style>@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}</style>
   <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 
@@ -3008,6 +3028,7 @@ function showTemplate(id){
 }
 /* Crea agentes ElevenLabs para cada tipo de negocio */
 const BIZ_AGENTS = {
+  restaurante: {nombre:'Asistente Restaurante', saludo:'¡Hola! Gracias por llamar a {negocio}. ¿Su pedido es para recoger o delivery?', prompt:'Eres el asistente de un restaurante. Tomas pedidos, confirmas dirección y tiempos de entrega. Pregunta: pedido para recoger o delivery, dirección si es delivery, método de pago.'},
   dental: {nombre:'Asistente Clínica Dental', saludo:'¡Hola! Gracias por llamar a su clínica dental. ¿Desea agendar una cita?', prompt:'Eres el asistente de una clínica dental. Agendas citas, confirmas seguros dentales y envías recordatorios. Pregunta: día preferido, si es paciente nuevo, y tipo de seguro.'},
   taller: {nombre:'Asistente Taller Mecánico', saludo:'¡Hola! Gracias por llamar al taller. ¿En qué le ayudamos con su vehículo?', prompt:'Eres el asistente de un taller mecánico. Recibes diagnósticos, cotizas servicios y agendas citas. Pregunta: marca y modelo, falla que presenta, cuándo puede traerlo.'},
   belleza: {nombre:'Asistente Salón de Belleza', saludo:'¡Hola! Bienvenido al salón. ¿Desea reservar un servicio?', prompt:'Eres el asistente de un salón de belleza. Reservas servicios, confirmas estilista y envías promociones. Pregunta: servicio deseado, estilista preferido, día y hora.'},
@@ -3017,6 +3038,51 @@ const BIZ_AGENTS = {
   veterinaria: {nombre:'Asistente Veterinaria', saludo:'¡Hola! Gracias por llamar a la veterinaria. ¿Su mascota necesita atención?', prompt:'Eres el asistente de una veterinaria. Agendas citas, atiendes emergencias y envías recordatorios de vacunas. Pregunta: tipo de mascota, síntomas, si es emergencia.'},
   inmobiliaria: {nombre:'Asistente Inmobiliaria', saludo:'¡Hola! Gracias por llamar. ¿Busca comprar, vender o rentar?', prompt:'Eres el asistente de una inmobiliaria. Agendas visitas, das info de propiedades y haces seguimiento. Pregunta: compra/venta/renta, zona de interés, presupuesto.'},
 };
+
+/* ============ NUEVO ASISTENTE (modal) ============ */
+function openAssistantModal(){
+  if(!canEdit()){toast('🔒 Tu rol no permite crear asistentes','warn');return;}
+  const key=getElKey();
+  if(!key){
+    toast('⚠️ Conecta ElevenLabs primero en Configuración → Conexiones en vivo','warn');
+    go('config'); return;
+  }
+  const list=clients.filter(c=>c.status!=='off');
+  if(!list.length){toast('Agrega un cliente primero','warn');return;}
+  $('asClient').innerHTML=list.map(c=>`<option value="${c.id}">${c.name}${c.elevenlabsAgentId?' (ya tiene asistente)':''}</option>`).join('');
+  $('asBiz').innerHTML=Object.entries(BIZ_AGENTS).map(([k,v])=>`<option value="${k}">${v.nombre.replace('Asistente ','')}</option>`).join('');
+  const syncBiz=()=>{const c=list.find(x=>x.id===$('asClient').value);
+    if(c&&c.bizType&&BIZ_AGENTS[c.bizType])$('asBiz').value=c.bizType; syncGreet();};
+  const syncGreet=()=>{const b=BIZ_AGENTS[$('asBiz').value]; const c=list.find(x=>x.id===$('asClient').value);
+    $('asGreeting').value=b?b.saludo.replace(/\{negocio\}/g,c?c.name:''):'';};
+  $('asClient').onchange=syncBiz; $('asBiz').onchange=syncGreet; syncBiz();
+  $('asKeyNote').innerHTML='✓ ElevenLabs conectado · el agente se crea con tu API key guardada';
+  $('asCreateBtn').disabled=false; $('asCreateBtn').textContent='Crear asistente';
+  $('assistantModal').classList.add('open');
+}
+async function saveAssistant(){
+  const cid=$('asClient').value, biz=$('asBiz').value;
+  const c=clients.find(x=>x.id===cid);
+  if(!c){toast('Selecciona un cliente','warn');return;}
+  if(c.elevenlabsAgentId){
+    if(!confirm('Este cliente ya tiene un asistente. ¿Crear uno nuevo y reemplazarlo?'))return;
+  }
+  const btn=$('asCreateBtn'); btn.disabled=true; btn.textContent='⏳ Creando en ElevenLabs…';
+  try{
+    const agentId=await createClientAgent(cid,c.name,biz,{address:c.city,phone:c.phone,city:c.city,country:c.country});
+    if(agentId){
+      /* actualizar en memoria para reflejo inmediato */
+      c.elevenlabsAgentId=agentId;
+      closeModal('assistantModal');
+      toast('🎙️ Asistente creado y enlazado a '+c.name);
+      try{renderAssistants();}catch(e){}
+      try{await loadLiveEleven();}catch(e){}
+    }else{
+      toast('✕ No se pudo crear el asistente. Revisa tu API key de ElevenLabs.','warn');
+    }
+  }catch(e){ toast('✕ Error: '+e.message,'warn'); }
+  btn.disabled=false; btn.textContent='Crear asistente';
+}
 
 /* Crea un agente ElevenLabs DEDICADO para un cliente específico */
 async function createClientAgent(clientId, clientName, bizType, clientInfo){
