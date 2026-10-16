@@ -1509,6 +1509,8 @@ async function loadClientsFromFirebase(){
         since: d.createdAt ? d.createdAt.toDate().toISOString().slice(0,10) : '',
         greeting: '¡Hola! Gracias por llamar a ' + (d.name || '') + '.',
         email: d.email || '',
+        country: d.country || 'US',
+        billingModel: d.billingModel || 'full',
         bizType: d.bizType || 'restaurante',
         elevenlabsAgentId: d.elevenlabsAgentId || null,
         crm: clientCrm,
@@ -2075,11 +2077,27 @@ function renderCalls(){
 }
 
 /* ==================== CLIENTES ==================== */
+function waExtraCost(c){
+  // Costo extra de WhatsApp por cliente (admin) · null si no hay datos
+  if(!(c.waUsage&&c.waUsage.count!=null))return null;
+  const country=c.country||'US';
+  const rate=(typeof WA_RATES!=='undefined'?(WA_RATES[country]||WA_RATES.OT):0.0034);
+  const extra=Math.max(0,(+c.waUsage.count)-1000);
+  const costUSD=extra*rate;
+  return {count:+c.waUsage.count,extra:extra,costUSD:costUSD,country:country,
+    curr:country==='CO'?'COP':'USD',isMaint:c.billingModel==='maintenance'};
+}
+function waCostText(w){
+  if(!w)return '–';
+  if(w.curr==='COP')return '≈ $'+Math.round(w.costUSD*3180).toLocaleString()+' COP';
+  return '$'+w.costUSD.toFixed(2)+' USD';
+}
 function connBadges(c){
   const crm=c.crm?`🗂️ ${(typeof CRM_PROVIDERS!=='undefined'&&CRM_PROVIDERS[c.crm.provider])||c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">🗂️ —</span>';
   let wa='<span style="color:var(--faint)">💬 —</span>';
-  if(c.waUsage&&c.waUsage.count!=null){
-    wa=`💬 <b class="mono">${(+c.waUsage.count).toLocaleString()}</b><span style="color:var(--faint);font-size:11px">/1.000</span>`;
+  const w=waExtraCost(c);
+  if(w){
+    wa=`💬 <b class="mono">${w.count.toLocaleString()}</b><span style="color:var(--faint);font-size:11px">/1.000</span>`+(w.extra>0?` <span style="color:var(--acc);font-size:11.5px">(+${waCostText(w)})</span>`:'');
   }
   return `<div style="font-size:12.5px;line-height:1.8;white-space:nowrap">${crm}<br>${wa}</div>`;
 }
@@ -2173,7 +2191,12 @@ function openClientModal(id){
       const cs=$('clientConnSection'), fi=$('fConnInfo');
       if(id&&c&&(c.crm||c.waUsage)){cs.style.display='';
         const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} ••••${c.crm.keyLast4||''}`:'🗂️ CRM no conectado';
-        const wa=c.waUsage&&c.waUsage.count!=null?`💬 ${(+c.waUsage.count).toLocaleString()} / 1.000 mensajes este mes`:'💬 WhatsApp sin uso registrado';
+        let wa='💬 WhatsApp sin uso registrado';
+        const w=waExtraCost(c);
+        if(w){
+          const bill=w.country==='CO'?'se cobra en su cuenta de Meta':(w.isMaint?'se cobra en sus cuentas':'Voxia lo incluye en factura');
+          wa=`💬 ${w.count.toLocaleString()} / 1.000 mensajes · extra: <b>${waCostText(w)}</b> <span style="color:var(--faint)">(${bill})</span>`;
+        }
         fi.innerHTML=crm+'<br>'+wa;
       } else if(cs){cs.style.display='none';}
     }catch(e){}
