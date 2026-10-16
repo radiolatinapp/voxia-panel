@@ -2510,20 +2510,46 @@ async function saveClient(){
       });
       toast('🎉 Cliente creado: '+r.email);
       logActivity(me.name,'🎉','creó el negocio "'+name+'" en Firebase');
-      // Crear agente ElevenLabs DEDICADO automáticamente para este cliente
+      // Agregar a la lista local para que aparezca de inmediato en Asistentes (sin recargar)
+      const newCid=r.clientId||r.id;
+      const newBilling=$('fBillingModel')?$('fBillingModel').value:'full';
+      if(newCid&&!clients.find(c=>c.id===newCid)){
+        clients.push({id:newCid,name:name,city:$('fCity').value||'',phone:getFullPhone(),
+          plan:$('fPlan').value||'Básico',monthly:parseFloat($('fMonthly').value)||0,
+          status:'trial',voice:'Sofía · ES/EN',lang:'ES/EN',email:email,
+          country:$('fCountry').value||'US',billingModel:newBilling,
+          bizType:$('fBizType')?$('fBizType').value:'restaurante',elevenlabsAgentId:null});
+      }
+      // Crear agente ElevenLabs DEDICADO automáticamente para este cliente.
+      // REGLA: paquete completo -> se usa TU key; mantenimiento -> se usa la key DEL CLIENTE (nunca la tuya).
       try{
-        toast('🤖 Creando asistente IA exclusivo...');
-        const agentId = await createClientAgent(
-          r.clientId || r.id,
-          name,
-          $('fBizType')?$('fBizType').value:'restaurante',
-          { address: '', phone: getFullPhone(), city: $('fCity').value, country: $('fCountry').value }
-        );
-        if(agentId){
-          toast('✅ Asistente IA creado para '+name);
-          logActivity(me.name,'🤖','creó asistente IA exclusivo para "'+name+'"');
-        } else {
-          toast('⚠️ Cliente creado pero no se pudo crear el asistente (verifica la API key de ElevenLabs)','warn');
+        const clientKey=$('fClientElevenKey')?$('fClientElevenKey').value.trim():'';
+        let useKey=null, skipReason='';
+        if(newBilling==='maintenance'){
+          if(clientKey){ useKey=clientKey; }
+          else{ skipReason='mantenimiento sin su propia API key'; }
+        }else{
+          useKey=getElKey();
+          if(!useKey) skipReason='tu API key no está conectada';
+        }
+        if(skipReason){
+          toast('⚠️ Cliente creado. Asistente pendiente ('+skipReason+'). Créalo luego desde Asistentes.','warn');
+        }else{
+          toast('🤖 Creando asistente IA exclusivo...');
+          const agentId = await createClientAgent(
+            newCid,
+            name,
+            $('fBizType')?$('fBizType').value:'restaurante',
+            { address: '', phone: getFullPhone(), city: $('fCity').value, country: $('fCountry').value },
+            useKey
+          );
+          if(agentId){
+            const lc=clients.find(c=>c.id===newCid); if(lc) lc.elevenlabsAgentId=agentId;
+            toast('✅ Asistente IA creado para '+name);
+            logActivity(me.name,'🤖','creó asistente IA exclusivo para "'+name+'"');
+          } else {
+            toast('⚠️ Cliente creado pero no se pudo crear el asistente (verifica la API key de ElevenLabs)','warn');
+          }
         }
       }catch(e){
         console.error('Error auto-creando agente:', e);
@@ -3124,8 +3150,8 @@ async function saveAssistant(){
 }
 
 /* Crea un agente ElevenLabs DEDICADO para un cliente específico */
-async function createClientAgent(clientId, clientName, bizType, clientInfo){
-  const key = getElKey();
+async function createClientAgent(clientId, clientName, bizType, clientInfo, apiKey){
+  const key = apiKey || getElKey();
   if(!key){
     console.warn('Sin API key de ElevenLabs - no se creó agente para', clientName);
     return null;
