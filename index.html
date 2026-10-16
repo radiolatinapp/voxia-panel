@@ -1483,7 +1483,7 @@ async function loadClientsFromFirebase(){
       const d = doc.data();
       // Cargar logo del cliente (si tiene)
       let clientLogo = d.logoUrl || null; // Primero del documento principal
-      let clientCrm=null, clientWa=null;
+      let clientCrm=null, clientWa=null, waCount=null;
       try{
         const cfgSnap = await VoxiaDB.db.collection('clients').doc(doc.id).collection('config').doc('settings').get();
         if(cfgSnap.exists){
@@ -1493,6 +1493,12 @@ async function loadClientsFromFirebase(){
           if(cfgD.waUsage) clientWa=cfgD.waUsage;
         }
       }catch(e){}
+      try{
+        const nowU=new Date(), ymU=nowU.getFullYear()+'-'+String(nowU.getMonth()+1).padStart(2,'0');
+        const usnap=await VoxiaDB.db.collection('clients').doc(doc.id).collection('usage').doc(ymU).get();
+        if(usnap.exists&&usnap.data().waMessages!=null) waCount=+usnap.data().waMessages;
+      }catch(e){}
+      if(waCount==null&&clientWa&&clientWa.count!=null) waCount=+clientWa.count;
       clients.push({
         id: doc.id,
         logo: clientLogo,
@@ -1515,6 +1521,7 @@ async function loadClientsFromFirebase(){
         elevenlabsAgentId: d.elevenlabsAgentId || null,
         crm: clientCrm,
         waUsage: clientWa,
+        waCount: waCount,
         _fb: true,
       });
     }
@@ -1942,6 +1949,10 @@ function renderDashboard(anim=true){
   if(isAdmin){
     cards.push({l:'Clientes activos', v:act.length, d:act.length?'':'Sin clientes aún', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'});
     cards.push({l:'Ingresos mensuales', v:mrr, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'});
+    // WhatsApp general: suma REAL de todos los clientes (contador siempre activo)
+    let waTotal=0, waExtraT=0;
+    try{ (clients||[]).forEach(c=>{ const w=waExtraCost(c); if(w){ waTotal+=w.count; waExtraT+=w.costUSD; } }); }catch(e){}
+    cards.push({l:'WhatsApp · general', v:waTotal, d:waExtraT>0?('Extra: $'+waExtraT.toFixed(2)+' USD'):'Dentro de los 1.000 gratis', c:'up', ic:'💬', bg:'rgba(37,211,102,.12)', sp:[0,0,0,0,0,0,0], sc:'#25d366'});
   }else{
     // Vista cliente: pedidos e ingresos por ventas (datos vienen de orders)
     const orders=typeof clientOrders!=='undefined'?clientOrders:[];
@@ -3249,17 +3260,27 @@ async function renderWaCrm(){
       const g=integrations.find(x=>x.id==='crm');
       if(g&&g.status!=='on'){g.status='on';g.detail=(CRM_PROVIDERS[crm.provider]||crm.provider)+' ••••'+(crm.keyLast4||'');renderIntegrations();}
     } else { $('mpCrm').textContent='No conectado';$('crmBtn').textContent='Conectar'; }
+    // Contador REAL desde usage/{YYYY-MM} (el bot suma +1 en cada mensaje enviado)
     const now=new Date(), ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-    let wu=(cfg&&cfg.waUsage)||{};
-    if(wu.month!==ym){wu={month:ym,count:0};}
-    const count=wu.count||0, rate=WA_RATES[country]||WA_RATES.OT;
+    let count=0;
+    try{
+      const usnap=await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('usage').doc(ym).get();
+      if(usnap.exists&&usnap.data().waMessages!=null) count=+usnap.data().waMessages;
+    }catch(e){}
+    if(!count){
+      const wu=(cfg&&cfg.waUsage)||{};
+      if(wu.month===ym) count=wu.count||0;
+    }
+    const rate=WA_RATES[country]||WA_RATES.OT;
     const extra=Math.max(0,count-WA_FREE_MSGS), costUSD=extra*rate;
-    $('mpWhatsapp').textContent=count.toLocaleString()+' / '+WA_FREE_MSGS.toLocaleString()+' gratis';
+    // El contador SIEMPRE cuenta; el cobro solo se activa después de los 1.000 gratis
+    $('mpWhatsapp').textContent=count.toLocaleString()+' mensajes';
     $('waCount').textContent=count.toLocaleString()+' / '+WA_FREE_MSGS.toLocaleString()+' gratis este mes';
     $('waBar').style.width=Math.min(100,count/WA_FREE_MSGS*100)+'%';
-    $('waCost').textContent=curr==='COP'
+    const costTxt=curr==='COP'
       ? '≈ $'+Math.round(costUSD*USD_COP_APROX).toLocaleString()+' COP'
       : '$'+costUSD.toFixed(2)+' USD';
+    $('waCost').textContent=extra>0?costTxt:(curr==='COP'?'$0 · dentro de tus 1.000 gratis':'$0.00 · dentro de tus 1.000 gratis');
     const billNote=country==='CO'
       ? '🇨🇴 Se cobra en tu cuenta de Meta (Voxia no toca cobranza).'
       : (isMaint?'🇺🇸 Se cobra en tus cuentas.':'🇺🇸 Voxia lo incluye en tu factura.');
