@@ -2642,7 +2642,7 @@ async function desenlazarAgente(clientId){
   if(!c||!c.elevenlabsAgentId) return;
   if(!confirm(`¿Desenlazar el asistente de ${c.name}?\nEl agente NO se elimina de ElevenLabs, solo se quita el enlace.`)) return;
   try{
-    await db.collection('clients').doc(clientId).update({elevenlabsAgentId:firebase.firestore.FieldValue.delete()});
+    await VoxiaDB.db.collection('clients').doc(clientId).update({elevenlabsAgentId:firebase.firestore.FieldValue.delete()});
     c.elevenlabsAgentId=null;
     toast('🔗 Asistente desenlazado de '+c.name);
     if(typeof openClientDetail==='function') openClientDetail(clientId);
