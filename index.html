@@ -1918,10 +1918,11 @@ function renderInventory(){
   const low=list.filter(p=>(p.stock||0)<=((p.minStock==null?5:p.minStock)));
   const val=list.reduce((a,p)=>a+((p.price||0)*(p.stock||0)),0);
   const stats=$('invStats');
+  const statHtml=(l,v,ic,bg)=>`<div class="stat"><div class="top"><div class="label">${l}</div><div class="sic" style="background:${bg}">${ic}</div></div><div class="num">${v}</div></div>`;
   if(stats) stats.innerHTML=
-    statCard('Productos',list.length,'','📦','rgba(255,158,46,.12)')+
-    statCard('Stock bajo',low.length,'','⚠️','rgba(255,107,107,.12)')+
-    statCard('Valor total',money(val),'','💰','rgba(81,207,102,.12)');
+    statHtml('Productos',list.length,'📦','rgba(255,158,46,.12)')+
+    statHtml('Stock bajo',low.length,'⚠️','rgba(255,107,107,.12)')+
+    statHtml('Valor total',money(val),'💰','rgba(81,207,102,.12)');
   const badge=$('navInvLowCount'); if(badge) badge.textContent=low.length||0;
   const cnt=$('invCount'); if(cnt) cnt.textContent=list.length+' productos';
   const box=$('invList'); if(!box) return;
