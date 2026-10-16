@@ -15,6 +15,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+<!-- Tesseract.js OCR (gratis, en el navegador) para extraer menús de fotos -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- SheetJS para Excel -->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <style>
@@ -1372,6 +1375,24 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       <div><label class="flabel">Voz del asistente</label><select id="fVoice"><option>Luisa · ES amable</option><option>Carlos · ES neutro</option><option>Sofía · EN/ES</option></select></div>
       <div></div>
     </div>
+    <div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;">
+      <div class="msub">🎙️ Asistente de voz <span style="color:var(--faint)">(se crea solo al guardar)</span></div>
+      <label class="flabel">Saludo inicial</label>
+      <textarea id="fGreeting" rows="2" style="width:100%" placeholder="Se llena solo según el tipo de negocio…"></textarea>
+      <div class="note" id="fAcctNote" style="margin-top:8px"></div>
+    </div>
+    <div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;">
+      <div class="msub">🍽️ Menú / servicios <span style="color:var(--faint)">(el asistente lo aprende)</span></div>
+      <label class="flabel">Fotos del menú</label>
+      <input type="file" id="fMenuPhotos" accept="image/*" multiple onchange="previewMenuPhotos()">
+      <div id="fMenuPreview" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0"></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="extractMenuOCR()">🔍 Extraer texto de las fotos</button>
+        <span id="ocrStatus" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <label class="flabel" style="margin-top:8px">Menú organizado (revísalo y corrígelo)</label>
+      <textarea id="fMenuText" rows="5" style="width:100%" placeholder="Ej:&#10;Bandeja paisa — $18.000&#10;Sancocho trifásico — $15.000&#10;Jugo natural — $6.000"></textarea>
+    </div>
     <div class="mfoot">
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
       <button class="btn btn-ghost" id="btnResetPw" onclick="sendPasswordReset()" style="display:none">📧 Enviar recuperación</button>
@@ -1592,7 +1613,9 @@ async function loadClientsFromFirebase(){
         menu: 0,
         hours: '9:00 AM – 9:00 PM',
         since: d.createdAt ? d.createdAt.toDate().toISOString().slice(0,10) : '',
-        greeting: '¡Hola! Gracias por llamar a ' + (d.name || '') + '.',
+        greeting: d.greeting || ('¡Hola! Gracias por llamar a ' + (d.name || '') + '.'),
+        menuText: d.menuText || '',
+        menuPhotos: d.menuPhotos || [],
         email: d.email || '',
         country: d.country || 'US',
         billingModel: d.billingModel || 'full',
@@ -2255,6 +2278,83 @@ function getFullPhone(){
 function toggleClientKeys(){
   const model=$('fBillingModel')?$('fBillingModel').value:'full';
   $('clientKeysSection').style.display = model==='maintenance' ? '' : 'none';
+  syncFAcctNote();
+}
+/* Saludo automático según tipo de negocio (solo si está vacío o es nuevo cliente) */
+function syncFGreeting(force){
+  const biz=$('fBizType')?$('fBizType').value:'restaurante';
+  const b=BIZ_AGENTS[biz];
+  const name=($('fName')?$('fName').value.trim():'')||'su negocio';
+  const greetEl=$('fGreeting');
+  if(!greetEl) return;
+  if(force||!greetEl.value.trim()){
+    greetEl.value=b?b.saludo.replace(/\{negocio\}/g,name):'';
+  }
+}
+/* Aviso de en qué cuenta de ElevenLabs se creará el asistente */
+function syncFAcctNote(){
+  const el=$('fAcctNote'); if(!el) return;
+  const model=$('fBillingModel')?$('fBillingModel').value:'full';
+  if(model==='maintenance'){
+    el.innerHTML='⚠️ <b>Mantenimiento:</b> el asistente se creará con la <b>API key del cliente</b> (pídala arriba). Si no la pone, el asistente quedará pendiente.';
+  }else{
+    el.innerHTML='✓ <b>Paquete completo:</b> el asistente se crea en <b>tu</b> cuenta de ElevenLabs (Voxia asume el costo).';
+  }
+}
+/* Sube las fotos del menú a Firebase Storage (gratis). Si Storage no está habilitado, no rompe nada. */
+async function uploadMenuPhotos(clientId){
+  const files=$('fMenuPhotos')?$('fMenuPhotos').files:[];
+  if(!files.length||!clientId) return;
+  if(typeof firebase.storage==='undefined'){ console.warn('Storage no disponible'); return; }
+  const urls=[];
+  let i=0;
+  for(const f of [...files].slice(0,6)){
+    i++;
+    const ref=firebase.storage().ref(`menus/${clientId}/${Date.now()}_${i}_${f.name.replace(/[^a-zA-Z0-9.]/g,'_')}`);
+    await ref.put(f);
+    urls.push(await ref.getDownloadURL());
+  }
+  if(urls.length && window.VoxiaDB && VoxiaDB.db){
+    await VoxiaDB.db.collection('clients').doc(clientId).update({menuPhotos:urls});
+    const lc=clients.find(c=>c.id===clientId); if(lc) lc.menuPhotos=urls;
+  }
+  toast('📸 '+urls.length+' foto(s) del menú guardadas');
+}
+/* Vista previa de las fotos del menú */
+function previewMenuPhotos(){
+  const box=$('fMenuPreview'); if(!box) return; box.innerHTML='';
+  const files=$('fMenuPhotos')?$('fMenuPhotos').files:[];
+  [...files].slice(0,6).forEach(f=>{
+    const img=document.createElement('img');
+    img.src=URL.createObjectURL(f);
+    img.style.cssText='width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)';
+    box.appendChild(img);
+  });
+}
+/* OCR gratis en el navegador: extrae el texto de las fotos del menú */
+async function extractMenuOCR(){
+  const files=$('fMenuPhotos')?$('fMenuPhotos').files:[];
+  const st=$('ocrStatus'), out=$('fMenuText');
+  if(!files.length){ toast('⚠️ Sube primero una foto del menú','warn'); return; }
+  if(typeof Tesseract==='undefined'){ toast('⚠️ No se pudo cargar el lector (revisa tu internet)','warn'); return; }
+  try{
+    st.textContent='⏳ Leyendo fotos… (puede tardar unos segundos)';
+    let all='';
+    for(const f of [...files].slice(0,6)){
+      const {data}=await Tesseract.recognize(f,'spa');
+      if(data&&data.text) all+=data.text.trim()+'\n';
+    }
+    all=all.trim();
+    if(!all){ st.textContent=''; toast('⚠️ No se pudo leer texto. Prueba con una foto más clara.','warn'); return; }
+    // Organización básica: una línea por plato, quita líneas vacías
+    const lines=all.split('\n').map(l=>l.trim()).filter(l=>l.length>1);
+    out.value=(out.value?out.value.trim()+'\n':'')+lines.join('\n');
+    st.textContent='✓ Texto extraído. Revísalo y corrígelo arriba.';
+    toast('✓ Menú extraído de '+files.length+' foto(s). Revísalo.');
+  }catch(e){
+    st.textContent='';
+    toast('⚠️ Error leyendo las fotos: '+(e.message||e),'warn');
+  }
 }
 
 function updatePlanOptions(){
@@ -2447,7 +2547,16 @@ function openClientModal(id){
     const emailField=$('fEmail')||$('fOwnerEmail');
     if(emailField){ emailField.value=c.email||''; emailField.disabled=!!id; }
     // Tipo de negocio
-    if($('fBizType')) $('fBizType').value=c.bizType||'restaurante';
+    if($('fBizType')){ $('fBizType').value=c.bizType||'restaurante'; $('fBizType').onchange=()=>syncFGreeting(); }
+    // Saludo y menú (nuevo: formulario unificado)
+    if($('fGreeting')) $('fGreeting').value=c.greeting||'';
+    if($('fMenuText')) $('fMenuText').value=c.menuText||'';
+    if($('fMenuPhotos')) $('fMenuPhotos').value='';
+    if($('fMenuPreview')) $('fMenuPreview').innerHTML='';
+    if($('ocrStatus')) $('ocrStatus').textContent='';
+    if(!id){ syncFGreeting(true); } // nuevo cliente: saludo automático
+    syncFAcctNote();
+    if($('fName')) $('fName').oninput=()=>{ if(!id) syncFGreeting(); };
     // Mostrar botón de recuperación solo al editar
     if($('btnResetPw')) $('btnResetPw').style.display=id?'':'none';
     $('clientModal').classList.add('open'); setTimeout(()=>$('fName').focus(),120);
@@ -2536,13 +2645,29 @@ async function saveClient(){
           toast('⚠️ Cliente creado. Asistente pendiente ('+skipReason+'). Créalo luego desde Asistentes.','warn');
         }else{
           toast('🤖 Creando asistente IA exclusivo...');
+          const fGreet=$('fGreeting')?$('fGreeting').value.trim():'';
+          const fMenu=$('fMenuText')?$('fMenuText').value.trim():'';
           const agentId = await createClientAgent(
             newCid,
             name,
             $('fBizType')?$('fBizType').value:'restaurante',
             { address: '', phone: getFullPhone(), city: $('fCity').value, country: $('fCountry').value },
-            useKey
+            useKey,
+            { greeting:fGreet, menuText:fMenu }
           );
+          // Guardar saludo y menú en la ficha del cliente
+          try{
+            const extra={};
+            if(fGreet) extra.greeting=fGreet;
+            if(fMenu) extra.menuText=fMenu;
+            if(Object.keys(extra).length && window.VoxiaDB && VoxiaDB.db){
+              await VoxiaDB.db.collection('clients').doc(newCid).update(extra);
+              const lc2=clients.find(c=>c.id===newCid);
+              if(lc2){ if(fGreet) lc2.greeting=fGreet; if(fMenu) lc2.menuText=fMenu; }
+            }
+          }catch(e){ console.warn('No se pudo guardar menú/saludo:', e.message); }
+          // Subir fotos del menú a Storage (si está habilitado; si no, se sigue sin fotos)
+          try{ await uploadMenuPhotos(newCid); }catch(e){ console.warn('Storage menú:', e.message); }
           if(agentId){
             const lc=clients.find(c=>c.id===newCid); if(lc) lc.elevenlabsAgentId=agentId;
             toast('✅ Asistente IA creado para '+name);
@@ -3134,7 +3259,8 @@ async function saveAssistant(){
   }
   const btn=$('asCreateBtn'); btn.disabled=true; btn.textContent='⏳ Creando en ElevenLabs…';
   try{
-    const agentId=await createClientAgent(cid,c.name,biz,{address:c.city,phone:c.phone,city:c.city,country:c.country});
+    const greet=$('asGreeting')?$('asGreeting').value.trim():'';
+    const agentId=await createClientAgent(cid,c.name,biz,{address:c.city,phone:c.phone,city:c.city,country:c.country},null,{greeting:greet,menuText:c.menuText||''});
     if(agentId){
       /* actualizar en memoria para reflejo inmediato */
       c.elevenlabsAgentId=agentId;
@@ -3150,8 +3276,11 @@ async function saveAssistant(){
 }
 
 /* Crea un agente ElevenLabs DEDICADO para un cliente específico */
-async function createClientAgent(clientId, clientName, bizType, clientInfo, apiKey){
+async function createClientAgent(clientId, clientName, bizType, clientInfo, apiKey, opts){
   const key = apiKey || getElKey();
+  opts = opts || {};
+  const customGreeting = (opts.greeting||'').trim();
+  const menuText = (opts.menuText||'').trim();
   if(!key){
     console.warn('Sin API key de ElevenLabs - no se creó agente para', clientName);
     return null;
@@ -3167,6 +3296,10 @@ async function createClientAgent(clientId, clientName, bizType, clientInfo, apiK
     if(clientInfo.city || clientInfo.country) prompt += `Ubicación: ${clientInfo.city||''} ${clientInfo.country||''}\n`;
   }
   prompt += `\nHabla de forma natural, amable y profesional en español (o inglés si el cliente lo prefiere).`;
+  if(menuText){
+    prompt += `\n\nMENÚ / SERVICIOS DEL NEGOCIO (úsalo para responder precios y platos):\n${menuText}\nCuando te pregunten por un plato o precio, responde con lo que dice este menú. Si algo no está en el menú, dilo con amabilidad.`;
+  }
+  const firstMsg = customGreeting || cfg.saludo.replace(/\{negocio\}/g, clientName);
   
   try{
     const r = await fetch('https://api.elevenlabs.io/v1/convai/agents/create', {
@@ -3176,7 +3309,7 @@ async function createClientAgent(clientId, clientName, bizType, clientInfo, apiK
         name: clientName + ' - Asistente',
         conversation_config: {
           agent: {
-            first_message: cfg.saludo.replace(/\{negocio\}/g, clientName),
+            first_message: firstMsg,
             language: 'es',
             prompt: { prompt: prompt, llm: 'gpt-4o-mini', temperature: 0.5 },
           },
