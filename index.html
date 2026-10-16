@@ -813,7 +813,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <select id="clientStatusFilter" onchange="renderClients()"><option value="">Todos los estados</option><option value="active">Activos</option><option value="trial">En prueba</option><option value="off">Pausados</option></select>
         <div class="spacer"></div><span style="font-size:12.5px;color:var(--muted)" id="clientCount"></span>
       </div>
-      <div class="tbl-wrap"><table><thead><tr><th>Negocio</th><th>Contacto</th><th>Plan</th><th>Mensualidad</th><th>Llamadas 30d</th><th>Estado</th><th style="text-align:right">Acciones</th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th>Negocio</th><th>Contacto</th><th>Plan</th><th>Mensualidad</th><th>Llamadas 30d</th><th>Estado</th><th>Conexiones</th><th style="text-align:right">Acciones</th></tr></thead>
       <tbody id="clientsBody"></tbody></table></div>
     </div>
   </section>
@@ -1285,6 +1285,10 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div><label class="flabel">Twilio Auth Token</label><input type="password" id="fClientTwilioToken" placeholder="..."></div>
       </div>
     </div>
+    <div id="clientConnSection" style="display:none;border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;">
+      <div class="msub">🔗 Conexiones del cliente <span style="color:var(--faint)">(las conecta él desde su portal)</span></div>
+      <div style="font-size:13px;line-height:1.9" id="fConnInfo"></div>
+    </div>
     <div class="row2">
       <div><label class="flabel">Tipo de negocio</label><select id="fBizType">
         <option value="restaurante">🍽️ Restaurante</option>
@@ -1479,9 +1483,15 @@ async function loadClientsFromFirebase(){
       const d = doc.data();
       // Cargar logo del cliente (si tiene)
       let clientLogo = d.logoUrl || null; // Primero del documento principal
+      let clientCrm=null, clientWa=null;
       try{
         const cfgSnap = await VoxiaDB.db.collection('clients').doc(doc.id).collection('config').doc('settings').get();
-        if(cfgSnap.exists && cfgSnap.data().logo) clientLogo = cfgSnap.data().logo;
+        if(cfgSnap.exists){
+          const cfgD=cfgSnap.data();
+          if(cfgD.logo) clientLogo = cfgD.logo;
+          if(cfgD.crm&&cfgD.crm.connected) clientCrm=cfgD.crm;
+          if(cfgD.waUsage) clientWa=cfgD.waUsage;
+        }
       }catch(e){}
       clients.push({
         id: doc.id,
@@ -1501,6 +1511,8 @@ async function loadClientsFromFirebase(){
         email: d.email || '',
         bizType: d.bizType || 'restaurante',
         elevenlabsAgentId: d.elevenlabsAgentId || null,
+        crm: clientCrm,
+        waUsage: clientWa,
         _fb: true,
       });
     }
@@ -2063,6 +2075,14 @@ function renderCalls(){
 }
 
 /* ==================== CLIENTES ==================== */
+function connBadges(c){
+  const crm=c.crm?`🗂️ ${(typeof CRM_PROVIDERS!=='undefined'&&CRM_PROVIDERS[c.crm.provider])||c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">🗂️ —</span>';
+  let wa='<span style="color:var(--faint)">💬 —</span>';
+  if(c.waUsage&&c.waUsage.count!=null){
+    wa=`💬 <b class="mono">${(+c.waUsage.count).toLocaleString()}</b><span style="color:var(--faint);font-size:11px">/1.000</span>`;
+  }
+  return `<div style="font-size:12.5px;line-height:1.8;white-space:nowrap">${crm}<br>${wa}</div>`;
+}
 function renderClients(){
   const q=($('clientSearch').value||'').toLowerCase(), fs=$('clientStatusFilter').value;
   const list=clients.filter(c=>c.name.toLowerCase().includes(q)&&(!fs||c.status===fs));
@@ -2073,11 +2093,11 @@ function renderClients(){
     <td><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
     <td class="mono">${c.phone}</td><td>${planBadge(c.plan)}</td>
     <td><b class="mono">$${c.monthly}</b><span style="color:var(--faint);font-size:11.5px">/mes</span></td>
-    <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td>
+    <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td><td>${connBadges(c)}</td>
     ${canEdit()?`<td style="text-align:right;white-space:nowrap">
       <button class="btn btn-ghost btn-sm" onclick="openClientModal('${c.id}')">Editar</button>
       <button class="btn btn-danger btn-sm" onclick="delClient('${c.id}')">Eliminar</button></td>`:'<td></td>'}</tr>`;
-  }).join('')||`<tr><td colspan="7"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
+  }).join('')||`<tr><td colspan="8"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
 }
 /* Actualiza la mensualidad según el plan elegido */
 function updateDialCode(){
@@ -2149,6 +2169,14 @@ function openClientModal(id){
   try{
     $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
     $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCountry').value=c.country||'US';$('fCity').value=c.city||'';
+    try{
+      const cs=$('clientConnSection'), fi=$('fConnInfo');
+      if(id&&c&&(c.crm||c.waUsage)){cs.style.display='';
+        const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} ••••${c.crm.keyLast4||''}`:'🗂️ CRM no conectado';
+        const wa=c.waUsage&&c.waUsage.count!=null?`💬 ${(+c.waUsage.count).toLocaleString()} / 1.000 mensajes este mes`:'💬 WhatsApp sin uso registrado';
+        fi.innerHTML=crm+'<br>'+wa;
+      } else if(cs){cs.style.display='none';}
+    }catch(e){}
     // Separar indicativo del número
     (function(){
       const ph=c.phone||'';
