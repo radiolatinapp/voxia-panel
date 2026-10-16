@@ -879,6 +879,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       <label class="flabel">Tipo de negocio *</label><select id="asBiz"></select>
       <label class="flabel">Saludo inicial</label><textarea id="asGreeting" rows="2" style="width:100%"></textarea>
       <div class="note" id="asKeyNote" style="margin-top:10px"></div>
+      <div class="note" id="asAcctNote" style="margin-top:8px"></div>
       <div class="mrow" style="margin-top:14px">
         <button class="btn btn-ghost" onclick="closeModal('assistantModal')">Cancelar</button>
         <button class="btn btn-primary" id="asCreateBtn" onclick="saveAssistant()">Crear asistente</button>
@@ -3068,10 +3069,18 @@ function openAssistantModal(){
   $('asClient').innerHTML=list.map(c=>`<option value="${c.id}">${c.name}${c.elevenlabsAgentId?' (ya tiene asistente)':''}</option>`).join('');
   $('asBiz').innerHTML=Object.entries(BIZ_AGENTS).map(([k,v])=>`<option value="${k}">${v.nombre.replace('Asistente ','')}</option>`).join('');
   const syncBiz=()=>{const c=list.find(x=>x.id===$('asClient').value);
-    if(c&&c.bizType&&BIZ_AGENTS[c.bizType])$('asBiz').value=c.bizType; syncGreet();};
+    if(c&&c.bizType&&BIZ_AGENTS[c.bizType])$('asBiz').value=c.bizType; syncGreet(); syncAcct();};
   const syncGreet=()=>{const b=BIZ_AGENTS[$('asBiz').value]; const c=list.find(x=>x.id===$('asClient').value);
     $('asGreeting').value=b?b.saludo.replace(/\{negocio\}/g,c?c.name:''):'';};
-  $('asClient').onchange=syncBiz; $('asBiz').onchange=syncGreet; syncBiz();
+  /* Regla de negocio: el ElevenLabs de Voxia es SOLO para paquete completo */
+  const syncAcct=()=>{const c=list.find(x=>x.id===$('asClient').value);
+    if(!c){$('asAcctNote').innerHTML='';return;}
+    if(c.billingModel==='maintenance'){
+      $('asAcctNote').innerHTML='⚠️ <b>Mantenimiento:</b> este cliente pone SUS cuentas. El agente debe crearse con la API key del <b>cliente</b> (en su sesión), no con la tuya.';
+    }else{
+      $('asAcctNote').innerHTML='✓ <b>Paquete completo:</b> el agente se crea en <b>tu</b> cuenta de ElevenLabs (Voxia asume el costo).';
+    }};
+  $('asClient').onchange=syncBiz; $('asBiz').onchange=()=>{syncGreet();}; syncBiz();
   $('asKeyNote').innerHTML='✓ ElevenLabs conectado · el agente se crea con tu API key guardada';
   $('asCreateBtn').disabled=false; $('asCreateBtn').textContent='Crear asistente';
   $('assistantModal').classList.add('open');
