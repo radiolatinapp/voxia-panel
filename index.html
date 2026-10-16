@@ -612,6 +612,9 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <button data-view="pedidos">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
       Pedidos <span class="count" id="navOrderCount">0</span></button>
+    <button data-view="inventario">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>
+      Inventario <span class="count" id="navInvLowCount">0</span></button>
     <button data-view="miguia">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       Mi Guía</button>
@@ -1088,6 +1091,32 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
   </section>
 
+  <!-- ============ VIEW: INVENTARIO ============ -->
+  <section class="view" id="view-inventario">
+    <div class="page-head">
+      <div><h2>📦 Inventario</h2><p>Stock en tiempo real · tu asistente lo consulta en cada llamada</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="file" id="invExcelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importInventoryExcel(this.files[0]);this.value=''">
+        <button class="btn btn-ghost" onclick="$('invExcelInput').click()">📥 Importar Excel</button>
+        <button class="btn btn-ghost" onclick="syncInventoryToAgent()">🔄 Sincronizar con asistente</button>
+        <button class="btn btn-primary" onclick="openProductModal()">+ Nuevo producto</button>
+      </div>
+    </div>
+    <div class="card" id="invClientCard" style="display:none;margin-bottom:12px">
+      <label class="flabel">Cliente</label>
+      <select id="invClientSel" onchange="loadInventory()" style="font-size:15px;max-width:320px"></select>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px" id="invStats"></div>
+    <div class="card">
+      <div class="toolbar">
+        <input type="search" id="invSearch" placeholder="🔍 Buscar producto…" oninput="renderInventory()" style="max-width:260px">
+        <div class="spacer"></div><span style="font-size:12.5px;color:var(--muted)" id="invCount"></span>
+      </div>
+      <div id="invList"></div>
+    </div>
+    <div class="note" style="margin-top:10px">💡 El asistente verifica este inventario antes de confirmar disponibilidad. Sincronízalo después de cambios grandes. Los pedidos telefónicos descuentan el stock automáticamente.</div>
+  </section>
+
   <!-- ============ VIEW: MI GUIA ============ -->
   <section class="view" id="view-miguia">
     <div class="page-head">
@@ -1361,6 +1390,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <option value="restaurante">🍽️ Restaurante</option>
         <option value="dental">🦷 Clínica dental</option>
         <option value="taller">🔧 Taller mecánico</option>
+        <option value="ferreteria">🔩 Ferretería</option>
         <option value="belleza">💇 Salón de belleza</option>
         <option value="barberia">💈 Barbería</option>
         <option value="hotel">🏨 Hotel</option>
@@ -1456,6 +1486,33 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <div style="text-align:right;margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
       <button class="btn btn-ghost" onclick="closeModal('orderModal')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveOrder()">Guardar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: PRODUCTO INVENTARIO ============ -->
+<div class="modal-bg" id="productModal">
+  <div class="modal">
+    <button class="mx" onclick="closeModal('productModal')">✕</button>
+    <h3 id="prodModalTitle">📦 Nuevo producto</h3>
+    <div class="msub">Se sincroniza con tu asistente de voz</div>
+    <input type="hidden" id="pId">
+    <label class="flabel">Nombre del producto *</label><input type="text" id="pName" placeholder="Ej: Alicate de corte 8&quot;">
+    <div class="row2">
+      <div><label class="flabel">SKU / Código</label><input type="text" id="pSku" placeholder="Ej: ALI-008"></div>
+      <div><label class="flabel">Categoría</label><input type="text" id="pCategory" placeholder="Ej: Herramientas"></div>
+    </div>
+    <div class="row2">
+      <div><label class="flabel">Precio ($)</label><input type="number" id="pPrice" placeholder="0.00" step="0.01" min="0"></div>
+      <div><label class="flabel">Stock actual</label><input type="number" id="pStock" placeholder="0" step="1" min="0"></div>
+    </div>
+    <div class="row2">
+      <div><label class="flabel">Alerta si baja de</label><input type="number" id="pMin" placeholder="5" step="1" min="0"></div>
+      <div></div>
+    </div>
+    <div style="text-align:right;margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal('productModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Guardar producto</button>
     </div>
   </div>
 </div>
@@ -1664,7 +1721,7 @@ async function loadClientOrders(){
   clientOrders=[];
   try{
     if(!VoxiaDB||!VoxiaDB.clientId)return;
-    const snap=await db.collection('clients').doc(VoxiaDB.clientId).collection('orders').orderBy('createdAt','desc').limit(500).get();
+    const snap=await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('orders').orderBy('createdAt','desc').limit(500).get();
     snap.forEach(d=>clientOrders.push({id:d.id,...d.data()}));
   }catch(e){console.warn('loadClientOrders:',e.message);}
   updateOrderBadge();
@@ -1753,9 +1810,11 @@ async function saveOrder(){
   };
   try{
     toast('Guardando pedido…');
-    const ref=await db.collection('clients').doc(VoxiaDB.clientId).collection('orders').add(order);
+    const ref=await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('orders').add(order);
     order.id=ref.id;order.createdAt=new Date();
     clientOrders.unshift(order);
+    // Descontar stock del inventario si el detalle menciona productos
+    try{ if(typeof tryDecrementStock==='function') await tryDecrementStock(order.detail, VoxiaDB.clientId); }catch(e){}
     closeModal('orderModal');renderOrders();updateOrderBadge();
     if(typeof renderDashboard==='function')renderDashboard(false);
     logActivity(me.name,'🛒','registró un pedido de $'+total.toFixed(2)+' ('+customer+')');
@@ -1764,7 +1823,7 @@ async function saveOrder(){
 }
 async function setOrderStatus(id,status){
   try{
-    await db.collection('clients').doc(VoxiaDB.clientId).collection('orders').doc(id).update({status});
+    await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('orders').doc(id).update({status});
     const o=clientOrders.find(x=>x.id===id);
     if(o)o.status=status;
     renderOrders();updateOrderBadge();
@@ -1789,6 +1848,238 @@ function renderOrders(){
         ${o.status!=='cancelled'?`<button class="btn btn-ghost btn-sm" onclick="setOrderStatus('${o.id}','cancelled')">✕</button>`:''}
       </div>
     </div>`).join('')||'<div class="empty"><div class="eico">🛒</div><h4>Sin pedidos</h4><p>Registra el primero con "+ Nuevo pedido"</p></div>';
+}
+
+/* ==================== INVENTARIO ====================
+ * Stock en tiempo real por cliente: clients/{id}/inventory/{productId}
+ * El asistente lo consulta (prompt sincronizado) y los pedidos descuentan solos.
+ */
+let inventory=[]; let invClientId=null;
+
+function invDb(){ return (window.VoxiaDB&&VoxiaDB.db)||null; }
+function invCanEdit(){ return typeof canEdit==='function'?canEdit():true; }
+
+/* Cliente activo para el inventario: el del usuario, o el seleccionado (superadmin) */
+function invActiveClient(){
+  if(window.VoxiaDB&&VoxiaDB.clientId) return VoxiaDB.clientId;
+  const sel=$('invClientSel');
+  if(sel&&sel.value) return sel.value;
+  if(typeof clients!=='undefined'&&clients.length) return clients[0].id;
+  return null;
+}
+
+async function loadInventory(){
+  const dbc=invDb(); if(!dbc) return;
+  const isAdmin=!(window.VoxiaDB&&VoxiaDB.clientId);
+  const card=$('invClientCard'), sel=$('invClientSel');
+  if(isAdmin&&card&&sel&&typeof clients!=='undefined'){
+    card.style.display='';
+    const cur=sel.value;
+    sel.innerHTML=clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    if(cur&&clients.find(c=>c.id===cur)) sel.value=cur;
+  }else if(card){ card.style.display='none'; }
+  invClientId=invActiveClient();
+  inventory=[];
+  if(!invClientId){ renderInventory(); return; }
+  try{
+    toast('📦 Cargando inventario…');
+    const snap=await dbc.collection('clients').doc(invClientId).collection('inventory').orderBy('name').get();
+    snap.forEach(d=>inventory.push({id:d.id,...d.data()}));
+  }catch(e){ console.warn('loadInventory:',e.message); toast('⚠️ No se pudo cargar el inventario','warn'); }
+  renderInventory();
+}
+
+function invStockState(p){
+  const s=p.stock||0, m=(p.minStock==null?5:p.minStock);
+  if(s<=0) return {t:'Agotado',c:'#ff6b6b'};
+  if(s<=m) return {t:'Bajo ('+s+')',c:'#ffb020'};
+  return {t:s+'',c:'#51cf66'};
+}
+
+function renderInventory(){
+  const q=($('invSearch')?$('invSearch').value:'').toLowerCase().trim();
+  const list=inventory.filter(p=>!q||(p.name||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q));
+  const low=list.filter(p=>(p.stock||0)<=((p.minStock==null?5:p.minStock)));
+  const val=list.reduce((a,p)=>a+((p.price||0)*(p.stock||0)),0);
+  const stats=$('invStats');
+  if(stats) stats.innerHTML=
+    statCard('Productos',list.length,'','📦','rgba(255,158,46,.12)')+
+    statCard('Stock bajo',low.length,'','⚠️','rgba(255,107,107,.12)')+
+    statCard('Valor total',money(val),'','💰','rgba(81,207,102,.12)');
+  const badge=$('navInvLowCount'); if(badge) badge.textContent=low.length||0;
+  const cnt=$('invCount'); if(cnt) cnt.textContent=list.length+' productos';
+  const box=$('invList'); if(!box) return;
+  const canE=invCanEdit();
+  box.innerHTML=list.map(p=>{
+    const st=invStockState(p);
+    return `<div class="act-row"><div class="act-ico">📦</div>
+      <div style="flex:1"><div class="act-tx"><b>${p.name||'Sin nombre'}</b> ${p.sku?`<span class="mono" style="color:var(--faint)">${p.sku}</span>`:''}</div>
+      <div class="act-meta">${p.category||'Sin categoría'} · ${money(p.price||0)}</div></div>
+      <div style="display:flex;align-items:center;gap:6px">
+        ${canE?`<button class="btn btn-ghost btn-sm" onclick="adjStock('${p.id}',-1)">−</button>`:''}
+        <b style="color:${st.c};min-width:52px;text-align:center">${st.t}</b>
+        ${canE?`<button class="btn btn-ghost btn-sm" onclick="adjStock('${p.id}',1)">+</button>`:''}
+        ${canE?`<button class="btn btn-ghost btn-sm" onclick="openProductModal('${p.id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" style="color:#ff6b6b" onclick="delProduct('${p.id}')">🗑</button>`:''}
+      </div></div>`;
+  }).join('')||'<div class="empty"><div class="eico">📦</div><h4>Sin productos</h4><p>Agrega el primero o importa tu Excel</p></div>';
+}
+
+function openProductModal(id){
+  if(!invCanEdit()){toast('🔒 Tu rol no permite editar inventario','warn');return;}
+  const p=id?inventory.find(x=>x.id===id):null;
+  $('prodModalTitle').textContent=p?'✏️ Editar producto':'📦 Nuevo producto';
+  $('pId').value=p?p.id:''; $('pName').value=p?p.name||'':''; $('pSku').value=p?p.sku||'':'';
+  $('pCategory').value=p?(p.category||''):''; $('pPrice').value=p?(p.price||0):'';
+  $('pStock').value=p?(p.stock||0):''; $('pMin').value=p?((p.minStock==null?5:p.minStock)):'5';
+  openModal('productModal'); setTimeout(()=>$('pName').focus(),120);
+}
+
+async function saveProduct(){
+  const dbc=invDb(); if(!dbc||!invClientId){toast('⚠️ Sin cliente activo','warn');return;}
+  const name=$('pName').value.trim();
+  if(!name){toast('Pon el nombre del producto','warn');return;}
+  const data={name, sku:$('pSku').value.trim(), category:$('pCategory').value.trim(),
+    price:parseFloat($('pPrice').value)||0, stock:Math.max(0,parseInt($('pStock').value)||0),
+    minStock:Math.max(0,parseInt($('pMin').value)||0),
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try{
+    const id=$('pId').value;
+    if(id){ await dbc.collection('clients').doc(invClientId).collection('inventory').doc(id).update(data);
+      Object.assign(inventory.find(x=>x.id===id)||{},data); toast('✅ Producto actualizado');
+    }else{ const ref=await dbc.collection('clients').doc(invClientId).collection('inventory').add(data);
+      inventory.push({id:ref.id,...data}); toast('✅ Producto agregado'); }
+    closeModal('productModal'); renderInventory();
+  }catch(e){ toast('⚠️ '+e.message,'warn'); }
+}
+
+async function delProduct(id){
+  const dbc=invDb(); if(!dbc||!invClientId) return;
+  const p=inventory.find(x=>x.id===id);
+  if(!confirm(`¿Eliminar "${p?p.name:''}" del inventario?`)) return;
+  try{ await dbc.collection('clients').doc(invClientId).collection('inventory').doc(id).delete();
+    inventory=inventory.filter(x=>x.id!==id); renderInventory(); toast('Producto eliminado','warn');
+  }catch(e){ toast('⚠️ '+e.message,'warn'); }
+}
+
+async function adjStock(id,delta){
+  const dbc=invDb(); if(!dbc||!invClientId) return;
+  const p=inventory.find(x=>x.id===id); if(!p) return;
+  const ns=Math.max(0,(p.stock||0)+delta);
+  try{ await dbc.collection('clients').doc(invClientId).collection('inventory').doc(id).update({stock:ns,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    p.stock=ns; renderInventory();
+  }catch(e){ toast('⚠️ '+e.message,'warn'); }
+}
+
+/* Importa inventario desde Excel/CSV. Columnas flexibles: nombre/producto, sku/código, precio, stock/cantidad, categoría */
+async function importInventoryExcel(file){
+  const dbc=invDb();
+  if(!dbc||!invClientId){toast('⚠️ Sin cliente activo','warn');return;}
+  if(!file){return;}
+  if(typeof XLSX==='undefined'){toast('⚠️ No se pudo cargar el lector de Excel','warn');return;}
+  try{
+    toast('📥 Leyendo Excel…');
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf);
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    if(!rows.length){toast('⚠️ El archivo no tiene filas','warn');return;}
+    const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+    const cols=Object.keys(rows[0]);
+    const find=(...names)=>cols.find(c=>names.some(n=>norm(c).includes(n)));
+    const cName=find('nombre','producto','product','name','articulo');
+    const cSku=find('sku','codigo','code','referencia');
+    const cPrice=find('precio','price','valor');
+    const cStock=find('stock','cantidad','existencia','qty','inventario');
+    const cCat=find('categoria','category','grupo','familia');
+    if(!cName){toast('⚠️ No encontré columna de nombre/producto','warn');return;}
+    let n=0;
+    const batch=dbc.batch();
+    const coll=dbc.collection('clients').doc(invClientId).collection('inventory');
+    for(const r of rows){
+      const name=String(r[cName]||'').trim(); if(!name) continue;
+      batch.set(coll.doc(),{name,
+        sku:cSku?String(r[cSku]||'').trim():'',
+        category:cCat?String(r[cCat]||'').trim():'',
+        price:parseFloat(r[cPrice])||0,
+        stock:Math.max(0,parseInt(r[cStock])||0), minStock:5,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      n++;
+      if(n%400===0){ await batch.commit(); }
+    }
+    await batch.commit();
+    toast(`✅ ${n} productos importados`);
+    if(typeof logActivity==='function')logActivity(me?me.name:'sistema','📥',`importó ${n} productos al inventario`);
+    loadInventory();
+  }catch(e){ toast('⚠️ Error importando: '+e.message,'warn'); }
+}
+
+/* Texto del inventario para el prompt del asistente */
+function invPromptText(){
+  if(!inventory.length) return '';
+  const lines=inventory.map(p=>{
+    const s=p.stock||0;
+    return `• ${p.name}${p.sku?` (${p.sku})`:''} — $${(p.price||0).toLocaleString()} — Stock: ${s}${s<=0?' (AGOTADO)':''}`;
+  });
+  return `INVENTARIO ACTUAL (actualizado ${new Date().toLocaleString('es')}):\n${lines.join('\n')}\nVerifica SIEMPRE este inventario antes de confirmar disponibilidad. Si el stock es 0 o dice AGOTADO, dilo claramente y ofrece alternativas.`;
+}
+
+/* Sincroniza el inventario con el prompt del asistente en ElevenLabs */
+async function syncInventoryToAgent(){
+  const c=(typeof clients!=='undefined')?clients.find(x=>x.id===invClientId):null;
+  if(!c||!c.elevenlabsAgentId){toast('⚠️ Este cliente no tiene asistente vinculado','warn');return;}
+  const key=typeof getElKey==='function'?getElKey():null;
+  if(!key){toast('⚠️ Conecta ElevenLabs primero en Configuración','warn');return;}
+  if(!inventory.length){toast('⚠️ No hay productos en el inventario','warn');return;}
+  try{
+    toast('🔄 Sincronizando inventario con el asistente…');
+    const g=await fetch(`https://api.elevenlabs.io/v1/convai/agents/${c.elevenlabsAgentId}`,{headers:{'xi-api-key':key}});
+    if(!g.ok) throw new Error('No se pudo leer el agente ('+g.status+')');
+    const agent=await g.json();
+    const cfg=agent.conversation_config||{};
+    const ag=cfg.agent||{};
+    const pr=ag.prompt||{};
+    let prompt=pr.prompt||'';
+    // Quitar bloque de inventario anterior si existe
+    prompt=prompt.replace(/\n*INVENTARIO ACTUAL[\s\S]*?(?=(\n\n[A-ZÁÉÍÓÚ][A-ZÁÉÍÓÚ ]+:)|$)/,'').trim();
+    prompt=prompt+'\n\n'+invPromptText();
+    const body={conversation_config:{...cfg,agent:{...ag,prompt:{...pr,prompt:prompt}}}};
+    const u=await fetch(`https://api.elevenlabs.io/v1/convai/agents/${c.elevenlabsAgentId}`,{
+      method:'PATCH',headers:{'xi-api-key':key,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!u.ok){ const t=await u.text(); throw new Error('ElevenLabs rechazó la actualización ('+u.status+'): '+t.slice(0,120)); }
+    toast('✅ Inventario sincronizado con el asistente de '+c.name);
+    if(typeof logActivity==='function')logActivity(me?me.name:'sistema','🔄',`sincronizó inventario (${inventory.length} productos) con el asistente de "${c.name}"`);
+  }catch(e){ toast('⚠️ '+e.message,'warn'); }
+}
+
+/* Descuenta stock cuando un pedido menciona productos del inventario.
+ * Se llama al guardar pedidos (el detalle dice ej: "2 alicates, 1 martillo"). */
+async function tryDecrementStock(detail, clientId){
+  const dbc=invDb();
+  if(!dbc||!detail||!clientId) return;
+  try{
+    const snap=await dbc.collection('clients').doc(clientId).collection('inventory').get();
+    const prods=[]; snap.forEach(d=>prods.push({id:d.id,...d.data()}));
+    if(!prods.length) return;
+    const txt=' '+detail.toLowerCase()+' ';
+    const batch=dbc.batch(); let n=0; const names=[];
+    for(const p of prods){
+      const nm=(p.name||'').toLowerCase().trim();
+      if(nm.length<3) continue;
+      const esc=nm.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      const m=txt.match(new RegExp('(\\d+)\\s*x?\\s*'+esc));
+      const hit=m||txt.includes(nm);
+      if(hit){
+        const qty=m?parseInt(m[1],10):1;
+        if((p.stock||0)<=0) continue;
+        const ns=Math.max(0,(p.stock||0)-qty);
+        batch.update(dbc.collection('clients').doc(clientId).collection('inventory').doc(p.id),
+          {stock:ns,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+        n++; names.push(p.name+' (−'+qty+')');
+      }
+    }
+    if(n){ await batch.commit(); toast('📦 Stock actualizado: '+names.join(', ')); }
+  }catch(e){ console.warn('tryDecrementStock:',e.message); }
 }
 
 /* ==================== UTILS ==================== */
@@ -1855,6 +2146,7 @@ function go(view){
   $('sidebar').classList.remove('open');
   window.scrollTo({top:0,behavior:'smooth'});
   if(view==='pedidos'&&typeof renderOrders==='function')renderOrders();
+  if(view==='inventario'&&typeof loadInventory==='function')loadInventory();
   if(view==='miguia'&&typeof loadGuide==='function')loadGuide();
   if(view==='asistentes'&&typeof renderAssistants==='function')renderAssistants();
 }
@@ -2862,7 +3154,7 @@ async function renderAssistants(){
       try{
         if(VoxiaDB&&VoxiaDB.db){
           const snap=await VoxiaDB.db.collection('biz_agents').get();
-          const tipoNames={dental:'🦷 Dental',taller:'🔧 Taller',belleza:'💅 Belleza',hotel:'🏨 Hotel',abogado:'⚖️ Abogado',veterinaria:'🐾 Veterinaria',inmobiliaria:'🏠 Inmobiliaria'};
+          const tipoNames={dental:'🦷 Dental',taller:'🔧 Taller',ferreteria:'🔩 Ferretería',belleza:'💅 Belleza',hotel:'🏨 Hotel',abogado:'⚖️ Abogado',veterinaria:'🐾 Veterinaria',inmobiliaria:'🏠 Inmobiliaria'};
           snap.forEach(doc=>{
             const d=doc.data()||{};
             const aid=d.agentId||d.agent_id||d.id;
@@ -3219,6 +3511,7 @@ const BIZ_AGENTS = {
   restaurante: {nombre:'Asistente Restaurante', saludo:'¡Hola! Gracias por llamar a {negocio}. ¿Su pedido es para recoger o delivery?', prompt:'Eres el asistente de un restaurante. Tomas pedidos, confirmas dirección y tiempos de entrega. Pregunta: pedido para recoger o delivery, dirección si es delivery, método de pago.'},
   dental: {nombre:'Asistente Clínica Dental', saludo:'¡Hola! Gracias por llamar a su clínica dental. ¿Desea agendar una cita?', prompt:'Eres el asistente de una clínica dental. Agendas citas, confirmas seguros dentales y envías recordatorios. Pregunta: día preferido, si es paciente nuevo, y tipo de seguro.'},
   taller: {nombre:'Asistente Taller Mecánico', saludo:'¡Hola! Gracias por llamar al taller. ¿En qué le ayudamos con su vehículo?', prompt:'Eres el asistente de un taller mecánico. Recibes diagnósticos, cotizas servicios y agendas citas. Pregunta: marca y modelo, falla que presenta, cuándo puede traerlo.'},
+  ferreteria: {nombre:'Asistente Ferretería', saludo:'¡Hola! Gracias por llamar a {negocio}. ¿Qué herramienta o material necesita?', prompt:'Eres el asistente de una ferretería. Consultas disponibilidad de productos en el inventario, das precios, cotizas y apartas pedidos. SIEMPRE verifica el stock antes de confirmar: si no hay existencias, dilo y ofrece alternativas. Pregunta: producto buscado, cantidad, para recoger o delivery.'},
   belleza: {nombre:'Asistente Salón de Belleza', saludo:'¡Hola! Bienvenido al salón. ¿Desea reservar un servicio?', prompt:'Eres el asistente de un salón de belleza. Reservas servicios, confirmas estilista y envías promociones. Pregunta: servicio deseado, estilista preferido, día y hora.'},
   barberia: {nombre:'Asistente Barbería', saludo:'¡Hola! Bienvenido a la barbería. ¿Desea reservar un corte?', prompt:'Eres el asistente de una barbería. Reservas cortes y servicios, confirmas barbero y envías promociones. Pregunta: servicio deseado (corte, barba, etc.), barbero preferido, día y hora.'},
   hotel: {nombre:'Asistente Hotel', saludo:'¡Hola! Gracias por llamar al hotel. ¿Desea hacer una reserva?', prompt:'Eres el asistente de un hotel. Manejas reservas, info de check-in y servicios 24/7. Pregunta: fechas, número de personas, tipo de habitación.'},
@@ -3402,13 +3695,13 @@ function hashPw(s){let h=5381;for(let i=0;i<s.length;i++){h=(((h<<5)+h)+s.charCo
 /* roles y permisos */
 const ROLES={
   superadmin:{label:'Superadmin',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','inventario','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   owner:{label:'Dueño',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','asistentes','voces','reportes','actividad','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','inventario','miguia','asistentes','voces','reportes','actividad','perfil']},
   admin:{label:'Administrador',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','inventario','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   gerente:{label:'Gerente',edit:true,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','inventario','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
   agente:{label:'Agente',edit:false,manageUsers:false,
     views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','perfil']},
   viewer:{label:'Visualizador',edit:false,manageUsers:false,
@@ -4213,7 +4506,7 @@ function renderLiveCalls(){
 /* ==================== INIT ==================== */
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-bg.open').forEach(m=>m.classList.remove('open'));});
-function renderAll(){renderDashboard();renderClients();renderCalls();renderAssistants();renderFin();renderInvoices();renderNotifs();renderVoices();renderTemplates();renderTeam();renderIntegrations();renderTranscripts();renderNotifCenter();renderCompare();renderReports();renderActivity();renderProfile();updateNotifBadge();}
+function renderAll(){renderDashboard();renderClients();renderCalls();renderAssistants();renderFin();renderInvoices();renderNotifs();renderVoices();renderTemplates();renderTeam();renderIntegrations();renderTranscripts();renderNotifCenter();renderCompare();renderReports();renderActivity();renderProfile();updateNotifBadge();if(typeof renderInventory==='function'&&curView()==='inventario')loadInventory();}
 /* sesión persistente + skeleton de carga premium */
 (function(){
   const sk='<div class="skel" style="height:64px;margin-bottom:14px"></div>'.repeat(3);
