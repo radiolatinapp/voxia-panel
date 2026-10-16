@@ -614,7 +614,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       Pedidos <span class="count" id="navOrderCount">0</span></button>
     <button data-view="inventario">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>
-      Inventario <span class="count" id="navInvLowCount">0</span></button>
+      Inventario <span class="count" id="navStkLowCount">0</span></button>
     <button data-view="miguia">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       Mi Guía</button>
@@ -1096,23 +1096,23 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <div class="page-head">
       <div><h2>📦 Inventario</h2><p>Stock en tiempo real · tu asistente lo consulta en cada llamada</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input type="file" id="invExcelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importInventoryExcel(this.files[0]);this.value=''">
+        <input type="file" id="stkExcelInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="importInventoryExcel(this.files[0]);this.value=''">
         <button class="btn btn-ghost" onclick="$('invExcelInput').click()">📥 Importar Excel</button>
         <button class="btn btn-ghost" onclick="syncInventoryToAgent()">🔄 Sincronizar con asistente</button>
         <button class="btn btn-primary" onclick="openProductModal()">+ Nuevo producto</button>
       </div>
     </div>
-    <div class="card" id="invClientCard" style="display:none;margin-bottom:12px">
+    <div class="card" id="stkClientCard" style="display:none;margin-bottom:12px">
       <label class="flabel">Cliente</label>
-      <select id="invClientSel" onchange="loadInventory()" style="font-size:15px;max-width:320px"></select>
+      <select id="stkClientSel" onchange="loadInventory()" style="font-size:15px;max-width:320px"></select>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px" id="invStats"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px" id="stkStats"></div>
     <div class="card">
       <div class="toolbar">
-        <input type="search" id="invSearch" placeholder="🔍 Buscar producto…" oninput="renderInventory()" style="max-width:260px">
-        <div class="spacer"></div><span style="font-size:12.5px;color:var(--muted)" id="invCount"></span>
+        <input type="search" id="stkSearch" placeholder="🔍 Buscar producto…" oninput="renderInventory()" style="max-width:260px">
+        <div class="spacer"></div><span style="font-size:12.5px;color:var(--muted)" id="stkCount"></span>
       </div>
-      <div id="invList"></div>
+      <div id="stkList"></div>
     </div>
     <div class="note" style="margin-top:10px">💡 El asistente verifica este inventario antes de confirmar disponibilidad. Sincronízalo después de cambios grandes. Los pedidos telefónicos descuentan el stock automáticamente.</div>
   </section>
@@ -1878,7 +1878,7 @@ function invCanEdit(){ return typeof canEdit==='function'?canEdit():true; }
 /* Cliente activo para el inventario: el del usuario, o el seleccionado (superadmin) */
 function invActiveClient(){
   if(window.VoxiaDB&&VoxiaDB.clientId) return VoxiaDB.clientId;
-  const sel=$('invClientSel');
+  const sel=$('stkClientSel');
   if(sel&&sel.value) return sel.value;
   if(typeof clients!=='undefined'&&clients.length) return clients[0].id;
   return null;
@@ -1887,7 +1887,7 @@ function invActiveClient(){
 async function loadInventory(){
   const dbc=invDb(); if(!dbc) return;
   const isAdmin=!(window.VoxiaDB&&VoxiaDB.clientId);
-  const card=$('invClientCard'), sel=$('invClientSel');
+  const card=$('stkClientCard'), sel=$('stkClientSel');
   if(isAdmin&&card&&sel&&typeof clients!=='undefined'){
     card.style.display='';
     const cur=sel.value;
@@ -1913,19 +1913,19 @@ function invStockState(p){
 }
 
 function renderInventory(){
-  const q=($('invSearch')?$('invSearch').value:'').toLowerCase().trim();
+  const q=($('stkSearch')?$('stkSearch').value:'').toLowerCase().trim();
   const list=inventory.filter(p=>!q||(p.name||'').toLowerCase().includes(q)||(p.sku||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q));
   const low=list.filter(p=>(p.stock||0)<=((p.minStock==null?5:p.minStock)));
   const val=list.reduce((a,p)=>a+((p.price||0)*(p.stock||0)),0);
-  const stats=$('invStats');
+  const stats=$('stkStats');
   const statHtml=(l,v,ic,bg)=>`<div class="stat"><div class="top"><div class="label">${l}</div><div class="sic" style="background:${bg}">${ic}</div></div><div class="num">${v}</div></div>`;
   if(stats) stats.innerHTML=
     statHtml('Productos',list.length,'📦','rgba(255,158,46,.12)')+
     statHtml('Stock bajo',low.length,'⚠️','rgba(255,107,107,.12)')+
     statHtml('Valor total',money(val),'💰','rgba(81,207,102,.12)');
-  const badge=$('navInvLowCount'); if(badge) badge.textContent=low.length||0;
-  const cnt=$('invCount'); if(cnt) cnt.textContent=list.length+' productos';
-  const box=$('invList'); if(!box) return;
+  const badge=$('navStkLowCount'); if(badge) badge.textContent=low.length||0;
+  const cnt=$('stkCount'); if(cnt) cnt.textContent=list.length+' productos';
+  const box=$('stkList'); if(!box) return;
   const canE=invCanEdit();
   box.innerHTML=list.map(p=>{
     const st=invStockState(p);
