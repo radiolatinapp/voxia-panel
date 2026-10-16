@@ -749,7 +749,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <span><span class="dot" style="background:#7c6cff"></span>Pedidos tomados</span></div>
       </div>
       <div class="card">
-        <h3>Idiomas de las llamadas <span class="tag">30 días</span></h3>
+        <h3>Idiomas de las llamadas <span class="tag" id="langPeriodTag">30 días</span></h3>
         <div class="csub">Detección automática ES / EN por la IA</div>
         <div style="display:flex;align-items:center;gap:22px">
           <div id="chartDonut" style="flex-shrink:0"></div>
@@ -1502,6 +1502,7 @@ let clientsLoading = false;
  */
 async function loadClientsFromFirebase(){
   if (typeof VoxiaDB === 'undefined' || !VoxiaDB.user) return;
+  if (clientsLoading) return; /* evita doble carga concurrente (login + onAuthChange) que duplicaba filas */
   clientsLoading = true;
   try {
     const ud = VoxiaDB.userData;
@@ -1563,6 +1564,9 @@ async function loadClientsFromFirebase(){
         _fb: true,
       });
     }
+    /* Deduplicar por id por seguridad (nunca mostrar el mismo cliente dos veces) */
+    const seenIds = new Set();
+    clients = clients.filter(c => { if (seenIds.has(c.id)) return false; seenIds.add(c.id); return true; });
   } catch(e) {
     console.warn('No se pudieron cargar clientes de Firebase:', e.message);
   }
@@ -1966,8 +1970,13 @@ function sparkSVG(vals,color){
   return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/></svg>`;
 }
 function renderDashboard(anim=true){
-  const totCalls=calls.length;
-  const mins=calls.reduce((a,c)=>a+(c.min||0),0);
+  /* período activo de los botones 7/30/90 días (por defecto 30) */
+  const perBtn=document.querySelector('#dashRange button.active');
+  const per=perBtn?+perBtn.dataset.r:30;
+  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-per); cutoff.setHours(0,0,0,0);
+  const pcalls=calls.filter(c=>c.ts&&new Date(c.ts)>=cutoff);
+  const totCalls=pcalls.length;
+  const mins=pcalls.reduce((a,c)=>a+(c.min||0),0);
   const act=clients.filter(c=>c.status!=='off');
   const mrr=act.reduce((a,c)=>a+(c.monthly||0),0);
   const isAdmin=me&&(me.role==='admin'||me.role==='superadmin');
@@ -1979,7 +1988,7 @@ function renderDashboard(anim=true){
   }
   const minDetail=showCost?'≈ $'+(mins*RATE).toFixed(2):'';
   const cards=[
-    {l:'Llamadas · 30 días', v:totCalls, d:totCalls?'':'Sin llamadas aún', c:'up', ic:'📞', bg:'rgba(255,158,46,.12)', sp:[0,0,0,0,0,0,0], sc:'#ffa02e'},
+    {l:'Llamadas · '+per+' días', v:totCalls, d:totCalls?'':'Sin llamadas aún', c:'up', ic:'📞', bg:'rgba(255,158,46,.12)', sp:[0,0,0,0,0,0,0], sc:'#ffa02e'},
     {l:'Minutos de voz', v:Math.round(mins), d:minDetail, c:'up', ic:'🎙️', bg:'rgba(124,108,255,.12)', sp:[0,0,0,0,0,0,0], sc:'#9d8fff'},
   ];
   // Clientes activos e Ingresos: solo admin (son métricas de Voxia, no del cliente)
@@ -2027,14 +2036,16 @@ function renderDashboard(anim=true){
       sales.push(s);}
     lineChart($('chartLine'),sales,'#38d6f5');
   }
-  /* dona idiomas */
-  const es=calls.filter(c=>c.lang==='ES').length, en=calls.filter(c=>c.lang==='EN').length;
+  /* dona idiomas (del período activo) */
+  const es=pcalls.filter(c=>c.lang==='ES').length, en=pcalls.filter(c=>c.lang==='EN').length;
+  const totLang=es+en, pctES=totLang?Math.round(es/totLang*100):0, pctEN=totLang?Math.round(en/totLang*100):0;
+  if($('langPeriodTag'))$('langPeriodTag').textContent=per+' días';
   donutChart($('chartDonut'),[{v:es,c:'#ffa02e'},{v:en,c:'#7c6cff'}]);
   $('donutLegend').innerHTML=`
     <div style="margin-bottom:10px"><span class="dot" style="background:#ffa02e;display:inline-block;width:10px;height:10px;border-radius:4px;margin-right:8px"></span>
-    <b>Español</b> · ${es} <span style="color:var(--muted)">(${Math.round(es/(es+en)*100)}%)</span></div>
+    <b>Español</b> · ${es} <span style="color:var(--muted)">(${pctES}%)</span></div>
     <div><span class="dot" style="background:#7c6cff;display:inline-block;width:10px;height:10px;border-radius:4px;margin-right:8px"></span>
-    <b>English</b> · ${en} <span style="color:var(--muted)">(${Math.round(en/(es+en)*100)}%)</span></div>
+    <b>English</b> · ${en} <span style="color:var(--muted)">(${pctEN}%)</span></div>
     <div class="note" style="margin-top:14px">La IA detecta el idioma al primer saludo y responde en el mismo.</div>`;
   /* línea MRR */
   lineChart($('chartLine'),[320,410,468,545,620,715,mrr],['May','Jun','Jul','Ago','Sep','Oct']);
@@ -2298,7 +2309,7 @@ async function renderClientDetail(c){
     <div><h2 style="margin:0">${c.name}</h2><p style="margin:2px 0 0;color:var(--muted);font-size:13px">${c.city||''} · ${c.phone||''}</p></div>
     <div style="display:flex;gap:8px;margin-left:8px">${statusBadge(c.status)}${planBadge(c.plan)}</div></div>`;
   $('cdEditBtn2').onclick=()=>openClientModal(c.id);
-  const waD=w?('<b class="mono">'+w.count.toLocaleString()+'</b> / 1.000'+(w.extra>0?' · +'+waCostText(w):' · gratis')):'Sin datos';
+  const waD=w?('<b class="mono">'+w.count.toLocaleString()+'</b> / 1.000'+(w.extra>0?' · +'+waCostText(w):' · gratis')):'0 / 1.000 · sin mensajes registrados';
   const statCard=(l,v,d,ic,bg)=>`<div class="stat"><div class="top"><div class="label">${l}</div><div class="sic" style="background:${bg}">${ic}</div></div><div class="num">${v}</div><div class="delta">${d||''}</div></div>`;
   $('cdStats').innerHTML=
     statCard('Llamadas · 30 días',cl.length,'','📞','rgba(255,158,46,.12)')+
