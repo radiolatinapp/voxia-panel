@@ -1510,20 +1510,20 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
 <div class="modal-bg" id="productModal">
   <div class="modal">
     <button class="mx" onclick="closeModal('productModal')">✕</button>
-    <h3 id="prodModalTitle">📦 Nuevo producto</h3>
+    <h3 id="ipModalTitle">📦 Nuevo producto</h3>
     <div class="msub">Se sincroniza con tu asistente de voz</div>
-    <input type="hidden" id="pId">
-    <label class="flabel">Nombre del producto *</label><input type="text" id="pName" placeholder="Ej: Alicate de corte 8&quot;">
+    <input type="hidden" id="ipId">
+    <label class="flabel">Nombre del producto *</label><input type="text" id="ipName" placeholder="Ej: Alicate de corte 8&quot;">
     <div class="row2">
-      <div><label class="flabel">SKU / Código</label><input type="text" id="pSku" placeholder="Ej: ALI-008"></div>
-      <div><label class="flabel">Categoría</label><input type="text" id="pCategory" placeholder="Ej: Herramientas"></div>
+      <div><label class="flabel">SKU / Código</label><input type="text" id="ipSku" placeholder="Ej: ALI-008"></div>
+      <div><label class="flabel">Categoría</label><input type="text" id="ipCategory" placeholder="Ej: Herramientas"></div>
     </div>
     <div class="row2">
-      <div><label class="flabel">Precio ($)</label><input type="number" id="pPrice" placeholder="0.00" step="0.01" min="0"></div>
-      <div><label class="flabel">Stock actual</label><input type="number" id="pStock" placeholder="0" step="1" min="0"></div>
+      <div><label class="flabel">Precio ($)</label><input type="number" id="ipPrice" placeholder="0.00" step="0.01" min="0"></div>
+      <div><label class="flabel">Stock actual</label><input type="number" id="ipStock" placeholder="0" step="1" min="0"></div>
     </div>
     <div class="row2">
-      <div><label class="flabel">Alerta si baja de</label><input type="number" id="pMin" placeholder="5" step="1" min="0"></div>
+      <div><label class="flabel">Alerta si baja de</label><input type="number" id="ipMin" placeholder="5" step="1" min="0"></div>
       <div></div>
     </div>
     <div style="text-align:right;margin-top:16px;display:flex;gap:10px;justify-content:flex-end">
@@ -1945,23 +1945,23 @@ function renderInventory(){
 function openProductModal(id){
   if(!invCanEdit()){toast('🔒 Tu rol no permite editar inventario','warn');return;}
   const p=id?inventory.find(x=>x.id===id):null;
-  $('prodModalTitle').textContent=p?'✏️ Editar producto':'📦 Nuevo producto';
-  $('pId').value=p?p.id:''; $('pName').value=p?p.name||'':''; $('pSku').value=p?p.sku||'':'';
-  $('pCategory').value=p?(p.category||''):''; $('pPrice').value=p?(p.price||0):'';
-  $('pStock').value=p?(p.stock||0):''; $('pMin').value=p?((p.minStock==null?5:p.minStock)):'5';
-  openModal('productModal'); setTimeout(()=>$('pName').focus(),120);
+  $('ipModalTitle').textContent=p?'✏️ Editar producto':'📦 Nuevo producto';
+  $('ipId').value=p?p.id:''; $('ipName').value=p?p.name||'':''; $('ipSku').value=p?p.sku||'':'';
+  $('ipCategory').value=p?(p.category||''):''; $('ipPrice').value=p?(p.price||0):'';
+  $('ipStock').value=p?(p.stock||0):''; $('ipMin').value=p?((p.minStock==null?5:p.minStock)):'5';
+  openModal('productModal'); setTimeout(()=>$('ipName').focus(),120);
 }
 
 async function saveProduct(){
   const dbc=invDb(); if(!dbc||!invClientId){toast('⚠️ Sin cliente activo','warn');return;}
-  const name=$('pName').value.trim();
+  const name=$('ipName').value.trim();
   if(!name){toast('Pon el nombre del producto','warn');return;}
-  const data={name, sku:$('pSku').value.trim(), category:$('pCategory').value.trim(),
-    price:parseFloat($('pPrice').value)||0, stock:Math.max(0,parseInt($('pStock').value)||0),
-    minStock:Math.max(0,parseInt($('pMin').value)||0),
+  const data={name, sku:$('ipSku').value.trim(), category:$('ipCategory').value.trim(),
+    price:parseFloat($('ipPrice').value)||0, stock:Math.max(0,parseInt($('ipStock').value)||0),
+    minStock:Math.max(0,parseInt($('ipMin').value)||0),
     updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
   try{
-    const id=$('pId').value;
+    const id=$('ipId').value;
     if(id){ await dbc.collection('clients').doc(invClientId).collection('inventory').doc(id).update(data);
       Object.assign(inventory.find(x=>x.id===id)||{},data); toast('✅ Producto actualizado');
     }else{ const ref=await dbc.collection('clients').doc(invClientId).collection('inventory').add(data);
