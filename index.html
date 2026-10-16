@@ -1316,6 +1316,20 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
   </div>
 </div>
 
+<!-- ============ MODAL: DETALLE CLIENTE ============ -->
+<div class="modal-bg" id="clientDetailModal">
+  <div class="modal">
+    <button class="mx" onclick="closeModal('clientDetailModal')">✕</button>
+    <h3>Detalle del cliente</h3>
+    <div class="msub">Toda la información de este negocio</div>
+    <div id="clientDetailBody"></div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('clientDetailModal')">Cerrar</button>
+      <button class="btn btn-primary" id="cdEditBtn">Editar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ MODAL: CRM ============ -->
 <div class="modal-bg" id="crmModal">
   <div class="modal">
@@ -2119,7 +2133,7 @@ function renderClients(){
   $('clientsBody').innerHTML=list.map(c=>{
     const cm=calls.filter(x=>x.c===c.id).length;
     return `<tr>
-    <td><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
+    <td style="cursor:pointer" onclick="openClientDetail('${c.id}')" title="Ver detalle del cliente"><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
     <td class="mono">${c.phone}</td><td>${planBadge(c.plan)}</td>
     <td><b class="mono">$${c.monthly}</b><span style="color:var(--faint);font-size:11.5px">/mes</span></td>
     <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td><td>${connBadges(c)}</td>
@@ -2192,6 +2206,52 @@ function updateMonthly(){
   $('fInstall').value=installUS[plan]||500;
 }
 
+function openClientDetail(id){
+  const c=clients.find(x=>x.id==id);
+  if(!c){toast('Cliente no encontrado: '+id,'warn');return;}
+  const w=waExtraCost(c);
+  const cm=(typeof calls!=='undefined'?calls:[]).filter(x=>x.c===c.id).length;
+  const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">CRM no conectado</span>';
+  let waHtml='<span style="color:var(--faint)">Sin datos de WhatsApp</span>';
+  if(w){
+    const bar=Math.min(100,w.count/1000*100);
+    waHtml=`<div><b class="mono">${w.count.toLocaleString()}</b> / 1.000 mensajes este mes</div>
+      <div style="height:8px;background:var(--line);border-radius:99px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${bar}%;background:linear-gradient(90deg,#25d366,#7c6cff);border-radius:99px"></div></div>
+      <div style="font-size:12.5px;color:var(--muted)">Extra: <b>${waCostText(w)}</b>${w.extra>0?'':' <span style="color:var(--faint)">(dentro de los 1.000 gratis)</span>'}</div>`;
+  }
+  const countryName=c.country==='CO'?'Colombia':c.country==='US'?'EE. UU.':(c.country||'');
+  $('clientDetailBody').innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+      ${cavatar(c.name,52,c.logo)}
+      <div><div class="cell-main" style="font-size:17px">${c.name}</div>
+      <div class="cell-sub">${c.city||''}${c.city&&countryName?' · ':''}${countryName}</div></div>
+      <div style="margin-left:auto;display:flex;gap:8px">${statusBadge(c.status)}${planBadge(c.plan)}</div>
+    </div>
+    <div class="row2">
+      <div><div class="flabel">Teléfono</div><div class="mono">${c.phone||'—'}</div></div>
+      <div><div class="flabel">Correo</div><div class="mono" style="word-break:break-all">${c.email||'—'}</div></div>
+    </div>
+    <div class="row2">
+      <div><div class="flabel">Tipo de negocio</div><div>${c.bizType||'—'}</div></div>
+      <div><div class="flabel">Voz del asistente</div><div>${c.voice||'—'}</div></div>
+    </div>
+    <div class="row2">
+      <div><div class="flabel">Mensualidad</div><div><b class="mono">$${c.monthly||0}</b>/mes</div></div>
+      <div><div class="flabel">Modelo de cobro</div><div style="font-size:12.5px">${c.billingModel==='maintenance'?'Mantenimiento · el cliente pone sus cuentas':'Completo · Voxia maneja todo'}</div></div>
+    </div>
+    <div class="flabel" style="margin:12px 0 6px">Conexiones</div>
+    <div class="card" style="margin:0 0 8px;padding:12px 14px;font-size:13px">${crm}</div>
+    <div class="flabel" style="margin:8px 0 6px">WhatsApp</div>
+    <div class="card" style="margin:0 0 8px;padding:12px 14px;font-size:13px">${waHtml}</div>
+    <div class="flabel" style="margin:8px 0 6px">Consumo</div>
+    <div class="card" style="margin:0;padding:12px 14px;display:flex;gap:28px;flex-wrap:wrap">
+      <div><div class="flabel">Llamadas · 30 días</div><b class="mono" style="font-size:18px">${cm}</b></div>
+      <div><div class="flabel">Cliente desde</div><div>${c.since||'—'}</div></div>
+    </div>
+    ${c.elevenlabsAgentId?`<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="closeModal('clientDetailModal');probarAgente('${c.elevenlabsAgentId}')">🎧 Escuchar su asistente</button></div>`:''}`;
+  $('cdEditBtn').onclick=()=>{closeModal('clientDetailModal');openClientModal(c.id);};
+  $('clientDetailModal').classList.add('open');
+}
 function openClientModal(id){
   const c=id?clients.find(x=>x.id==id):{id:'',name:'',country:'US',city:'',phone:'',plan:'Pro',monthly:249,installFee:550,billingModel:'full',status:'active',voice:'Luisa · ES amable'};
   if(id&&!c){toast('Cliente no encontrado: '+id,'warn');return;}
