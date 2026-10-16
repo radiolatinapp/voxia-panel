@@ -2442,50 +2442,62 @@ async function renderAssistants(){
     }
   }catch(e){ console.warn('Error cargando agente del cliente:', e.message); }
   
-  // Agregar agentes al selector
+  // Agregar agentes al selector:
+  // - Cliente (tiene clientId): SOLO su propio agente, nada más.
+  // - Staff/admin: TODOS los activos (en vivo de ElevenLabs + clientes + plantillas biz_agents).
   try{
+    const isClient = !!(window.VoxiaDB && VoxiaDB.clientId);
+    const isStaff = !isClient && me && (me.role==='admin'||me.role==='superadmin');
     const agentsToAdd = [];
-    // 1. Agente del cliente actual (SOLO su agente, nada más)
-    if(clientAgentId){
-      agentsToAdd.push({id: clientAgentId, name: '⭐ ' + clientAgentName, select: true});
+    const seen = {};
+    const pushAgent=(id,name,select)=>{
+      if(!id||String(id).indexOf('agent_')!==0||seen[id])return;
+      seen[id]=1; agentsToAdd.push({id:id,name:name,select:!!select});
+    };
+    // 1. Agente del cliente actual
+    if(clientAgentId){ pushAgent(clientAgentId,'⭐ '+clientAgentName,true); }
+    // 2. Solo staff: todos los demás
+    if(isStaff){
+      // 2a. Agentes en vivo de la cuenta ElevenLabs
+      try{ (typeof live!=='undefined'&&live.agents||[]).forEach(a=>{ if(a.agent_id) pushAgent(a.agent_id,'🎙️ '+(a.name||'Agente')); }); }catch(e){}
+      // 2b. Agentes asignados a clientes
+      try{
+        if(typeof clients!=='undefined'&&clients.length){
+          clients.forEach(c=>{ if(c.elevenlabsAgentId) pushAgent(c.elevenlabsAgentId,'🏪 '+c.name); });
+        }
+      }catch(e){}
+      // 2c. Plantillas por tipo de negocio (biz_agents)
+      try{
+        if(VoxiaDB&&VoxiaDB.db){
+          const snap=await VoxiaDB.db.collection('biz_agents').get();
+          const tipoNames={dental:'🦷 Dental',taller:'🔧 Taller',belleza:'💅 Belleza',hotel:'🏨 Hotel',abogado:'⚖️ Abogado',veterinaria:'🐾 Veterinaria',inmobiliaria:'🏠 Inmobiliaria'};
+          snap.forEach(doc=>{
+            const d=doc.data()||{};
+            const aid=d.agentId||d.agent_id||d.id;
+            pushAgent(aid,'📋 '+(tipoNames[doc.id]||doc.id)+' (plantilla)');
+          });
+        }
+      }catch(e){ console.warn('biz_agents:',e.message); }
     }
-    // 2. Para admin: agregar agentes de TODOS los clientes
-    try{
-      const isAdmin = me && (me.role==='admin'||me.role==='superadmin');
-      if(isAdmin && typeof clients !== 'undefined' && clients.length){
-        clients.forEach(c=>{
-          if(c.elevenlabsAgentId && c.id !== (currentClient&&currentClient.id)){
-            agentsToAdd.push({id: c.elevenlabsAgentId, name: '⭐ ' + c.name, select: false});
-          }
-        });
-      }
-    }catch(e){}
-    // Aplicar al selector
+    // Aplicar al selector (reconstruir para no dejar opciones viejas)
+    const sels=document.querySelectorAll('select[onchange^="switchDemoAgent"]');
     if(agentsToAdd.length){
-      document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+      sels.forEach(sel=>{
+        sel.innerHTML='';
         agentsToAdd.forEach(a=>{
-          let exists = false;
-          [...sel.options].forEach(opt=>{ if(opt.value===a.id) exists=true; });
-          if(!exists){
-            const opt = document.createElement('option');
-            opt.value = a.id;
-            opt.textContent = a.name;
-            sel.insertBefore(opt, sel.firstChild);
-          }
+          const opt=document.createElement('option');
+          opt.value=a.id; opt.textContent=a.name;
+          sel.appendChild(opt);
         });
-        // Seleccionar el del cliente actual si aplica
-        const toSelect = agentsToAdd.find(a=>a.select);
-        if(toSelect) sel.value = toSelect.id;
       });
-      const toSelect = agentsToAdd.find(a=>a.select);
-      if(toSelect){
-        switchDemoAgent(toSelect.id);
-      } else {
-        // Sin agente configurado: mostrar mensaje claro
-        document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
-          sel.innerHTML = '<option value="">⚠️ Tu asistente no está configurado. Contacta al administrador.</option>';
-        });
-      }
+      const toSelect=agentsToAdd.find(a=>a.select)||agentsToAdd[0];
+      sels.forEach(sel=>{ sel.value=toSelect.id; });
+      switchDemoAgent(toSelect.id);
+    }else{
+      const msg=isClient
+        ?'⚠️ Tu asistente no está configurado. Contacta al administrador.'
+        :'⚠️ No hay asistentes. Conecta ElevenLabs en Configuración.';
+      sels.forEach(sel=>{ sel.innerHTML='<option value="">'+msg+'</option>'; });
     }
   }catch(e){ console.warn('Selector agente:', e.message); }
   loadDemoWidget();
@@ -3619,6 +3631,7 @@ async function restoreConns(){
   }
   updateConnUI();
   if(okEl || okTw) toast('✓ Datos en vivo sincronizados');
+  if(okEl){ try{ await renderAssistants(); }catch(e){} }
 }
 /* ---------- Helpers de presentación para datos reales ---------- */
 function fmtTwDate(d){
