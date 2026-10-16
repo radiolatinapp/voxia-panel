@@ -3082,17 +3082,17 @@ function hashPw(s){let h=5381;for(let i=0;i<s.length;i++){h=(((h<<5)+h)+s.charCo
 /* roles y permisos */
 const ROLES={
   superadmin:{label:'Superadmin',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   owner:{label:'Dueño',edit:false,manageUsers:false,
     views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','asistentes','voces','reportes','actividad','perfil']},
   admin:{label:'Administrador',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   gerente:{label:'Gerente',edit:true,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
   agente:{label:'Agente',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','perfil']},
   viewer:{label:'Visualizador',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','perfil']},
 };
 const roleLabel=r=>(ROLES[r]||{}).label||r;
 const roleBadge=r=>r==='admin'?'<span class="badge b-adm">👑 Administrador</span>':r==='gerente'?'<span class="badge b-ger">🧭 Gerente</span>':'<span class="badge b-agt">🎧 Agente</span>';
