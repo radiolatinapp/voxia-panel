@@ -818,6 +818,30 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     </div>
   </section>
 
+  <!-- ============ VIEW: DETALLE CLIENTE ============ -->
+  <section class="view" id="view-clientdetail">
+    <div class="page-head">
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="btn btn-ghost btn-sm" onclick="go('clientes')">← Clientes</button>
+        <div id="cdHead"></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary btn-sm" id="cdEditBtn2">Editar</button>
+      </div>
+    </div>
+    <div class="stats" id="cdStats" style="margin-bottom:18px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+      <div class="card"><h4 style="margin:0 0 10px">🎙️ Asistente</h4><div id="cdAgent"></div></div>
+      <div class="card"><h4 style="margin:0 0 10px">🔌 Conexiones</h4><div id="cdConn"></div></div>
+    </div>
+    <div class="card" style="margin-bottom:18px"><h4 style="margin:0 0 10px">📞 Llamadas recientes</h4>
+      <div class="tbl-wrap"><table><thead><tr><th></th><th>Fecha</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th></th></tr></thead>
+      <tbody id="cdCalls"></tbody></table></div>
+    </div>
+    <div class="card" style="margin-bottom:18px"><h4 style="margin:0 0 10px">🛒 Pedidos</h4><div id="cdOrders"></div></div>
+    <div class="card"><h4 style="margin:0 0 10px">💳 Plan y facturación</h4><div id="cdPlan"></div></div>
+  </section>
+
   <!-- ============ VIEW: ASISTENTES ============ -->
   <section class="view" id="view-asistentes">
     <div class="page-head">
@@ -2133,7 +2157,7 @@ function renderClients(){
   $('clientsBody').innerHTML=list.map(c=>{
     const cm=calls.filter(x=>x.c===c.id).length;
     return `<tr>
-    <td style="cursor:pointer" onclick="openClientDetail('${c.id}')" title="Ver detalle del cliente"><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
+    <td style="cursor:pointer" onclick="openClientPage('${c.id}')" title="Ver página del cliente"><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
     <td class="mono">${c.phone}</td><td>${planBadge(c.plan)}</td>
     <td><b class="mono">$${c.monthly}</b><span style="color:var(--faint);font-size:11.5px">/mes</span></td>
     <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td><td>${connBadges(c)}</td>
@@ -2251,6 +2275,65 @@ function openClientDetail(id){
     ${c.elevenlabsAgentId?`<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="closeModal('clientDetailModal');probarAgente('${c.elevenlabsAgentId}')">🎧 Escuchar su asistente</button></div>`:''}`;
   $('cdEditBtn').onclick=()=>{closeModal('clientDetailModal');openClientModal(c.id);};
   $('clientDetailModal').classList.add('open');
+}
+function openClientPage(id){
+  const c=clients.find(x=>x.id==id);
+  if(!c){toast('Cliente no encontrado: '+id,'warn');return;}
+  renderClientDetail(c);
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+  $('view-clientdetail').classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+async function renderClientDetail(c){
+  const w=waExtraCost(c);
+  const cl=(typeof calls!=='undefined'?calls:[]).filter(x=>x.c===c.id);
+  const mins=cl.reduce((a,x)=>a+(x.min||0),0);
+  let orders=[];
+  try{
+    const snap=await VoxiaDB.db.collection('clients').doc(c.id).collection('orders').orderBy('createdAt','desc').limit(50).get();
+    snap.forEach(d=>orders.push({id:d.id,...d.data()}));
+  }catch(e){}
+  $('cdHead').innerHTML=`<div style="display:flex;align-items:center;gap:12px">${cavatar(c.name,46,c.logo)}
+    <div><h2 style="margin:0">${c.name}</h2><p style="margin:2px 0 0;color:var(--muted);font-size:13px">${c.city||''} · ${c.phone||''}</p></div>
+    <div style="display:flex;gap:8px;margin-left:8px">${statusBadge(c.status)}${planBadge(c.plan)}</div></div>`;
+  $('cdEditBtn2').onclick=()=>openClientModal(c.id);
+  const waD=w?('<b class="mono">'+w.count.toLocaleString()+'</b> / 1.000'+(w.extra>0?' · +'+waCostText(w):' · gratis')):'Sin datos';
+  const statCard=(l,v,d,ic,bg)=>`<div class="stat"><div class="top"><div class="label">${l}</div><div class="sic" style="background:${bg}">${ic}</div></div><div class="num">${v}</div><div class="delta">${d||''}</div></div>`;
+  $('cdStats').innerHTML=
+    statCard('Llamadas · 30 días',cl.length,'','📞','rgba(255,158,46,.12)')+
+    statCard('Minutos de voz',Math.round(mins),'','🎙️','rgba(124,108,255,.12)')+
+    statCard('WhatsApp · mes',w?w.count.toLocaleString():'0',waD,'💬','rgba(37,211,102,.12)')+
+    statCard('Pedidos',orders.length,'','🛒','rgba(56,214,245,.1)');
+  $('cdAgent').innerHTML=c.elevenlabsAgentId
+    ?`<div class="cell-main">${c.voice||'Asistente de voz'}</div>
+      <div class="cell-sub mono" style="word-break:break-all">${c.elevenlabsAgentId}</div>
+      <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="probarAgente('${c.elevenlabsAgentId}')">🎧 Escuchar</button></div>`
+    :'<span style="color:var(--faint)">Sin asistente vinculado</span>';
+  const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">CRM no conectado</span>';
+  let waH='<span style="color:var(--faint)">Sin datos de WhatsApp</span>';
+  if(w){const bar=Math.min(100,w.count/1000*100);
+    waH=`<div><b class="mono">${w.count.toLocaleString()}</b> / 1.000 mensajes</div>
+    <div style="height:8px;background:var(--line);border-radius:99px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${bar}%;background:linear-gradient(90deg,#25d366,#7c6cff);border-radius:99px"></div></div>
+    <div style="font-size:12.5px;color:var(--muted)">Extra: <b>${waCostText(w)}</b>${w.extra>0?'':' (dentro de los 1.000 gratis)'}</div>`;}
+  $('cdConn').innerHTML=`<div style="font-size:13px;line-height:2">${crm}<br>${waH}</div>`;
+  $('cdCalls').innerHTML=cl.slice(0,10).map(x=>`
+    <tr><td>${cavatar(c.name,30)}</td><td class="mono">${x.d}</td>
+    <td class="mono">${x.min.toFixed(1)} min</td><td>${x.lang==='ES'?'🇪🇸 Español':'🇺🇸 English'}</td>
+    <td>${x.res==='ok'?'<span class="badge b-ok">Pedido tomado</span>':'<span class="badge b-miss">Sin pedido</span>'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="toggleRow(${x.id},this)">▶ Escuchar</button></td></tr>`).join('')
+    ||'<tr><td colspan="6"><div class="empty"><h4>Sin llamadas</h4></div></td></tr>';
+  $('cdOrders').innerHTML=orders.slice(0,10).map(o=>{
+    const f=o.createdAt&&o.createdAt.seconds?new Date(o.createdAt.seconds*1000).toLocaleDateString():'';
+    return `<div class="set-row"><div><div class="st">Pedido <span class="mono">#${String(o.id).slice(0,6)}</span></div>
+    <div class="sd">${o.status||'pendiente'}${f?' · '+f:''}</div></div>
+    <div><b class="mono">$${(o.total||0).toLocaleString()}</b></div></div>`;}).join('')
+    ||'<div class="empty"><h4>Sin pedidos</h4></div>';
+  $('cdPlan').innerHTML=`<div class="row2">
+    <div><div class="flabel">Plan</div><div>${planBadge(c.plan)}</div></div>
+    <div><div class="flabel">Mensualidad</div><div><b class="mono">$${c.monthly||0}</b>/mes</div></div></div>
+    <div class="row2"><div><div class="flabel">Modelo de cobro</div><div style="font-size:13px">${c.billingModel==='maintenance'?'Mantenimiento · el cliente pone sus cuentas':'Completo · Voxia maneja todo'}</div></div>
+    <div><div class="flabel">Cliente desde</div><div>${c.since||'—'}</div></div></div>`;
 }
 function openClientModal(id){
   const c=id?clients.find(x=>x.id==id):{id:'',name:'',country:'US',city:'',phone:'',plan:'Pro',monthly:249,installFee:550,billingModel:'full',status:'active',voice:'Luisa · ES amable'};
