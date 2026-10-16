@@ -1378,7 +1378,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;">
       <div class="msub">🎙️ Asistente de voz <span style="color:var(--faint)">(se crea solo al guardar)</span></div>
       <label class="flabel">Saludo inicial</label>
-      <textarea id="fGreeting" rows="2" style="width:100%" placeholder="Se llena solo según el tipo de negocio…"></textarea>
+      <textarea id="fGreeting" rows="2" style="width:100%" placeholder="Se llena solo según el tipo de negocio…" oninput="this.dataset.auto='0'"></textarea>
       <div class="note" id="fAcctNote" style="margin-top:8px"></div>
     </div>
     <div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;">
@@ -2280,16 +2280,22 @@ function toggleClientKeys(){
   $('clientKeysSection').style.display = model==='maintenance' ? '' : 'none';
   syncFAcctNote();
 }
-/* Saludo automático según tipo de negocio (solo si está vacío o es nuevo cliente) */
+/* Saludo automático según tipo de negocio.
+   El campo lleva data-auto="1" mientras es el texto sugerido; si usted lo edita
+   a mano pasa a data-auto="0" y ya no se toca solo. */
 function syncFGreeting(force){
-  const biz=$('fBizType')?$('fBizType').value:'restaurante';
+  const bizSel=$('fBizType');
+  const biz=bizSel?bizSel.value:'restaurante';
   const b=BIZ_AGENTS[biz];
-  const name=($('fName')?$('fName').value.trim():'')||'su negocio';
   const greetEl=$('fGreeting');
-  if(!greetEl) return;
-  if(force||!greetEl.value.trim()){
-    greetEl.value=b?b.saludo.replace(/\{negocio\}/g,name):'';
+  if(!greetEl||!b) return;
+  const isAuto=greetEl.dataset.auto!=="0";
+  if(force||isAuto){
+    const name=($('fName')?$('fName').value.trim():'')||'su negocio';
+    greetEl.value=b.saludo.replace(/\{negocio\}/g,name);
+    greetEl.dataset.auto="1";
   }
+  if(bizSel&&bizSel.dataset) bizSel.dataset.prev=biz;
 }
 /* Aviso de en qué cuenta de ElevenLabs se creará el asistente */
 function syncFAcctNote(){
@@ -2549,7 +2555,7 @@ function openClientModal(id){
     // Tipo de negocio
     if($('fBizType')){ $('fBizType').value=c.bizType||'restaurante'; $('fBizType').onchange=()=>syncFGreeting(); }
     // Saludo y menú (nuevo: formulario unificado)
-    if($('fGreeting')) $('fGreeting').value=c.greeting||'';
+    if($('fGreeting')){ $('fGreeting').value=c.greeting||''; $('fGreeting').dataset.auto=c.greeting?"0":"1"; }
     if($('fMenuText')) $('fMenuText').value=c.menuText||'';
     if($('fMenuPhotos')) $('fMenuPhotos').value='';
     if($('fMenuPreview')) $('fMenuPreview').innerHTML='';
