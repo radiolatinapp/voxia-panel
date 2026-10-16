@@ -1385,6 +1385,22 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       <div class="msub">🔗 Conexiones del cliente <span style="color:var(--faint)">(las conecta él desde su portal)</span></div>
       <div style="font-size:13px;line-height:1.9" id="fConnInfo"></div>
     </div>
+    <div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;">
+      <div class="msub">🧾 Programa de ventas / POS <span style="color:var(--faint)">(opcional · para sincronizar inventario)</span></div>
+      <div class="row2">
+        <div><label class="flabel">¿Tiene programa de ventas?</label><select id="fPosProvider" onchange="togglePosKey()">
+          <option value="">No / solo Excel</option>
+          <option value="alegra">Alegra</option>
+          <option value="siigo">Siigo</option>
+          <option value="square">Square</option>
+          <option value="shopify">Shopify POS</option>
+          <option value="clover">Clover</option>
+          <option value="otro">Otro (con API)</option>
+        </select></div>
+        <div id="posKeyWrap" style="display:none"><label class="flabel">API Key del programa</label><input type="password" id="fPosApiKey" placeholder="Pégala aquí" autocomplete="off"></div>
+      </div>
+      <div class="note" style="margin-top:6px">🔒 Solo guardamos referencia (últimos 4). La clave real viaja por canal seguro al servidor. Sin API, el cliente sube su Excel en Inventario.</div>
+    </div>
     <div class="row2">
       <div><label class="flabel">Tipo de negocio</label><select id="fBizType">
         <option value="restaurante">🍽️ Restaurante</option>
@@ -2572,6 +2588,11 @@ function toggleClientKeys(){
   $('clientKeysSection').style.display = model==='maintenance' ? '' : 'none';
   syncFAcctNote();
 }
+/* Muestra el campo de API key solo si eligió un programa de ventas */
+function togglePosKey(){
+  const v=$('fPosProvider')?$('fPosProvider').value:'';
+  if($('posKeyWrap')) $('posKeyWrap').style.display=v?'':'none';
+}
 /* Saludo automático según tipo de negocio.
    El campo lleva data-auto="1" mientras es el texto sugerido; si usted lo edita
    a mano pasa a data-auto="0" y ya no se toca solo. */
@@ -2698,6 +2719,14 @@ function updateMonthly(){
 function openClientDetail(id){
   const c=clients.find(x=>x.id==id);
   if(!c){toast('Cliente no encontrado: '+id,'warn');return;}
+  // Cargar programa de ventas si no está en memoria
+  (async()=>{ try{
+    if(!c.posProvider&&window.VoxiaDB&&VoxiaDB.db){
+      const ps=await VoxiaDB.db.collection('clients').doc(c.id).collection('config').doc('pos').get();
+      if(ps.exists){const pd=ps.data()||{};c.posProvider=pd.provider||'';c.posApiKeyHint=pd.apiKeyHint||'';
+        if(typeof openClientDetail==='function'&&curView()==='clientdetail')openClientDetail(id);}
+    }
+  }catch(e){} })();
   const w=waExtraCost(c);
   const cm=(typeof calls!=='undefined'?calls:[]).filter(x=>x.c===c.id).length;
   const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">CRM no conectado</span>';
@@ -2776,12 +2805,15 @@ async function renderClientDetail(c){
       <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="probarAgente('${c.elevenlabsAgentId}')">🎧 Escuchar</button> <button class="btn btn-ghost btn-sm" style="color:#ff6b6b" onclick="desenlazarAgente('${c.id}')">🔗 Desenlazar</button></div>`
     :'<span style="color:var(--faint)">Sin asistente vinculado</span>';
   const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">CRM no conectado</span>';
+  const posNames={alegra:'Alegra',siigo:'Siigo',square:'Square',shopify:'Shopify POS',clover:'Clover',otro:'Otro'};
+  const posLine=()=>{const pn=posNames[c.posProvider]||c.posProvider;
+    return c.posProvider?`🧾 ${pn} ${c.posApiKeyHint?`<span class="mono">${c.posApiKeyHint}</span>`:'<span style="color:var(--faint)">(sin API key)</span>'}`:'<span style="color:var(--faint)">Sin programa de ventas</span>';};
   let waH='<span style="color:var(--faint)">Sin datos de WhatsApp</span>';
   if(w){const bar=Math.min(100,w.count/1000*100);
     waH=`<div><b class="mono">${w.count.toLocaleString()}</b> / 1.000 mensajes</div>
     <div style="height:8px;background:var(--line);border-radius:99px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${bar}%;background:linear-gradient(90deg,#25d366,#7c6cff);border-radius:99px"></div></div>
     <div style="font-size:12.5px;color:var(--muted)">Extra: <b>${waCostText(w)}</b>${w.extra>0?'':' (dentro de los 1.000 gratis)'}</div>`;}
-  $('cdConn').innerHTML=`<div style="font-size:13px;line-height:2">${crm}<br>${waH}</div>`;
+  $('cdConn').innerHTML=`<div style="font-size:13px;line-height:2">${crm}<br>${posLine()}<br>${waH}</div>`;
   $('cdCalls').innerHTML=cl.slice(0,10).map(x=>`
     <tr><td>${cavatar(c.name,30)}</td><td class="mono">${x.d}</td>
     <td class="mono">${x.min.toFixed(1)} min</td><td>${x.lang==='ES'?'🇪🇸 Español':'🇺🇸 English'}</td>
@@ -2835,6 +2867,22 @@ function openClientModal(id){
     })();
     if($('fBillingModel')) $('fBillingModel').value=c.billingModel||'full';
     toggleClientKeys();
+    // Programa de ventas / POS (se carga la referencia guardada)
+    (async()=>{
+      try{
+        if($('fPosProvider')){ $('fPosProvider').value=''; }
+        if($('fPosApiKey')){ $('fPosApiKey').value=''; }
+        if(id&&window.VoxiaDB&&VoxiaDB.db){
+          const ps=await VoxiaDB.db.collection('clients').doc(id).collection('config').doc('pos').get();
+          if(ps.exists){
+            const pd=ps.data()||{};
+            if($('fPosProvider')) $('fPosProvider').value=pd.provider||'';
+            c.posProvider=pd.provider||''; c.posApiKeyHint=pd.apiKeyHint||'';
+          }
+        }
+        togglePosKey();
+      }catch(e){}
+    })();
     updatePlanOptions();
     let planVal = c.plan||'basico';
     if(typeof planVal==='string'){
@@ -2912,6 +2960,8 @@ async function saveClient(){
         clientElevenKey:$('fClientElevenKey')?$('fClientElevenKey').value:'',
         clientTwilioSid:$('fClientTwilioSid')?$('fClientTwilioSid').value:'',
         clientTwilioToken:$('fClientTwilioToken')?$('fClientTwilioToken').value:'',
+        posProvider:$('fPosProvider')?$('fPosProvider').value:'',
+        posApiKey:$('fPosApiKey')?$('fPosApiKey').value:'',
         bizType:$('fBizType')?$('fBizType').value:'restaurante',
         tempPassword:tempPw,
       });
