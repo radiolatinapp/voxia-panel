@@ -2375,7 +2375,7 @@ async function renderClientDetail(c){
   $('cdAgent').innerHTML=c.elevenlabsAgentId
     ?`<div class="cell-main">${c.voice||'Asistente de voz'}</div>
       <div class="cell-sub mono" style="word-break:break-all">${c.elevenlabsAgentId}</div>
-      <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="probarAgente('${c.elevenlabsAgentId}')">🎧 Escuchar</button></div>`
+      <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="probarAgente('${c.elevenlabsAgentId}')">🎧 Escuchar</button> <button class="btn btn-ghost btn-sm" style="color:#ff6b6b" onclick="desenlazarAgente('${c.id}')">🔗 Desenlazar</button></div>`
     :'<span style="color:var(--faint)">Sin asistente vinculado</span>';
   const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">CRM no conectado</span>';
   let waH='<span style="color:var(--faint)">Sin datos de WhatsApp</span>';
@@ -2635,6 +2635,20 @@ function switchDemoAgent(agentId){
   });
 }
 /* Probar un agente desde la lista: lo carga en el widget demo y sube */
+/* Desenlaza el asistente de voz de un cliente (ej. si el agente fue eliminado en ElevenLabs).
+   Solo quita el enlace en Firestore; el agente NO se elimina de ElevenLabs. */
+async function desenlazarAgente(clientId){
+  const c=clients.find(x=>x.id==clientId);
+  if(!c||!c.elevenlabsAgentId) return;
+  if(!confirm(`¿Desenlazar el asistente de ${c.name}?\nEl agente NO se elimina de ElevenLabs, solo se quita el enlace.`)) return;
+  try{
+    await db.collection('clients').doc(clientId).update({elevenlabsAgentId:firebase.firestore.FieldValue.delete()});
+    c.elevenlabsAgentId=null;
+    toast('🔗 Asistente desenlazado de '+c.name);
+    if(typeof openClientDetail==='function') openClientDetail(clientId);
+    if(typeof renderAssistants==='function') renderAssistants();
+  }catch(e){ toast('⚠️ No se pudo desenlazar: '+(e.message||e)); }
+}
 function probarAgente(agentId){
   switchDemoAgent(agentId);
   const demo=document.getElementById('demoWidget');
