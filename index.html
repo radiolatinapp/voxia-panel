@@ -2069,13 +2069,15 @@ async function syncInventoryToAgent(){
   }catch(e){ toast('⚠️ '+e.message,'warn'); }
 }
 
-/* Cuántas unidades de un producto menciona el texto de un pedido.
+/* Dónde y cuántas unidades de un producto menciona el texto de un pedido.
  * Robusto: límites de palabra (evita que "panelas" descuente "Pan"),
- * plural s/es ("martillos" vale para "martillo" y viceversa) y nombre
- * base sin variantes ("Martillo 16oz" responde a "martillos"). */
-function invMatchQty(productName, txt){
+ * plural s/es en ambas direcciones ("martillos"<->"martillo") y nombre
+ * base sin variantes ("Martillo 16oz" responde a "martillos").
+ * Devuelve {qty,start,end} o null. El span sirve para desambiguar:
+ * si "Pan" y "Pan integral" matchean, gana el más largo. */
+function invMatch(productName, txt){
   const nm=(productName||'').toLowerCase().trim();
-  if(nm.length<3) return 0;
+  if(nm.length<3) return null;
   const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const B='[^a-záéíóúñü0-9_]'; // frontera de palabra (el \b falla con tildes)
   const forms=(()=>{
@@ -2087,23 +2089,32 @@ function invMatchQty(productName, txt){
     if(last.endsWith('es') && last.length>5) out.push(toks.slice(0,-1).concat(last.slice(0,-2)).join(' '));
     return [...new Set(out)].filter(f=>f.length>=3);
   })();
+  const wordPat=w=>{
+    const e=esc(w);
+    if(/s$/.test(w)){ // palabra en plural: acepta también el singular ("alicates"->"alicate")
+      const alts=[e];
+      if(w.length>4) alts.push(esc(w.slice(0,-1)));
+      if(/es$/.test(w)&&w.length>5) alts.push(esc(w.slice(0,-2)));
+      return '(?:'+alts.join('|')+')';
+    }
+    const alts=[e+'(?:s|es)?'];
+    if(/z$/.test(w)&&w.length>3) alts.push(esc(w.slice(0,-1)+'ces')); // "lápiz"->"lápices"
+    return '(?:'+alts.join('|')+')';
+  };
   for(const cand of forms){
-    const wordPat=w=>{
-      const e=esc(w);
-      if(/s$/.test(w)){ // palabra en plural: acepta también el singular ("alicates"->"alicate")
-        const alts=[e];
-        if(w.length>4) alts.push(esc(w.slice(0,-1)));
-        if(/es$/.test(w)&&w.length>5) alts.push(esc(w.slice(0,-2)));
-        return '(?:'+alts.join('|')+')';
-      }
-      return e+'(?:s|es)?';
-    };
     const pat=cand.split(/\s+/).map(wordPat).join('\\s+');
-    const mq=txt.match(new RegExp('(\\d+)\\s*x?\\s*'+pat+'(?='+B+'|$)'));
-    if(mq) return parseInt(mq[1],10);
-    if(new RegExp('(^|'+B+')'+pat+'(?='+B+'|$)').test(txt)) return 1;
+    const mq=txt.match(new RegExp('(\\d+)\\s*x?\\s*('+pat+')(?='+B+'|$)'));
+    if(mq){
+      const start=mq.index+mq[0].lastIndexOf(mq[2]);
+      return {qty:parseInt(mq[1],10), start, end:start+mq[2].length};
+    }
+    const m1=txt.match(new RegExp('(^|'+B+')('+pat+')(?='+B+'|$)'));
+    if(m1){
+      const start=m1.index+m1[0].lastIndexOf(m1[2]);
+      return {qty:1, start, end:start+m1[2].length};
+    }
   }
-  return 0;
+  return null;
 }
 
 /* Descuenta stock cuando un pedido menciona productos del inventario.
@@ -2117,9 +2128,20 @@ async function tryDecrementStock(detail, clientId){
     if(!prods.length) return;
     const txt=' '+detail.toLowerCase()+' ';
     const batch=dbc.batch(); let n=0; const names=[];
+    const hits=[];
     for(const p of prods){
-      const qty=invMatchQty(p.name, txt);
-      if(qty>0){
+      const h=invMatch(p.name, txt);
+      if(h&&h.qty>0) hits.push({p, qty:h.qty, start:h.start, end:h.end});
+    }
+    // Si dos productos matchean el mismo tramo ("Pan" vs "Pan integral"),
+    // gana la coincidencia más larga; las solapadas se descartan.
+    hits.sort((a,b)=>(b.end-b.start)-(a.end-a.start));
+    const used=[];
+    for(const h of hits){
+      if(used.some(u=>h.start<u.end&&u.start<h.end)) continue;
+      used.push(h);
+      const p=h.p, qty=h.qty;
+      {
         if((p.stock||0)<=0) continue;
         const ns=Math.max(0,(p.stock||0)-qty);
         batch.update(dbc.collection('clients').doc(clientId).collection('inventory').doc(p.id),
