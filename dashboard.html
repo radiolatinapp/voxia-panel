@@ -1160,6 +1160,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
           <div class="set-row"><div><div class="st">Mensualidad</div><div class="sd" id="mpMonthly">–</div></div></div>
           <div class="set-row"><div><div class="st">Instalación</div><div class="sd" id="mpInstall">–</div></div></div>
           <div class="set-row"><div><div class="st">País</div><div class="sd" id="mpCountry">–</div></div></div>
+          <div class="set-row"><div><div class="st">Motor de voz</div><div class="sd" id="mpVoiceEngine">–</div></div></div>
           <div class="set-row"><div><div class="st">Estado</div><div class="sd" id="mpStatus">–</div></div></div>
           <div class="set-row"><div><div class="st">💬 WhatsApp</div><div class="sd" id="mpWhatsapp">–</div></div><button class="btn btn-ghost btn-sm" onclick="toggleWaDetail()">Ver</button></div>
           <div id="waDetail" style="display:none;margin:2px 0 12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)">
@@ -1189,6 +1190,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <label class="flabel">Correo del dueño * (se crea su usuario automáticamente)</label><input type="email" id="fEmail" placeholder="dueno@restaurante.com">
     <div class="row2">
       <div><label class="flabel">País</label><select id="fCountry" onchange="updatePlanOptions();updateDialCode()" style="font-size:15px"><option value="US">[US] Estados Unidos</option><option value="CO">[CO] Colombia</option><option value="OT">[--] 🌎 Otro</option></select></div>
+      <div><label class="flabel">Motor de voz</label><div id="fVoiceEngine" style="font-size:14px;padding:9px 0"></div></div>
       <div><label class="flabel">Ciudad</label><input type="text" id="fCity" placeholder="Charlotte, NC / Bogotá"></div>
     </div>
     <div class="row2">
@@ -1389,6 +1391,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
 </div>
 
 <script src="firebase-integration.js?v=20261011z2"></script>
+<script src="country-profiles.js?v=20261016c1"></script>
 <script>
 /* ==================== DATOS ==================== */
 const RATE_TWILIO = 0.0085, RATE_ELEVEN = 0.08, RATE_NUM = 1.15;
@@ -2074,11 +2077,18 @@ function renderClients(){
 }
 /* Actualiza la mensualidad según el plan elegido */
 function updateDialCode(){
-  const country=$('fCountry')?$('fCountry').value:'US';
+  const p=countryProfile($('fCountry')?$('fCountry').value:'US');
   const dial=$('fDialCode');
   if(!dial) return;
-  if(country==='CO') dial.value='+57';
-  else if(country==='US') dial.value='+1';
+  dial.value=p.dial;
+  updateVoiceEngineNote();
+}
+/* Muestra el motor de voz DERIVADO del país (solo lectura: el país decide) */
+function updateVoiceEngineNote(){
+  const el=$('fVoiceEngine');
+  if(!el) return;
+  const p=countryProfile($('fCountry')?$('fCountry').value:'US');
+  el.innerHTML='🔊 Voz: <b>'+p.voiceLabel+'</b> <span style="color:var(--faint)">(automático por país)</span>';
 }
 
 function getFullPhone(){
@@ -2097,43 +2107,35 @@ function toggleClientKeys(){
 }
 
 function updatePlanOptions(){
-  const country=$('fCountry')?$('fCountry').value:'US';
+  const p=countryProfile($('fCountry')?$('fCountry').value:'US');
   const planSel=$('fPlan');
   const current=planSel.value;
   planSel.innerHTML='';
-  if(country==='CO'){
-    planSel.innerHTML='<option>Básico</option><option>Pro</option>';
-  }else{
-    planSel.innerHTML='<option>Básico</option><option>Pro</option><option>Premium</option>';
-  }
+  planSel.innerHTML=p.plans.map(x=>'<option>'+x+'</option>').join('');
   for(let o of planSel.options){ if(o.value===current||o.text===current){planSel.value=o.value||o.text;break;} }
   updateMonthly();
 }
 
 function updateMonthly(){
-  const country=$('fCountry')?$('fCountry').value:'US';
+  const p=countryProfile($('fCountry')?$('fCountry').value:'US');
   const model=$('fBillingModel')?$('fBillingModel').value:'full';
   const plan=$('fPlan').value;
-  // Instalación por plan (US) - desde $700 en adelante
-  const installUS={'Básico':700,'Pro':750,'Premium':800};
-  const installCO={'Básico':1500000,'Pro':1650000};
-  if(country==='CO'){
-    $('fCurrency').textContent='COP';$('fCurrencyInst').textContent='COP';
+  $('fCurrency').textContent=p.curr;$('fCurrencyInst').textContent=p.curr;
+  if(p.code==='CO'){
     // Colombia: solo mantenimiento, cliente pone su infra
-    $('fMonthly').value=100000;
-    $('fInstall').value=installCO[plan]||1500000;
+    $('fMonthly').value=p.monthlyMaint;
+    $('fInstall').value=p.install[plan]||1500000;
     return;
   }
-  // EE.UU.
-  $('fCurrency').textContent='USD';$('fCurrencyInst').textContent='USD';
+  // EE.UU. / Otro
   if(model==='maintenance'){
     // Solo mantenimiento: cliente paga su ElevenLabs + Twilio directo
-    $('fMonthly').value=100;
+    $('fMonthly').value=p.monthlyMaint;
   }else{
     // Voxia Completo: nosotros manejamos todo
-    $('fMonthly').value=400;
+    $('fMonthly').value=p.monthlyFull;
   }
-  $('fInstall').value=installUS[plan]||500;
+  $('fInstall').value=p.install[plan]||500;
 }
 
 function openClientDetail(id){
@@ -2150,6 +2152,7 @@ function openClientDetail(id){
       <div style="font-size:12.5px;color:var(--muted)">Extra: <b>${waCostText(w)}</b>${w.extra>0?'':' <span style="color:var(--faint)">(dentro de los 1.000 gratis)</span>'}</div>`;
   }
   const countryName=c.country==='CO'?'Colombia':c.country==='US'?'EE. UU.':(c.country||'');
+  const vLabel=(typeof voiceLabelFor!=='undefined')?voiceLabelFor(c.country):'—';
   $('clientDetailBody').innerHTML=`
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
       ${cavatar(c.name,52,c.logo)}
@@ -2165,6 +2168,7 @@ function openClientDetail(id){
       <div><div class="flabel">Tipo de negocio</div><div>${c.bizType||'—'}</div></div>
       <div><div class="flabel">Voz del asistente</div><div>${c.voice||'—'}</div></div>
     </div>
+    <div style="margin-top:8px"><div class="flabel">Motor de voz (automático por país)</div><div>🔊 ${vLabel}</div></div>
     <div class="row2">
       <div><div class="flabel">Mensualidad</div><div><b class="mono">$${c.monthly||0}</b>/mes</div></div>
       <div><div class="flabel">Modelo de cobro</div><div style="font-size:12.5px">${c.billingModel==='maintenance'?'Mantenimiento · el cliente pone sus cuentas':'Completo · Voxia maneja todo'}</div></div>
@@ -2346,9 +2350,20 @@ async function saveClient(){
         clientTwilioToken:$('fClientTwilioToken')?$('fClientTwilioToken').value:'',
         bizType:$('fBizType')?$('fBizType').value:'restaurante',
         tempPassword:tempPw,
+        voiceEngine:voiceEngineFor($('fCountry').value),
       });
       toast('🎉 Cliente creado: '+r.email);
       logActivity(me.name,'🎉','creó el negocio "'+name+'" en Firebase');
+      const _vEngine=voiceEngineFor($('fCountry').value);
+      if(_vEngine==='vox-zero'){
+        // Colombia: voz $0 (whisper+Piper) — no se crea agente en ElevenLabs.
+        // El servicio Vox Cero se aprovisiona aparte; el cliente queda pendiente.
+        try{
+          await VoxiaDB.db.collection('clients').doc(r.clientId||r.id).update({voiceStatus:'pending-provision'});
+        }catch(e){}
+        toast('🔊 Cliente Colombia: voz $0 (Vox Cero) — pendiente de aprovisionar el servicio','warn');
+        logActivity(me.name,'🔊','cliente "'+name+'" quedó con Vox Cero ($0) pendiente de aprovisionar');
+      }else{
       // Crear agente ElevenLabs DEDICADO automáticamente para este cliente
       try{
         toast('🤖 Creando asistente IA exclusivo...');
@@ -2368,6 +2383,7 @@ async function saveClient(){
         console.error('Error auto-creando agente:', e);
         toast('⚠️ Cliente creado, asistente pendiente: '+e.message,'warn');
       }
+      } // fin else (elevenlabs)
       // Mostrar clave temporal en modal (no depende del correo que Gmail quema)
       showTempPasswordModal(r.email, tempPw);
     }catch(e){
@@ -2381,7 +2397,7 @@ async function saveClient(){
   const planMap={'Básico':'basico','Pro':'pro','Premium':'premium','basico':'basico','pro':'pro','premium':'premium'};
   const planKey=planMap[$('fPlan').value]||'basico';
   const bizType=$('fBizType')?$('fBizType').value:'restaurante';
-  const d={name,country:$('fCountry').value,city:$('fCity').value,phone:getFullPhone(),plan:planKey,billingModel:$('fBillingModel').value,monthly:parseFloat($('fMonthly').value)||0,installFee:parseFloat($('fInstall').value)||0,status:$('fStatus').value,bizType};
+  const d={name,country:$('fCountry').value,city:$('fCity').value,phone:getFullPhone(),plan:planKey,billingModel:$('fBillingModel').value,monthly:parseFloat($('fMonthly').value)||0,installFee:parseFloat($('fInstall').value)||0,status:$('fStatus').value,bizType,voiceEngine:voiceEngineFor($('fCountry').value)};
   try{
     toast('Guardando en Firebase…');
     await VoxiaDB.updateClient(id,d);
@@ -3214,22 +3230,21 @@ async function loadMyPlan(){
     const isMaint=c.billingModel==='maintenance';
     $('mpModel').textContent=isMaint?'Solo Mantenimiento':'Voxia Completo';
     const country=c.country||'US';
-    const curr=country==='CO'?'COP':'USD';
+    const _pp=countryProfile(country);
+    const curr=_pp.curr;
     // Calcular valores si no están guardados (clientes creados antes)
     let monthly=c.monthly, install=c.installFee;
     if(!monthly){
-      if(country==='CO')monthly=100000;
-      else monthly=isMaint?100:400;
+      monthly=isMaint?_pp.monthlyMaint:_pp.monthlyFull;
     }
     if(!install){
-      const instUS={basico:700,pro:750,premium:800};
-      const instCO={basico:1500000,pro:1650000};
-      install=country==='CO'?(instCO[c.plan]||1500000):(instUS[c.plan]||700);
+      install=_pp.install[c.plan]||(_pp.code==='CO'?1500000:700);
     }
     $('mpMonthly').textContent=monthly.toLocaleString()+' '+curr+'/mes';
     $('mpInstall').textContent=install.toLocaleString()+' '+curr+' (una vez)';
-    const countryNames={US:'Estados Unidos',CO:'Colombia',OT:'Otro'};
-    $('mpCountry').textContent=countryNames[country]||country||'–';
+    $('mpCountry').textContent=_pp.name||country||'–';
+    // Motor de voz derivado del país (solo lectura)
+    if($('mpVoiceEngine')) $('mpVoiceEngine').textContent=(typeof voiceLabelFor!=='undefined'?voiceLabelFor(country):'—');
     const statusNames={active:'Activo',trial:'Prueba',off:'Pausado'};
     $('mpStatus').textContent=statusNames[c.status]||c.status||'–';
     await renderWaCrm();
@@ -3252,7 +3267,7 @@ const WA_CAT_LABEL={marketing:'marketing',utility:'utility',authentication:'aute
  * authentication,service} del doc usage/{YYYY-MM}. Sin byCat (datos
  * viejos) cae al comportamiento anterior: todo a tarifa utility. */
 function waCostByCat(byCat,total,country){
-  const R=WA_RATES[country]||WA_RATES.OT;
+  const R=countryProfile(country).waRates;
   const cats=['marketing','utility','authentication','service'];
   const counts=cats.map(k=>Math.max(0,+((byCat||{})[k]||0)));
   const tot=counts.reduce((a,b)=>a+b,0);
@@ -3338,10 +3353,9 @@ async function renderWaCrm(){
       ? '≈ $'+Math.round(costUSD*USD_COP_APROX).toLocaleString()+' COP'
       : '$'+costUSD.toFixed(2)+' USD';
     $('waCost').textContent=extra>0?costTxt:(curr==='COP'?'$0 · dentro de tus 1.000 gratis':'$0.00 · dentro de tus 1.000 gratis');
-    const billNote=country==='CO'
-      ? '🇨🇴 Se cobra en tu cuenta de Meta (Voxia no toca cobranza).'
-      : (isMaint?'🇺🇸 Se cobra en tus cuentas.':'🇺🇸 Voxia lo incluye en tu factura.');
-    const R=WA_RATES[country]||WA_RATES.OT;
+    const _bp=countryProfile(country).billNote;
+    const billNote=country==='CO'?_bp.maintenance:(isMaint?_bp.maintenance:_bp.full);
+    const R=countryProfile(country).waRates;
     const detTxt=Object.keys(WA_CAT_LABEL).map(k=>wc.det[k].n.toLocaleString()+' '+WA_CAT_LABEL[k]).join(' · ');
     $('waNote').innerHTML='Los primeros '+WA_FREE_MSGS.toLocaleString()+' mensajes de cada mes son gratis. Después, Meta cobra por categoría: marketing $'+R.marketing.toFixed(4)+' · utility/servicio $'+R.utility.toFixed(4)+' USD por mensaje.<br>Este mes: '+detTxt+'. '+billNote+'<br><span style="color:var(--faint)">Tasa COP aproximada · tarifas Meta oct-2026 · el país lo define el destinatario.</span>';
   }catch(e){console.warn('renderWaCrm:',e.message);}
