@@ -1026,6 +1026,20 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
             </div>
             <div id="twInfo" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
           </div>
+          <!-- Servidor Voxia (backend: webhook + Google Calendar) -->
+          <div style="margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div class="st">🖥️ Servidor Voxia</div><span id="srvStatus"><span class="badge b-off">Sin configurar</span></span>
+            </div>
+            <label class="flabel" style="margin-top:8px">URL pública del servidor (webhook)</label>
+            <input type="text" id="srvUrl" placeholder="https://voxia.tudominio.com" autocomplete="off" style="width:100%">
+            <div class="csub" style="margin:6px 0 10px">Aquí corre el webhook 24/7 (llamadas + Google Calendar). Los clientes la usan para conectar su calendario. Se guarda en Firestore para todos.</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="saveServerUrl()">Guardar</button>
+              <button class="btn btn-ghost btn-sm" onclick="checkServerUrl()">Probar conexión</button>
+            </div>
+            <div id="srvInfo" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+          </div>
           <div style="margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.18);font-size:12.5px;color:var(--ink2);line-height:1.55">
             🔒 <b>Tus claves solo viven en tu navegador.</b> Se guardan en el almacenamiento local de este dispositivo y nunca salen de aquí salvo hacia las APIs oficiales. No están escritas en ningún archivo.
           </div>
@@ -2233,6 +2247,8 @@ function go(view){
   if(view==='pedidos'&&typeof renderOrders==='function')renderOrders();
   if(view==='inventario'&&typeof loadInventory==='function')loadInventory();
   if(view==='miguia'&&typeof loadGuide==='function')loadGuide();
+  if(view==='config'&&typeof loadServerUrl==='function')loadServerUrl();
+  if(view==='integraciones'&&typeof refreshGcalCard==='function')refreshGcalCard();
   if(view==='asistentes'&&typeof renderAssistants==='function')renderAssistants();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
@@ -2912,7 +2928,14 @@ async function renderClientDetail(c){
     waH=`<div><b class="mono">${w.count.toLocaleString()}</b> / 1.000 mensajes</div>
     <div style="height:8px;background:var(--line);border-radius:99px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${bar}%;background:linear-gradient(90deg,#25d366,#7c6cff);border-radius:99px"></div></div>
     <div style="font-size:12.5px;color:var(--muted)">Extra: <b>${waCostText(w)}</b>${w.extra>0?'':' (dentro de los 1.000 gratis)'}</div>`;}
-  $('cdConn').innerHTML=`<div style="font-size:13px;line-height:2">${crm}<br>${posLine()}<br>📞 ${c.twilioNumber?`<b class="mono">${c.twilioNumber}</b> <span style="color:var(--faint)">(voz)</span>`:'<span style="color:var(--faint)">Sin número Twilio vinculado</span>'}<br>${waH}</div>`;
+  $('cdConn').innerHTML=`<div style="font-size:13px;line-height:2">${crm}<br>${posLine()}<br>📞 ${c.twilioNumber?`<b class="mono">${c.twilioNumber}</b> <span style="color:var(--faint)">(voz)</span>`:'<span style="color:var(--faint)">Sin número Twilio vinculado</span>'}<br>📅 <span id="cdGcal">verificando…</span><br>${waH}</div>`;
+  try{
+    const gd=await VoxiaDB.db.collection('clients').doc(c.id).collection('config').doc('gcal').get();
+    const gel=$('cdGcal');
+    if(gel) gel.innerHTML=(gd.exists&&gd.data().connected)
+      ? `✓ <b>${gd.data().email||'Conectado'}</b> <span style="color:var(--faint)">(la IA puede agendar)</span>`
+      : '<span style="color:var(--faint)">Sin conectar · el cliente lo conecta desde su panel</span>';
+  }catch(e){ const gel=$('cdGcal'); if(gel) gel.innerHTML='<span style="color:var(--faint)">Sin conectar</span>'; }
   $('cdCalls').innerHTML=cl.slice(0,10).map(x=>`
     <tr><td>${cavatar(c.name,30)}</td><td class="mono">${x.d}</td>
     <td class="mono">${x.min.toFixed(1)} min</td><td>${x.lang==='ES'?'🇪🇸 Español':'🇺🇸 English'}</td>
@@ -4332,6 +4355,24 @@ function renderIntegrations(){
         ${g.status==='on'?'⚙️ Configurar':'🔌 Conectar'}</button>
     </div>`).join('');
 }
+/* Google Calendar (admin): resumen de clientes con calendario conectado.
+   La conexión real la hace cada cliente desde su panel. */
+async function refreshGcalCard(){
+  const g=integrations.find(x=>x.id==='gcal');
+  if(!g) return;
+  try{
+    let n=0;
+    for(const c of (typeof clients!=='undefined'?clients:[])){
+      try{
+        const d=await VoxiaDB.db.collection('clients').doc(c.id).collection('config').doc('gcal').get();
+        if(d.exists && d.data().connected) n++;
+      }catch(e){}
+    }
+    if(n>0){ g.status='on'; g.detail='✓ '+n+' cliente(s) con calendario conectado'; }
+    else{ g.status='off'; g.detail='Cada cliente lo conecta desde su panel · OAuth con su Google'; }
+  }catch(e){}
+  renderIntegrations();
+}
 function toggleIntegration(id){
   const g=integrations.find(x=>x.id===id);
   if(id==='crm'){openCrmModal();return;}
@@ -4348,16 +4389,18 @@ function toggleIntegration(id){
         const target = id==='eleven' ? $('elKey') : $('twSid');
         if(target){ target.scrollIntoView({behavior:'smooth',block:'center'}); target.focus(); }
       }, 400);
+    } else if(id==='gcal'){ go('clientes'); toast('📅 El calendario es por cliente: revisa su ficha','info');
     } else {
       toast('⚙️ '+g.name+' · configuración próximamente');
     }
   }
   else{
-    /* Stripe y Google Calendar requieren OAuth/API real: NO simular conexión */
-    if(id==='stripe'||id==='gcal'){
+    /* Stripe requiere OAuth/API real: NO simular conexión */
+    if(id==='stripe'){
       toast('🔌 '+g.name+' · la conexión real requiere OAuth (próximamente). No se marcó como conectada.','warn');
       return;
     }
+    if(id==='gcal'){ go('clientes'); toast('📅 El calendario es por cliente: se conecta desde su panel o su ficha','info'); return; }
     g.status='on';g.detail='Conectado hoy · configura tus credenciales';toast('🔌 '+g.name+' conectado');renderIntegrations();
   }
 }
@@ -4605,6 +4648,48 @@ function disconnectTwilio(){
   $('twSid').value = ''; $('twTok').value = '';
   updateConnUI(); renderCalls();
   toast('Twilio desconectado · modo demo','warn');
+}
+/* ============ Servidor Voxia (backend URL global en Firestore) ============ */
+let _backendUrl = null;
+async function backendUrl(){
+  if(_backendUrl !== null) return _backendUrl;
+  try{
+    if(window.VoxiaDB && VoxiaDB.db){
+      const s = await VoxiaDB.db.collection('settings').doc('public').get();
+      if(s.exists && s.data().backendUrl){ _backendUrl = s.data().backendUrl.replace(/\/+$/,''); return _backendUrl; }
+    }
+  }catch(e){}
+  _backendUrl = '';
+  return '';
+}
+async function saveServerUrl(){
+  const url = ($('srvUrl').value || '').trim().replace(/\/+$/,'');
+  if(!url || !/^https?:\/\//.test(url)){ toast('Pon una URL válida (https://…)','warn'); return; }
+  try{
+    await VoxiaDB.db.collection('settings').doc('public').set({backendUrl: url}, {merge: true});
+    _backendUrl = url;
+    $('srvStatus').innerHTML = '<span class="badge b-act">Configurado</span>';
+    $('srvInfo').textContent = '✓ Guardado para todos los clientes: ' + url;
+    toast('✓ URL del servidor guardada');
+  }catch(e){ toast('⚠ ' + e.message, 'warn'); }
+}
+async function checkServerUrl(){
+  const url = ($('srvUrl').value || '').trim().replace(/\/+$/,'') || await backendUrl();
+  if(!url){ toast('Primero guarda la URL del servidor','warn'); return; }
+  $('srvInfo').textContent = 'Probando…';
+  try{
+    const r = await fetch(url + '/health', {mode: 'cors'});
+    const j = await r.json();
+    if(j && j.ok){ $('srvInfo').textContent = '✓ Servidor responde: ' + url; $('srvStatus').innerHTML = '<span class="badge b-act">En línea</span>'; }
+    else{ $('srvInfo').textContent = '⚠ El servidor no respondió como se esperaba.'; }
+  }catch(e){ $('srvInfo').textContent = '⚠ No se pudo contactar: ' + url + ' (¿está desplegado el webhook?)'; }
+}
+async function loadServerUrl(){
+  try{
+    const u = await backendUrl();
+    if($('srvUrl') && !$('srvUrl').value) $('srvUrl').value = u;
+    if($('srvStatus')) $('srvStatus').innerHTML = u ? '<span class="badge b-act">Configurado</span>' : '<span class="badge b-off">Sin configurar</span>';
+  }catch(e){}
 }
 async function loadLiveEleven(){
   if(!live.el) return;
