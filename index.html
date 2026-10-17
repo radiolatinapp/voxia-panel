@@ -2939,24 +2939,26 @@ async function renderClientDetail(c){
   try{
     const sd=await VoxiaDB.db.collection('clients').doc(c.id).collection('config').doc('credentials').get();
     const sel=$('cdApiSec');
-    if(sel) sel.innerHTML=(sd.exists&&sd.data().apiSecret)
+    if(sel) sel.innerHTML=(sd.exists&&(sd.data().apiSecretHash||sd.data().apiSecret))
       ? '✓ <b>Clave API generada</b> <span style="color:var(--faint)">(úsala en las tools de ElevenLabs y el backend)</span>'
       : '<span style="color:var(--faint)">Sin clave API — genérala para activar Calendar/stock</span>';
   }catch(e){}
 /* Genera (o regenera) el secreto API del cliente.
-   Vive en clients/{id}/config/credentials (solo el admin escribe, ver reglas).
-   Se muestra UNA vez: el admin lo pega en las custom tools de ElevenLabs
-   (parámetro api_secret) y el panel del cliente lo usa solo. */
+   Vive en clients/{id}/config/credentials como apiSecretHash (SHA-256, nunca en
+   claro). Se muestra UNA vez: el admin lo pega en las custom tools de ElevenLabs
+   (parámetro api_secret). El panel del cliente NO lo usa (usa su sesión Firebase). */
 async function genApiSecret(clientId){
   if(!confirm('¿Generar nueva clave API para este cliente? La anterior dejará de funcionar.')) return;
   const sec='vx_'+Array.from(crypto.getRandomValues(new Uint8Array(24)))
     .map(b=>b.toString(16).padStart(2,'0')).join('');
+  const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sec));
+  const hash=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
   try{
     await VoxiaDB.db.collection('clients').doc(clientId).collection('config')
-      .doc('credentials').set({apiSecret: sec, updatedAt: new Date().toISOString()}, {merge:true});
+      .doc('credentials').set({apiSecretHash: hash, updatedAt: new Date().toISOString()}, {merge:true});
     const sel=$('cdApiSec');
     if(sel) sel.innerHTML='✓ <b>Clave API generada</b>';
-    prompt('Copia la clave API (se muestra una sola vez). Pégala como api_secret en las tools de ElevenLabs:', sec);
+    prompt('Copia la clave API (se muestra una sola vez; en la base solo queda su hash). Pégala como api_secret en las tools de ElevenLabs:', sec);
     toast('🔑 Clave API generada');
   }catch(e){ toast('⚠ '+e.message,'warn'); }
 }
