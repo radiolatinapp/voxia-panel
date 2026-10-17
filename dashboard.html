@@ -2802,15 +2802,16 @@ let templates=[
    greeting:'¡Hola! Gracias por llamar a {negocio}. ¿En qué puedo ayudarle?',
    feats:['Disponibilidad y tarifas','Reserva directa','Info de check-in/out','Servicios del hotel'],hours:'24 horas',voice:'Sofía · EN/ES'}
 ];
-/* NOTA DE SEGURIDAD (demo): las contraseñas se guardan con un hash simple en localStorage
-   del navegador. En producción esto debe vivir en un backend real (bcrypt + sesiones httpOnly). */
+/* Equipo: la autenticación real es Firebase Auth. Esta lista local es solo para
+   mostrar el equipo en la UI; las claves se gestionan en Firebase, NUNCA aquí.
+   (Antes había contraseñas demo en texto plano: eliminadas por seguridad.) */
 let users=[];
 try{users=JSON.parse(localStorage.getItem('voxia_users'))||null;}catch(e){users=null;}
 if(!users||!users.length){
   users=[
-    {id:'u1',name:'Jeremy Rico',email:'admin@voxia.ai',pw:hashPw('voxia2026'),role:'admin',active:true,color:'#ffa02e',created:'2026-09-01'},
-    {id:'u2',name:'María González',email:'gerente@voxia.ai',pw:hashPw('gerente2026'),role:'gerente',active:true,color:'#38d6f5',created:'2026-09-15'},
-    {id:'u3',name:'Carlos Ruiz',email:'agente@voxia.ai',pw:hashPw('agente2026'),role:'agente',active:true,color:'#34d399',created:'2026-10-01'},
+    {id:'u1',name:'Jeremy Rico',email:'admin@voxia.ai',pw:'',role:'admin',active:true,color:'#ffa02e',created:'2026-09-01'},
+    {id:'u2',name:'María González',email:'gerente@voxia.ai',pw:'',role:'gerente',active:true,color:'#38d6f5',created:'2026-09-15'},
+    {id:'u3',name:'Carlos Ruiz',email:'agente@voxia.ai',pw:'',role:'agente',active:true,color:'#34d399',created:'2026-10-01'},
   ];
   localStorage.setItem('voxia_users',JSON.stringify(users));
 }
@@ -3477,7 +3478,7 @@ function renderIntegrations(){
     </div>`).join('');
 }
 /* ============ Google Calendar (conexión real vía servidor Voxia) ============ */
-let _backendUrl = null, _gcalState = {connected:false, email:''};
+let _backendUrl = null, _gcalState = {connected:false, email:''}, _apiSecret = null;
 async function backendUrl(){
   if(_backendUrl !== null) return _backendUrl;
   try{
@@ -3487,6 +3488,21 @@ async function backendUrl(){
     }
   }catch(e){}
   _backendUrl = '';
+  return '';
+}
+/* Secreto API del cliente (clients/{id}/config/credentials). Lo crea el admin
+   una vez ("Generar clave API" en la ficha del cliente). Autentica las llamadas
+   al backend: sin secreto válido el servidor responde 401. */
+async function apiSecret(){
+  if(_apiSecret !== null) return _apiSecret;
+  try{
+    if(window.VoxiaDB && VoxiaDB.db && VoxiaDB.clientId){
+      const d = await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId)
+        .collection('config').doc('credentials').get();
+      if(d.exists && d.data().apiSecret){ _apiSecret = d.data().apiSecret; return _apiSecret; }
+    }
+  }catch(e){}
+  _apiSecret = '';
   return '';
 }
 async function loadGcalStatus(){
@@ -3512,9 +3528,10 @@ async function toggleGcal(){
     if(!confirm('¿Desconectar Google Calendar? Tu asistente dejará de agendar citas.')) return;
     try{
       const bu = await backendUrl();
-      if(bu && window.VoxiaDB && VoxiaDB.clientId){
+      const sec = await apiSecret();
+      if(bu && window.VoxiaDB && VoxiaDB.clientId && sec){
         await fetch(bu + '/gcal/disconnect', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({client_id: VoxiaDB.clientId}), mode:'cors'});
+          body: JSON.stringify({client_id: VoxiaDB.clientId, api_secret: sec}), mode:'cors'});
       }
       try{ await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('config').doc('gcal').set({connected:false},{merge:true}); }catch(e){}
     }catch(e){}
@@ -3530,7 +3547,13 @@ async function toggleGcal(){
     toast('📅 El administrador aún no configura el servidor Voxia. Avísale.','warn');
     return;
   }
-  window.open(bu + '/gcal/connect?client_id=' + encodeURIComponent(VoxiaDB.clientId), '_blank');
+  const sec = await apiSecret();
+  if(!sec){
+    toast('📅 Tu cuenta aún no tiene clave API. Pídele al administrador que la genere.','warn');
+    return;
+  }
+  window.open(bu + '/gcal/connect?client_id=' + encodeURIComponent(VoxiaDB.clientId)
+    + '&s=' + encodeURIComponent(sec), '_blank');
   toast('📅 Autoriza en la ventana de Google y vuelve aquí','info');
   // Re-verificar en unos segundos por si ya conectó
   setTimeout(loadGcalStatus, 8000);
