@@ -284,11 +284,21 @@
 
     /**
      * Obtiene la configuración de un plan según país.
+     * Los valores monetarios los gobierna country-profiles.js; aquí van
+     * solo las características (minutos, idiomas, whatsapp, ubicaciones).
      */
     getPlan(planKey, country) {
       const c = (country === 'CO') ? 'CO' : 'US';
-      return (this.PLAN_CFG.PLANS[c] && this.PLAN_CFG.PLANS[c][planKey])
-        || this.PLAN_CFG.PLANS[planKey];
+      const feat = (this.PLANS[c] && this.PLANS[c][planKey]) || this.PLANS[c].basico;
+      const cp = (typeof countryProfile === 'function') ? countryProfile(country || 'US') : null;
+      const out = Object.assign({}, feat);
+      if (cp) {
+        const bm = cp.billingDefault;
+        out.precio = bm === 'maintenance' ? cp.monthlyMaint : cp.monthlyFull;
+        out.moneda = cp.curr;
+        out.install = cp.install;
+      }
+      return out;
     },
 
     /**
@@ -297,7 +307,7 @@
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, monthly, installFee, clientElevenKey, clientTwilioSid, clientTwilioToken, posProvider, posApiKey, elevenlabsAgentId, tempPassword, bizType, voiceEngine } = data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, monthly, installFee, clientElevenKey, clientTwilioSid, clientTwilioToken, posProvider, posApiKey, elevenlabsAgentId, tempPassword, bizType, voiceEngine, twilioNumber } = data;
 
       if (!clientName || !ownerEmail || !tempPassword) {
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
@@ -327,7 +337,7 @@
         monthly: monthly || 0, installFee: installFee || 0,
         bizType: bizType || 'restaurante',
         voiceEngine: voiceEngine || 'elevenlabs', voiceStatus: 'pending',
-        elevenlabsAgentId: elevenlabsAgentId || '', twilioNumber: '',
+        elevenlabsAgentId: elevenlabsAgentId || '', twilioNumber: twilioNumber || '',
         createdAt: now, createdBy: adminUid,
       });
 
@@ -722,13 +732,16 @@
       const planKey = (this.clientData?.plan || 'basico').toLowerCase();
       const plan = this.PLANS[planKey] || this.PLANS.basico;
       const usado = snap.exists ? (snap.data().minutos || 0) : 0;
+      // Mantenimiento: el cliente paga sus propias cuentas (Twilio/Meta); Voxia no cobra recargo por minuto.
+      const esMantenimiento = (this.clientData?.billingModel || 'full') === 'maintenance';
+      const excedente = Math.max(0, usado - plan.minutos);
       return {
         usado: Math.round(usado * 10) / 10,
         limite: plan.minutos,
         disponible: Math.max(0, Math.round((plan.minutos - usado) * 10) / 10),
         porcentaje: Math.round((usado / plan.minutos) * 100),
         excedido: usado > plan.minutos,
-        costoExtra: +Math.max(0, (usado - plan.minutos) * 0.12).toFixed(2),
+        costoExtra: esMantenimiento ? 0 : +((excedente) * 0.12).toFixed(2),
         periodo,
       };
     },
@@ -740,18 +753,22 @@
       const periodo = new Date().toISOString().slice(0, 7);
       const clientSnap = await db.collection('clients').doc(clientId).get();
       if (!clientSnap.exists) return null;
-      const planKey = (clientSnap.data().plan || 'basico').toLowerCase();
+      const cdata = clientSnap.data();
+      const planKey = (cdata.plan || 'basico').toLowerCase();
       const plan = this.PLANS[planKey] || this.PLANS.basico;
       const snap = await db.collection('clients').doc(clientId)
         .collection('usage').doc(periodo).get();
       const usado = snap.exists ? (snap.data().minutos || 0) : 0;
+      // Mantenimiento: el cliente paga sus propias cuentas; Voxia no cobra recargo por minuto.
+      const esMantenimiento = (cdata.billingModel || 'full') === 'maintenance';
+      const excedente = Math.max(0, usado - plan.minutos);
       return {
         usado: Math.round(usado * 10) / 10,
         limite: plan.minutos,
         disponible: Math.max(0, Math.round((plan.minutos - usado) * 10) / 10),
         porcentaje: Math.round((usado / plan.minutos) * 100),
         excedido: usado > plan.minutos,
-        costoExtra: +Math.max(0, (usado - plan.minutos) * 0.12).toFixed(2),
+        costoExtra: esMantenimiento ? 0 : +(excedente * 0.12).toFixed(2),
         periodo,
       };
     },
