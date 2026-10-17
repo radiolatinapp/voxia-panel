@@ -1683,6 +1683,7 @@ function go(view){
   if(view==='pedidos'&&typeof renderOrders==='function')renderOrders();
   if(view==='miguia'&&typeof loadGuide==='function')loadGuide();
   if(view==='asistentes'&&typeof renderAssistants==='function')renderAssistants();
+  if(view==='integraciones'&&typeof loadGcalStatus==='function')loadGcalStatus();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>go(b.dataset.view));
 $('menuBtn').onclick=()=>$('sidebar').classList.toggle('open');
@@ -3475,8 +3476,68 @@ function renderIntegrations(){
         ${g.status==='on'?'⚙️ Configurar':'🔌 Conectar'}</button>
     </div>`).join('');
 }
+/* ============ Google Calendar (conexión real vía servidor Voxia) ============ */
+let _backendUrl = null, _gcalState = {connected:false, email:''};
+async function backendUrl(){
+  if(_backendUrl !== null) return _backendUrl;
+  try{
+    if(window.VoxiaDB && VoxiaDB.db){
+      const s = await VoxiaDB.db.collection('settings').doc('public').get();
+      if(s.exists && s.data().backendUrl){ _backendUrl = s.data().backendUrl.replace(/\/+$/,''); return _backendUrl; }
+    }
+  }catch(e){}
+  _backendUrl = '';
+  return '';
+}
+async function loadGcalStatus(){
+  const g = integrations.find(x=>x.id==='gcal');
+  if(!g) return;
+  try{
+    if(window.VoxiaDB && VoxiaDB.db && VoxiaDB.clientId){
+      const d = await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('config').doc('gcal').get();
+      if(d.exists && d.data().connected){
+        _gcalState = {connected:true, email:d.data().email||''};
+        g.status='on'; g.detail='✓ ' + (_gcalState.email||'Calendario conectado') + ' · la IA puede agendar citas';
+      }else{
+        _gcalState = {connected:false, email:''};
+        g.status='off'; g.detail='OAuth con tu cuenta de Google';
+      }
+    }
+  }catch(e){}
+  renderIntegrations();
+}
+async function toggleGcal(){
+  const g = integrations.find(x=>x.id==='gcal');
+  if(_gcalState.connected){
+    if(!confirm('¿Desconectar Google Calendar? Tu asistente dejará de agendar citas.')) return;
+    try{
+      const bu = await backendUrl();
+      if(bu && window.VoxiaDB && VoxiaDB.clientId){
+        await fetch(bu + '/gcal/disconnect', {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({client_id: VoxiaDB.clientId}), mode:'cors'});
+      }
+      try{ await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('config').doc('gcal').set({connected:false},{merge:true}); }catch(e){}
+    }catch(e){}
+    _gcalState = {connected:false, email:''};
+    g.status='off'; g.detail='OAuth con tu cuenta de Google';
+    renderIntegrations();
+    toast('📅 Google Calendar desconectado','warn');
+    return;
+  }
+  // Conectar
+  const bu = await backendUrl();
+  if(!bu || !window.VoxiaDB || !VoxiaDB.clientId){
+    toast('📅 El administrador aún no configura el servidor Voxia. Avísale.','warn');
+    return;
+  }
+  window.open(bu + '/gcal/connect?client_id=' + encodeURIComponent(VoxiaDB.clientId), '_blank');
+  toast('📅 Autoriza en la ventana de Google y vuelve aquí','info');
+  // Re-verificar en unos segundos por si ya conectó
+  setTimeout(loadGcalStatus, 8000);
+}
 function toggleIntegration(id){
   const g=integrations.find(x=>x.id===id);
+  if(id==='gcal'){ toggleGcal(); return; }
   if(id==='crm'){openCrmModal();return;}
   if(id==='wa'){
     if(window.VoxiaDB&&VoxiaDB.clientId){go('perfil');setTimeout(toggleWaDetail,450);}
