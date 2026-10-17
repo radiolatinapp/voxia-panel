@@ -2946,6 +2946,21 @@ async function createClientAgent(clientId, clientName, bizType, clientInfo){
     });
     const data = await r.json();
     if(data.agent_id){
+      // Verificar que este agent ID no esté vinculado a OTRO cliente
+      // (evita que un cliente se apropie del asistente de otro).
+      let dup = false;
+      try{
+        if(window.VoxiaDB && VoxiaDB.db){
+          const q = await VoxiaDB.db.collection('clients')
+            .where('elevenlabsAgentId','==',data.agent_id).limit(2).get();
+          q.forEach(d=>{ if(d.id !== clientId) dup = true; });
+        }
+      }catch(e){}
+      if(dup){
+        console.error('Agent ID ya vinculado a otro cliente:', data.agent_id);
+        toast('⚠️ Ese asistente ya pertenece a otro negocio','warn');
+        return null;
+      }
       // Guardar el agent ID en el cliente
       if(window.VoxiaDB && VoxiaDB.db){
         await VoxiaDB.db.collection('clients').doc(clientId).update({
@@ -3478,7 +3493,7 @@ function renderIntegrations(){
     </div>`).join('');
 }
 /* ============ Google Calendar (conexión real vía servidor Voxia) ============ */
-let _backendUrl = null, _gcalState = {connected:false, email:''}, _apiSecret = null;
+let _backendUrl = null, _gcalState = {connected:false, email:''};
 async function backendUrl(){
   if(_backendUrl !== null) return _backendUrl;
   try{
@@ -3490,19 +3505,14 @@ async function backendUrl(){
   _backendUrl = '';
   return '';
 }
-/* Secreto API del cliente (clients/{id}/config/credentials). Lo crea el admin
-   una vez ("Generar clave API" en la ficha del cliente). Autentica las llamadas
-   al backend: sin secreto válido el servidor responde 401. */
-async function apiSecret(){
-  if(_apiSecret !== null) return _apiSecret;
+/* Token de sesión Firebase para autenticar operaciones del panel en el backend.
+   El api_secret queda reservado servidor-a-servidor (ElevenLabs); el navegador
+   nunca lo toca. */
+async function idToken(){
   try{
-    if(window.VoxiaDB && VoxiaDB.db && VoxiaDB.clientId){
-      const d = await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId)
-        .collection('config').doc('credentials').get();
-      if(d.exists && d.data().apiSecret){ _apiSecret = d.data().apiSecret; return _apiSecret; }
-    }
+    const u = firebase.auth().currentUser;
+    if(u) return await u.getIdToken();
   }catch(e){}
-  _apiSecret = '';
   return '';
 }
 async function loadGcalStatus(){
@@ -3528,10 +3538,10 @@ async function toggleGcal(){
     if(!confirm('¿Desconectar Google Calendar? Tu asistente dejará de agendar citas.')) return;
     try{
       const bu = await backendUrl();
-      const sec = await apiSecret();
-      if(bu && window.VoxiaDB && VoxiaDB.clientId && sec){
+      const tok = await idToken();
+      if(bu && window.VoxiaDB && VoxiaDB.clientId && tok){
         await fetch(bu + '/gcal/disconnect', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({client_id: VoxiaDB.clientId, api_secret: sec}), mode:'cors'});
+          body: JSON.stringify({client_id: VoxiaDB.clientId, id_token: tok}), mode:'cors'});
       }
       try{ await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('config').doc('gcal').set({connected:false},{merge:true}); }catch(e){}
     }catch(e){}
@@ -3547,13 +3557,13 @@ async function toggleGcal(){
     toast('📅 El administrador aún no configura el servidor Voxia. Avísale.','warn');
     return;
   }
-  const sec = await apiSecret();
-  if(!sec){
-    toast('📅 Tu cuenta aún no tiene clave API. Pídele al administrador que la genere.','warn');
+  const tok = await idToken();
+  if(!tok){
+    toast('📅 No hay sesión activa. Recarga e inicia sesión de nuevo.','warn');
     return;
   }
   window.open(bu + '/gcal/connect?client_id=' + encodeURIComponent(VoxiaDB.clientId)
-    + '&s=' + encodeURIComponent(sec), '_blank');
+    + '&t=' + encodeURIComponent(tok), '_blank');
   toast('📅 Autoriza en la ventana de Google y vuelve aquí','info');
   // Re-verificar en unos segundos por si ya conectó
   setTimeout(loadGcalStatus, 8000);
