@@ -1656,7 +1656,7 @@ async function loadClientsFromFirebase(){
       const d = doc.data();
       // Cargar logo del cliente (si tiene)
       let clientLogo = d.logoUrl || null; // Primero del documento principal
-      let clientCrm=null, clientWa=null, waCount=null;
+      let clientCrm=null, clientWa=null, waCount=null, waByCat=null;
       try{
         const cfgSnap = await VoxiaDB.db.collection('clients').doc(doc.id).collection('config').doc('settings').get();
         if(cfgSnap.exists){
@@ -1670,6 +1670,7 @@ async function loadClientsFromFirebase(){
         const nowU=new Date(), ymU=nowU.getFullYear()+'-'+String(nowU.getMonth()+1).padStart(2,'0');
         const usnap=await VoxiaDB.db.collection('clients').doc(doc.id).collection('usage').doc(ymU).get();
         if(usnap.exists&&usnap.data().waMessages!=null) waCount=+usnap.data().waMessages;
+        if(usnap.exists&&usnap.data().waByCat) waByCat=usnap.data().waByCat;
       }catch(e){}
       if(waCount==null&&clientWa&&clientWa.count!=null) waCount=+clientWa.count;
       clients.push({
@@ -1697,6 +1698,7 @@ async function loadClientsFromFirebase(){
         crm: clientCrm,
         waUsage: clientWa,
         waCount: waCount,
+        waByCat: waByCat,
         _fb: true,
       });
     }
@@ -2581,12 +2583,16 @@ function renderCalls(){
 /* ==================== CLIENTES ==================== */
 function waExtraCost(c){
   // Costo extra de WhatsApp por cliente (admin) · null si no hay datos
-  if(!(c.waUsage&&c.waUsage.count!=null))return null;
+  // Usa waCostByCat: tarifas por categoría; sin desglose, cae a tarifa utility.
+  const cnt=(c.waCount!=null)?+c.waCount:((c.waUsage&&c.waUsage.count!=null)?+c.waUsage.count:null);
+  if(cnt==null)return null;
   const country=c.country||'US';
-  const rate=(typeof WA_RATES!=='undefined'?(WA_RATES[country]||WA_RATES.OT):0.0034);
-  const extra=Math.max(0,(+c.waUsage.count)-1000);
-  const costUSD=extra*rate;
-  return {count:+c.waUsage.count,extra:extra,costUSD:costUSD,country:country,
+  const wc=(typeof waCostByCat!=='undefined')
+    ? waCostByCat(c.waByCat||null,cnt,country)
+    : {extra:Math.max(0,cnt-1000),costUSD:Math.max(0,cnt-1000)*0.0034};
+  const extra=wc.extra;
+  const costUSD=wc.costUSD;
+  return {count:cnt,extra:extra,costUSD:costUSD,country:country,
     curr:country==='CO'?'COP':'USD',isMaint:c.billingModel==='maintenance'};
 }
 function waCostText(w){
@@ -4071,7 +4077,34 @@ async function loadMyPlan(){
 
 /* ---------- WhatsApp + CRM (Voxia) ---------- */
 const WA_FREE_MSGS=1000;
-const WA_RATES={US:0.0034,CO:0.0008,OT:0.0034}; // USD por mensaje extra · tarifa Meta oct-2026
+// USD por mensaje extra · tarifas Meta oct-2026 POR CATEGORÍA.
+// Marketing (promociones) cuesta 7-15x más que utility; el país lo define el destinatario.
+const WA_RATES={
+  US:{marketing:0.0250,utility:0.0034,authentication:0.0034,service:0.0034},
+  CO:{marketing:0.0125,utility:0.0008,authentication:0.0008,service:0.0008},
+  OT:{marketing:0.0250,utility:0.0034,authentication:0.0034,service:0.0034}
+};
+const WA_CAT_LABEL={marketing:'marketing',utility:'utility',authentication:'autenticación',service:'servicio'};
+/* Costo extra de WhatsApp con tarifas por categoría.
+ * Los 1.000 gratis aplican al total del mes; el excedente se reparte
+ * entre categorías en proporción a su uso. byCat = {marketing,utility,
+ * authentication,service} del doc usage/{YYYY-MM}. Sin byCat (datos
+ * viejos) cae al comportamiento anterior: todo a tarifa utility. */
+function waCostByCat(byCat,total,country){
+  const R=WA_RATES[country]||WA_RATES.OT;
+  const cats=['marketing','utility','authentication','service'];
+  const counts=cats.map(k=>Math.max(0,+((byCat||{})[k]||0)));
+  const tot=counts.reduce((a,b)=>a+b,0);
+  const extra=Math.max(0,total-WA_FREE_MSGS);
+  const det={}; let cost=0;
+  for(let i=0;i<cats.length;i++){
+    const share=tot>0?counts[i]/tot:(cats[i]==='utility'?1:0);
+    const ex=extra*share, c=ex*R[cats[i]];
+    det[cats[i]]={n:counts[i],extra:ex,cost:c,rate:R[cats[i]]};
+    cost+=c;
+  }
+  return {extra:extra,costUSD:cost,det:det,blended:extra>0?cost/extra:R.utility};
+}
 const USD_COP_APROX=3180; // tasa aproximada solo para mostrar en pesos
 const CRM_PROVIDERS={hubspot:'HubSpot',salesforce:'Salesforce',zoho:'Zoho CRM',pipedrive:'Pipedrive',otro:'Otro'};
 
@@ -4122,19 +4155,20 @@ async function renderWaCrm(){
       const g=integrations.find(x=>x.id==='crm');
       if(g&&g.status!=='on'){g.status='on';g.detail=(CRM_PROVIDERS[crm.provider]||crm.provider)+' ••••'+(crm.keyLast4||'');renderIntegrations();}
     } else { $('mpCrm').textContent='No conectado';$('crmBtn').textContent='Conectar'; }
-    // Contador REAL desde usage/{YYYY-MM} (el bot suma +1 en cada mensaje enviado)
+    // Contador REAL desde usage/{YYYY-MM} (el bot suma +1 en cada mensaje enviado, con su categoría)
     const now=new Date(), ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-    let count=0;
+    let count=0, byCat=null;
     try{
       const usnap=await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('usage').doc(ym).get();
       if(usnap.exists&&usnap.data().waMessages!=null) count=+usnap.data().waMessages;
+      if(usnap.exists&&usnap.data().waByCat) byCat=usnap.data().waByCat;
     }catch(e){}
     if(!count){
       const wu=(cfg&&cfg.waUsage)||{};
       if(wu.month===ym) count=wu.count||0;
     }
-    const rate=WA_RATES[country]||WA_RATES.OT;
-    const extra=Math.max(0,count-WA_FREE_MSGS), costUSD=extra*rate;
+    const wc=waCostByCat(byCat,count,country);
+    const extra=wc.extra, costUSD=wc.costUSD;
     // El contador SIEMPRE cuenta; el cobro solo se activa después de los 1.000 gratis
     $('mpWhatsapp').textContent=count.toLocaleString()+' mensajes';
     $('waCount').textContent=count.toLocaleString()+' / '+WA_FREE_MSGS.toLocaleString()+' gratis este mes';
@@ -4146,7 +4180,9 @@ async function renderWaCrm(){
     const billNote=country==='CO'
       ? '🇨🇴 Se cobra en tu cuenta de Meta (Voxia no toca cobranza).'
       : (isMaint?'🇺🇸 Se cobra en tus cuentas.':'🇺🇸 Voxia lo incluye en tu factura.');
-    $('waNote').innerHTML='Los primeros '+WA_FREE_MSGS.toLocaleString()+' mensajes de cada mes son gratis. Después, Meta cobra $'+rate.toFixed(4)+' USD por mensaje. '+billNote+'<br><span style="color:var(--faint)">Tasa COP aproximada · tarifa Meta oct-2026.</span>';
+    const R=WA_RATES[country]||WA_RATES.OT;
+    const detTxt=Object.keys(WA_CAT_LABEL).map(k=>wc.det[k].n.toLocaleString()+' '+WA_CAT_LABEL[k]).join(' · ');
+    $('waNote').innerHTML='Los primeros '+WA_FREE_MSGS.toLocaleString()+' mensajes de cada mes son gratis. Después, Meta cobra por categoría: marketing $'+R.marketing.toFixed(4)+' · utility/servicio $'+R.utility.toFixed(4)+' USD por mensaje.<br>Este mes: '+detTxt+'. '+billNote+'<br><span style="color:var(--faint)">Tasa COP aproximada · tarifas Meta oct-2026 · el país lo define el destinatario.</span>';
   }catch(e){console.warn('renderWaCrm:',e.message);}
 }
 
