@@ -2069,6 +2069,43 @@ async function syncInventoryToAgent(){
   }catch(e){ toast('⚠️ '+e.message,'warn'); }
 }
 
+/* Cuántas unidades de un producto menciona el texto de un pedido.
+ * Robusto: límites de palabra (evita que "panelas" descuente "Pan"),
+ * plural s/es ("martillos" vale para "martillo" y viceversa) y nombre
+ * base sin variantes ("Martillo 16oz" responde a "martillos"). */
+function invMatchQty(productName, txt){
+  const nm=(productName||'').toLowerCase().trim();
+  if(nm.length<3) return 0;
+  const esc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const B='[^a-záéíóúñü0-9_]'; // frontera de palabra (el \b falla con tildes)
+  const forms=(()=>{
+    const toks=nm.split(/\s+/);
+    while(toks.length>1 && /[0-9]/.test(toks[toks.length-1])) toks.pop(); // quita "16oz","5m",'2"'
+    const out=[nm, toks.join(' ')];
+    const last=toks[toks.length-1]||'';
+    if(last.endsWith('s') && last.length>4) out.push(toks.slice(0,-1).concat(last.slice(0,-1)).join(' '));
+    if(last.endsWith('es') && last.length>5) out.push(toks.slice(0,-1).concat(last.slice(0,-2)).join(' '));
+    return [...new Set(out)].filter(f=>f.length>=3);
+  })();
+  for(const cand of forms){
+    const wordPat=w=>{
+      const e=esc(w);
+      if(/s$/.test(w)){ // palabra en plural: acepta también el singular ("alicates"->"alicate")
+        const alts=[e];
+        if(w.length>4) alts.push(esc(w.slice(0,-1)));
+        if(/es$/.test(w)&&w.length>5) alts.push(esc(w.slice(0,-2)));
+        return '(?:'+alts.join('|')+')';
+      }
+      return e+'(?:s|es)?';
+    };
+    const pat=cand.split(/\s+/).map(wordPat).join('\\s+');
+    const mq=txt.match(new RegExp('(\\d+)\\s*x?\\s*'+pat+'(?='+B+'|$)'));
+    if(mq) return parseInt(mq[1],10);
+    if(new RegExp('(^|'+B+')'+pat+'(?='+B+'|$)').test(txt)) return 1;
+  }
+  return 0;
+}
+
 /* Descuenta stock cuando un pedido menciona productos del inventario.
  * Se llama al guardar pedidos (el detalle dice ej: "2 alicates, 1 martillo"). */
 async function tryDecrementStock(detail, clientId){
@@ -2081,13 +2118,8 @@ async function tryDecrementStock(detail, clientId){
     const txt=' '+detail.toLowerCase()+' ';
     const batch=dbc.batch(); let n=0; const names=[];
     for(const p of prods){
-      const nm=(p.name||'').toLowerCase().trim();
-      if(nm.length<3) continue;
-      const esc=nm.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-      const m=txt.match(new RegExp('(\\d+)\\s*x?\\s*'+esc));
-      const hit=m||txt.includes(nm);
-      if(hit){
-        const qty=m?parseInt(m[1],10):1;
+      const qty=invMatchQty(p.name, txt);
+      if(qty>0){
         if((p.stock||0)<=0) continue;
         const ns=Math.max(0,(p.stock||0)-qty);
         batch.update(dbc.collection('clients').doc(clientId).collection('inventory').doc(p.id),
