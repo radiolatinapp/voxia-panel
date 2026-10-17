@@ -2928,7 +2928,7 @@ async function renderClientDetail(c){
     waH=`<div><b class="mono">${w.count.toLocaleString()}</b> / 1.000 mensajes</div>
     <div style="height:8px;background:var(--line);border-radius:99px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${bar}%;background:linear-gradient(90deg,#25d366,#7c6cff);border-radius:99px"></div></div>
     <div style="font-size:12.5px;color:var(--muted)">Extra: <b>${waCostText(w)}</b>${w.extra>0?'':' (dentro de los 1.000 gratis)'}</div>`;}
-  $('cdConn').innerHTML=`<div style="font-size:13px;line-height:2">${crm}<br>${posLine()}<br>📞 ${c.twilioNumber?`<b class="mono">${c.twilioNumber}</b> <span style="color:var(--faint)">(voz)</span>`:'<span style="color:var(--faint)">Sin número Twilio vinculado</span>'}<br>📅 <span id="cdGcal">verificando…</span><br>${waH}</div>`;
+  $('cdConn').innerHTML=`<div style="font-size:13px;line-height:2">${crm}<br>${posLine()}<br>📞 ${c.twilioNumber?`<b class="mono">${c.twilioNumber}</b> <span style="color:var(--faint)">(voz)</span>`:'<span style="color:var(--faint)">Sin número Twilio vinculado</span>'}<br>📅 <span id="cdGcal">verificando…</span><br>🔑 <span id="cdApiSec">verificando…</span> <button class="btn btn-ghost btn-sm" onclick="genApiSecret('${c.id}')">Generar clave API</button><br>${waH}</div>`;
   try{
     const gd=await VoxiaDB.db.collection('clients').doc(c.id).collection('config').doc('gcal').get();
     const gel=$('cdGcal');
@@ -2936,6 +2936,30 @@ async function renderClientDetail(c){
       ? `✓ <b>${gd.data().email||'Conectado'}</b> <span style="color:var(--faint)">(la IA puede agendar)</span>`
       : '<span style="color:var(--faint)">Sin conectar · el cliente lo conecta desde su panel</span>';
   }catch(e){ const gel=$('cdGcal'); if(gel) gel.innerHTML='<span style="color:var(--faint)">Sin conectar</span>'; }
+  try{
+    const sd=await VoxiaDB.db.collection('clients').doc(c.id).collection('config').doc('credentials').get();
+    const sel=$('cdApiSec');
+    if(sel) sel.innerHTML=(sd.exists&&sd.data().apiSecret)
+      ? '✓ <b>Clave API generada</b> <span style="color:var(--faint)">(úsala en las tools de ElevenLabs y el backend)</span>'
+      : '<span style="color:var(--faint)">Sin clave API — genérala para activar Calendar/stock</span>';
+  }catch(e){}
+/* Genera (o regenera) el secreto API del cliente.
+   Vive en clients/{id}/config/credentials (solo el admin escribe, ver reglas).
+   Se muestra UNA vez: el admin lo pega en las custom tools de ElevenLabs
+   (parámetro api_secret) y el panel del cliente lo usa solo. */
+async function genApiSecret(clientId){
+  if(!confirm('¿Generar nueva clave API para este cliente? La anterior dejará de funcionar.')) return;
+  const sec='vx_'+Array.from(crypto.getRandomValues(new Uint8Array(24)))
+    .map(b=>b.toString(16).padStart(2,'0')).join('');
+  try{
+    await VoxiaDB.db.collection('clients').doc(clientId).collection('config')
+      .doc('credentials').set({apiSecret: sec, updatedAt: new Date().toISOString()}, {merge:true});
+    const sel=$('cdApiSec');
+    if(sel) sel.innerHTML='✓ <b>Clave API generada</b>';
+    prompt('Copia la clave API (se muestra una sola vez). Pégala como api_secret en las tools de ElevenLabs:', sec);
+    toast('🔑 Clave API generada');
+  }catch(e){ toast('⚠ '+e.message,'warn'); }
+}
   $('cdCalls').innerHTML=cl.slice(0,10).map(x=>`
     <tr><td>${cavatar(c.name,30)}</td><td class="mono">${x.d}</td>
     <td class="mono">${x.min.toFixed(1)} min</td><td>${x.lang==='ES'?'🇪🇸 Español':'🇺🇸 English'}</td>
