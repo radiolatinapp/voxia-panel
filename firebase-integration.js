@@ -297,7 +297,7 @@
      * Usa el SDK cliente (las reglas permiten a superadmin escribir todo).
      */
     async onboardClient(data) {
-      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, monthly, installFee, clientElevenKey, clientTwilioSid, clientTwilioToken, posProvider, posApiKey, elevenlabsAgentId, tempPassword, bizType } = data;
+      const { clientName, ownerName, ownerEmail, ownerPhone, country, city, plan, billingModel, monthly, installFee, clientElevenKey, clientTwilioSid, clientTwilioToken, posProvider, posApiKey, elevenlabsAgentId, tempPassword, bizType, voiceEngine } = data;
 
       if (!clientName || !ownerEmail || !tempPassword) {
         throw new Error('Faltan datos: nombre, correo y contraseña temporal son obligatorios');
@@ -319,12 +319,14 @@
       const planCfg = this.PLANS[plan] || this.PLANS.basico;
 
       // 1. Crear cliente
+      // voiceEngine se DERIVA del país (countryProfile): nunca se elige a mano.
       await db.collection('clients').doc(clientId).set({
         name: clientName, email: ownerEmail, phone: ownerPhone || '',
         country: country || 'US', city: city || '',
         status: 'trial', plan: plan || 'basico', billingModel: billingModel || 'full',
         monthly: monthly || 0, installFee: installFee || 0,
         bizType: bizType || 'restaurante',
+        voiceEngine: voiceEngine || 'elevenlabs', voiceStatus: 'pending',
         elevenlabsAgentId: elevenlabsAgentId || '', twilioNumber: '',
         createdAt: now, createdBy: adminUid,
       });
