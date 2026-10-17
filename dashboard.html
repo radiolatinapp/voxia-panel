@@ -715,9 +715,33 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <select id="clientStatusFilter" onchange="renderClients()"><option value="">Todos los estados</option><option value="active">Activos</option><option value="trial">En prueba</option><option value="off">Pausados</option></select>
         <div class="spacer"></div><span style="font-size:12.5px;color:var(--muted)" id="clientCount"></span>
       </div>
-      <div class="tbl-wrap"><table><thead><tr><th>Negocio</th><th>Contacto</th><th>Plan</th><th>Mensualidad</th><th>Llamadas 30d</th><th>Estado</th><th style="text-align:right">Acciones</th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th>Negocio</th><th>Contacto</th><th>Plan</th><th>Mensualidad</th><th>Llamadas 30d</th><th>Estado</th><th>Conexiones</th><th style="text-align:right">Acciones</th></tr></thead>
       <tbody id="clientsBody"></tbody></table></div>
     </div>
+  </section>
+
+  <!-- ============ VIEW: DETALLE CLIENTE ============ -->
+  <section class="view" id="view-clientdetail">
+    <div class="page-head">
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="btn btn-ghost btn-sm" onclick="go('clientes')">← Clientes</button>
+        <div id="cdHead"></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary btn-sm" id="cdEditBtn2">Editar</button>
+      </div>
+    </div>
+    <div class="stats" id="cdStats" style="margin-bottom:18px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px">
+      <div class="card"><h4 style="margin:0 0 10px">🎙️ Asistente</h4><div id="cdAgent"></div></div>
+      <div class="card"><h4 style="margin:0 0 10px">🔌 Conexiones</h4><div id="cdConn"></div></div>
+    </div>
+    <div class="card" style="margin-bottom:18px"><h4 style="margin:0 0 10px">📞 Llamadas recientes</h4>
+      <div class="tbl-wrap"><table><thead><tr><th></th><th>Fecha</th><th>Duración</th><th>Idioma</th><th>Resultado</th><th></th></tr></thead>
+      <tbody id="cdCalls"></tbody></table></div>
+    </div>
+    <div class="card" style="margin-bottom:18px"><h4 style="margin:0 0 10px">🛒 Pedidos</h4><div id="cdOrders"></div></div>
+    <div class="card"><h4 style="margin:0 0 10px">💳 Plan y facturación</h4><div id="cdPlan"></div></div>
   </section>
 
   <!-- ============ VIEW: ASISTENTES ============ -->
@@ -1137,6 +1161,14 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
           <div class="set-row"><div><div class="st">Instalación</div><div class="sd" id="mpInstall">–</div></div></div>
           <div class="set-row"><div><div class="st">País</div><div class="sd" id="mpCountry">–</div></div></div>
           <div class="set-row"><div><div class="st">Estado</div><div class="sd" id="mpStatus">–</div></div></div>
+          <div class="set-row"><div><div class="st">💬 WhatsApp</div><div class="sd" id="mpWhatsapp">–</div></div><button class="btn btn-ghost btn-sm" onclick="toggleWaDetail()">Ver</button></div>
+          <div id="waDetail" style="display:none;margin:2px 0 12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span>Mensajes este mes</span><b id="waCount">0 / 1.000 gratis</b></div>
+            <div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:10px"><div id="waBar" style="height:100%;width:0%;background:var(--acc-grad);border-radius:6px"></div></div>
+            <div class="set-row" style="margin:0"><div><div class="st">Consumo extra</div><div class="sd" id="waCost">–</div></div></div>
+            <div style="font-size:12px;color:var(--muted);margin-top:8px" id="waNote"></div>
+          </div>
+          <div class="set-row"><div><div class="st">🗂️ Mi CRM</div><div class="sd" id="mpCrm">–</div></div><button class="btn btn-ghost btn-sm" id="crmBtn" onclick="openCrmModal()">Conectar</button></div>
         </div>
       </div>
     </div>
@@ -1179,6 +1211,10 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
         <div><label class="flabel">Twilio Auth Token</label><input type="password" id="fClientTwilioToken" placeholder="..."></div>
       </div>
     </div>
+    <div id="clientConnSection" style="display:none;border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;">
+      <div class="msub">🔗 Conexiones del cliente <span style="color:var(--faint)">(las conecta él desde su portal)</span></div>
+      <div style="font-size:13px;line-height:1.9" id="fConnInfo"></div>
+    </div>
     <div class="row2">
       <div><label class="flabel">Tipo de negocio</label><select id="fBizType">
         <option value="restaurante">🍽️ Restaurante</option>
@@ -1202,6 +1238,45 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
       <button class="btn btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
       <button class="btn btn-ghost" id="btnResetPw" onclick="sendPasswordReset()" style="display:none">📧 Enviar recuperación</button>
       <button class="btn btn-primary" onclick="saveClient()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: DETALLE CLIENTE ============ -->
+<div class="modal-bg" id="clientDetailModal">
+  <div class="modal">
+    <button class="mx" onclick="closeModal('clientDetailModal')">✕</button>
+    <h3>Detalle del cliente</h3>
+    <div class="msub">Toda la información de este negocio</div>
+    <div id="clientDetailBody"></div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('clientDetailModal')">Cerrar</button>
+      <button class="btn btn-primary" id="cdEditBtn">Editar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: CRM ============ -->
+<div class="modal-bg" id="crmModal">
+  <div class="modal">
+    <button class="mx" onclick="closeModal('crmModal')">✕</button>
+    <h3>🗂️ Conectar mi CRM</h3>
+    <div class="msub">Elige el CRM que ya usas · Voxia guardará ahí tus clientes y citas automáticamente</div>
+    <div id="crmStatus" style="font-size:13px;color:var(--acc);margin-bottom:10px"></div>
+    <label class="flabel">Tu CRM</label>
+    <select id="crmProvider" style="font-size:15px">
+      <option value="hubspot">HubSpot</option>
+      <option value="salesforce">Salesforce</option>
+      <option value="zoho">Zoho CRM</option>
+      <option value="pipedrive">Pipedrive</option>
+      <option value="otro">Otro</option>
+    </select>
+    <label class="flabel">Clave API de tu CRM</label>
+    <input type="password" id="crmKey" placeholder="Pega tu clave API" autocomplete="off">
+    <div style="font-size:12px;color:var(--muted);margin-top:8px">🔒 Tu clave viaja segura. En Voxia solo guardamos los últimos 4 dígitos como referencia.</div>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal('crmModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCrm()">💾 Conectar CRM</button>
     </div>
   </div>
 </div>
@@ -1348,10 +1423,23 @@ async function loadClientsFromFirebase(){
       const d = doc.data();
       // Cargar logo del cliente (si tiene)
       let clientLogo = d.logoUrl || null; // Primero del documento principal
+      let clientCrm=null, clientWa=null, waCount=null, waByCat=null;
       try{
         const cfgSnap = await VoxiaDB.db.collection('clients').doc(doc.id).collection('config').doc('settings').get();
-        if(cfgSnap.exists && cfgSnap.data().logo) clientLogo = cfgSnap.data().logo;
+        if(cfgSnap.exists){
+          const cfgD=cfgSnap.data();
+          if(cfgD.logo) clientLogo = cfgD.logo;
+          if(cfgD.crm&&cfgD.crm.connected) clientCrm=cfgD.crm;
+          if(cfgD.waUsage) clientWa=cfgD.waUsage;
+        }
       }catch(e){}
+      try{
+        const nowU=new Date(), ymU=nowU.getFullYear()+'-'+String(nowU.getMonth()+1).padStart(2,'0');
+        const usnap=await VoxiaDB.db.collection('clients').doc(doc.id).collection('usage').doc(ymU).get();
+        if(usnap.exists&&usnap.data().waMessages!=null) waCount=+usnap.data().waMessages;
+        if(usnap.exists&&usnap.data().waByCat) waByCat=usnap.data().waByCat;
+      }catch(e){}
+      if(waCount==null&&clientWa&&clientWa.count!=null) waCount=+clientWa.count;
       clients.push({
         id: doc.id,
         logo: clientLogo,
@@ -1368,8 +1456,14 @@ async function loadClientsFromFirebase(){
         since: d.createdAt ? d.createdAt.toDate().toISOString().slice(0,10) : '',
         greeting: '¡Hola! Gracias por llamar a ' + (d.name || '') + '.',
         email: d.email || '',
+        country: d.country || 'US',
+        billingModel: d.billingModel || 'full',
         bizType: d.bizType || 'restaurante',
         elevenlabsAgentId: d.elevenlabsAgentId || null,
+        crm: clientCrm,
+        waUsage: clientWa,
+        waCount: waCount,
+        waByCat: waByCat,
         _fb: true,
       });
     }
@@ -1797,6 +1891,10 @@ function renderDashboard(anim=true){
   if(isAdmin){
     cards.push({l:'Clientes activos', v:act.length, d:act.length?'':'Sin clientes aún', c:'up', ic:'🏪', bg:'rgba(52,211,153,.12)', sp:[0,0,0,0,0,0,0], sc:'#34d399'});
     cards.push({l:'Ingresos mensuales', v:mrr, d:'', c:'up', ic:'💰', bg:'rgba(56,214,245,.1)', sp:[0,0,0,0,0,0,0], sc:'#38d6f5', pre:'$'});
+    // WhatsApp general: suma REAL de todos los clientes (contador siempre activo)
+    let waTotal=0, waExtraT=0;
+    try{ (clients||[]).forEach(c=>{ const w=waExtraCost(c); if(w){ waTotal+=w.count; waExtraT+=w.costUSD; } }); }catch(e){}
+    cards.push({l:'WhatsApp · general', v:waTotal, d:waExtraT>0?('Extra: $'+waExtraT.toFixed(2)+' USD'):'Dentro de los 1.000 gratis', c:'up', ic:'💬', bg:'rgba(37,211,102,.12)', sp:[0,0,0,0,0,0,0], sc:'#25d366'});
   }else{
     // Vista cliente: pedidos e ingresos por ventas (datos vienen de orders)
     const orders=typeof clientOrders!=='undefined'?clientOrders:[];
@@ -1932,6 +2030,32 @@ function renderCalls(){
 }
 
 /* ==================== CLIENTES ==================== */
+function waExtraCost(c){
+  // Costo extra de WhatsApp por cliente (admin) · null si no hay datos
+  // Usa waCostByCat: tarifas por categoría; sin desglose, cae a tarifa utility.
+  const cnt=(c.waCount!=null)?+c.waCount:((c.waUsage&&c.waUsage.count!=null)?+c.waUsage.count:null);
+  if(cnt==null) return null;
+  const country=c.country||'US';
+  const wc=(typeof waCostByCat!=='undefined')
+    ? waCostByCat(c.waByCat||null,cnt,country)
+    : {extra:Math.max(0,cnt-1000),costUSD:Math.max(0,cnt-1000)*0.0034};
+  return {count:cnt,extra:wc.extra,costUSD:wc.costUSD,country:country,
+    curr:country==='CO'?'COP':'USD',isMaint:c.billingModel==='maintenance'};
+}
+function waCostText(w){
+  if(!w)return '–';
+  if(w.curr==='COP')return '≈ $'+Math.round(w.costUSD*3180).toLocaleString()+' COP';
+  return '$'+w.costUSD.toFixed(2)+' USD';
+}
+function connBadges(c){
+  const crm=c.crm?`🗂️ ${(typeof CRM_PROVIDERS!=='undefined'&&CRM_PROVIDERS[c.crm.provider])||c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">🗂️ —</span>';
+  let wa='<span style="color:var(--faint)">💬 —</span>';
+  const w=waExtraCost(c);
+  if(w){
+    wa=`💬 <b class="mono">${w.count.toLocaleString()}</b><span style="color:var(--faint);font-size:11px">/1.000</span>`+(w.extra>0?` <span style="color:var(--acc);font-size:11.5px">(+${waCostText(w)})</span>`:'');
+  }
+  return `<div style="font-size:12.5px;line-height:1.8;white-space:nowrap">${crm}<br>${wa}</div>`;
+}
 function renderClients(){
   const q=($('clientSearch').value||'').toLowerCase(), fs=$('clientStatusFilter').value;
   const list=clients.filter(c=>c.name.toLowerCase().includes(q)&&(!fs||c.status===fs));
@@ -1939,14 +2063,14 @@ function renderClients(){
   $('clientsBody').innerHTML=list.map(c=>{
     const cm=calls.filter(x=>x.c===c.id).length;
     return `<tr>
-    <td><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
+    <td style="cursor:pointer" onclick="openClientPage('${c.id}')" title="Ver página del cliente"><div class="row-client">${cavatar(c.name,38,c.logo)}<div><div class="cell-main">${c.name}</div><div class="cell-sub">${c.city} · desde ${c.since}</div></div></div></td>
     <td class="mono">${c.phone}</td><td>${planBadge(c.plan)}</td>
     <td><b class="mono">$${c.monthly}</b><span style="color:var(--faint);font-size:11.5px">/mes</span></td>
-    <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td>
+    <td class="mono">${cm}</td><td>${statusBadge(c.status)}</td><td>${connBadges(c)}</td>
     ${canEdit()?`<td style="text-align:right;white-space:nowrap">
       <button class="btn btn-ghost btn-sm" onclick="openClientModal('${c.id}')">Editar</button>
       <button class="btn btn-danger btn-sm" onclick="delClient('${c.id}')">Eliminar</button></td>`:'<td></td>'}</tr>`;
-  }).join('')||`<tr><td colspan="7"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
+  }).join('')||`<tr><td colspan="8"><div class="empty"><div class="eico">🏪</div><h4>Sin resultados</h4><p>Agrega tu primer negocio para empezar.</p></div></td></tr>`;
 }
 /* Actualiza la mensualidad según el plan elegido */
 function updateDialCode(){
@@ -2012,12 +2136,130 @@ function updateMonthly(){
   $('fInstall').value=installUS[plan]||500;
 }
 
+function openClientDetail(id){
+  const c=clients.find(x=>x.id==id);
+  if(!c){toast('Cliente no encontrado: '+id,'warn');return;}
+  const w=waExtraCost(c);
+  const cm=(typeof calls!=='undefined'?calls:[]).filter(x=>x.c===c.id).length;
+  const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">CRM no conectado</span>';
+  let waHtml='<span style="color:var(--faint)">Sin datos de WhatsApp</span>';
+  if(w){
+    const bar=Math.min(100,w.count/1000*100);
+    waHtml=`<div><b class="mono">${w.count.toLocaleString()}</b> / 1.000 mensajes este mes</div>
+      <div style="height:8px;background:var(--line);border-radius:99px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${bar}%;background:linear-gradient(90deg,#25d366,#7c6cff);border-radius:99px"></div></div>
+      <div style="font-size:12.5px;color:var(--muted)">Extra: <b>${waCostText(w)}</b>${w.extra>0?'':' <span style="color:var(--faint)">(dentro de los 1.000 gratis)</span>'}</div>`;
+  }
+  const countryName=c.country==='CO'?'Colombia':c.country==='US'?'EE. UU.':(c.country||'');
+  $('clientDetailBody').innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+      ${cavatar(c.name,52,c.logo)}
+      <div><div class="cell-main" style="font-size:17px">${c.name}</div>
+      <div class="cell-sub">${c.city||''}${c.city&&countryName?' · ':''}${countryName}</div></div>
+      <div style="margin-left:auto;display:flex;gap:8px">${statusBadge(c.status)}${planBadge(c.plan)}</div>
+    </div>
+    <div class="row2">
+      <div><div class="flabel">Teléfono</div><div class="mono">${c.phone||'—'}</div></div>
+      <div><div class="flabel">Correo</div><div class="mono" style="word-break:break-all">${c.email||'—'}</div></div>
+    </div>
+    <div class="row2">
+      <div><div class="flabel">Tipo de negocio</div><div>${c.bizType||'—'}</div></div>
+      <div><div class="flabel">Voz del asistente</div><div>${c.voice||'—'}</div></div>
+    </div>
+    <div class="row2">
+      <div><div class="flabel">Mensualidad</div><div><b class="mono">$${c.monthly||0}</b>/mes</div></div>
+      <div><div class="flabel">Modelo de cobro</div><div style="font-size:12.5px">${c.billingModel==='maintenance'?'Mantenimiento · el cliente pone sus cuentas':'Completo · Voxia maneja todo'}</div></div>
+    </div>
+    <div class="flabel" style="margin:12px 0 6px">Conexiones</div>
+    <div class="card" style="margin:0 0 8px;padding:12px 14px;font-size:13px">${crm}</div>
+    <div class="flabel" style="margin:8px 0 6px">WhatsApp</div>
+    <div class="card" style="margin:0 0 8px;padding:12px 14px;font-size:13px">${waHtml}</div>
+    <div class="flabel" style="margin:8px 0 6px">Consumo</div>
+    <div class="card" style="margin:0;padding:12px 14px;display:flex;gap:28px;flex-wrap:wrap">
+      <div><div class="flabel">Llamadas · 30 días</div><b class="mono" style="font-size:18px">${cm}</b></div>
+      <div><div class="flabel">Cliente desde</div><div>${c.since||'—'}</div></div>
+    </div>
+    ${c.elevenlabsAgentId?`<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="closeModal('clientDetailModal');probarAgente('${c.elevenlabsAgentId}')">🎧 Escuchar su asistente</button></div>`:''}`;
+  $('cdEditBtn').onclick=()=>{closeModal('clientDetailModal');openClientModal(c.id);};
+  $('clientDetailModal').classList.add('open');
+}
+function openClientPage(id){
+  const c=clients.find(x=>x.id==id);
+  if(!c){toast('Cliente no encontrado: '+id,'warn');return;}
+  renderClientDetail(c);
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+  $('view-clientdetail').classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+async function renderClientDetail(c){
+  const w=waExtraCost(c);
+  const cl=(typeof calls!=='undefined'?calls:[]).filter(x=>x.c===c.id);
+  const mins=cl.reduce((a,x)=>a+(x.min||0),0);
+  let orders=[];
+  try{
+    const snap=await VoxiaDB.db.collection('clients').doc(c.id).collection('orders').orderBy('createdAt','desc').limit(50).get();
+    snap.forEach(d=>orders.push({id:d.id,...d.data()}));
+  }catch(e){}
+  $('cdHead').innerHTML=`<div style="display:flex;align-items:center;gap:12px">${cavatar(c.name,46,c.logo)}
+    <div><h2 style="margin:0">${c.name}</h2><p style="margin:2px 0 0;color:var(--muted);font-size:13px">${c.city||''} · ${c.phone||''}</p></div>
+    <div style="display:flex;gap:8px;margin-left:8px">${statusBadge(c.status)}${planBadge(c.plan)}</div></div>`;
+  $('cdEditBtn2').onclick=()=>openClientModal(c.id);
+  const waD=w?('<b class="mono">'+w.count.toLocaleString()+'</b> / 1.000'+(w.extra>0?' · +'+waCostText(w):' · gratis')):'Sin datos';
+  const statCard=(l,v,d,ic,bg)=>`<div class="stat"><div class="top"><div class="label">${l}</div><div class="sic" style="background:${bg}">${ic}</div></div><div class="num">${v}</div><div class="delta">${d||''}</div></div>`;
+  $('cdStats').innerHTML=
+    statCard('Llamadas · 30 días',cl.length,'','📞','rgba(255,158,46,.12)')+
+    statCard('Minutos de voz',Math.round(mins),'','🎙️','rgba(124,108,255,.12)')+
+    statCard('WhatsApp · mes',w?w.count.toLocaleString():'0',waD,'💬','rgba(37,211,102,.12)')+
+    statCard('Pedidos',orders.length,'','🛒','rgba(56,214,245,.1)');
+  $('cdAgent').innerHTML=c.elevenlabsAgentId
+    ?`<div class="cell-main">${c.voice||'Asistente de voz'}</div>
+      <div class="cell-sub mono" style="word-break:break-all">${c.elevenlabsAgentId}</div>
+      <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="probarAgente('${c.elevenlabsAgentId}')">🎧 Escuchar</button></div>`
+    :'<span style="color:var(--faint)">Sin asistente vinculado</span>';
+  const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} <span class="mono">••••${c.crm.keyLast4||''}</span>`:'<span style="color:var(--faint)">CRM no conectado</span>';
+  let waH='<span style="color:var(--faint)">Sin datos de WhatsApp</span>';
+  if(w){const bar=Math.min(100,w.count/1000*100);
+    waH=`<div><b class="mono">${w.count.toLocaleString()}</b> / 1.000 mensajes</div>
+    <div style="height:8px;background:var(--line);border-radius:99px;margin:8px 0;overflow:hidden"><div style="height:100%;width:${bar}%;background:linear-gradient(90deg,#25d366,#7c6cff);border-radius:99px"></div></div>
+    <div style="font-size:12.5px;color:var(--muted)">Extra: <b>${waCostText(w)}</b>${w.extra>0?'':' (dentro de los 1.000 gratis)'}</div>`;}
+  $('cdConn').innerHTML=`<div style="font-size:13px;line-height:2">${crm}<br>${waH}</div>`;
+  $('cdCalls').innerHTML=cl.slice(0,10).map(x=>`
+    <tr><td>${cavatar(c.name,30)}</td><td class="mono">${x.d}</td>
+    <td class="mono">${x.min.toFixed(1)} min</td><td>${x.lang==='ES'?'🇪🇸 Español':'🇺🇸 English'}</td>
+    <td>${x.res==='ok'?'<span class="badge b-ok">Pedido tomado</span>':'<span class="badge b-miss">Sin pedido</span>'}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick="toggleRow(${x.id},this)">▶ Escuchar</button></td></tr>`).join('')
+    ||'<tr><td colspan="6"><div class="empty"><h4>Sin llamadas</h4></div></td></tr>';
+  $('cdOrders').innerHTML=orders.slice(0,10).map(o=>{
+    const f=o.createdAt&&o.createdAt.seconds?new Date(o.createdAt.seconds*1000).toLocaleDateString():'';
+    return `<div class="set-row"><div><div class="st">Pedido <span class="mono">#${String(o.id).slice(0,6)}</span></div>
+    <div class="sd">${o.status||'pendiente'}${f?' · '+f:''}</div></div>
+    <div><b class="mono">$${(o.total||0).toLocaleString()}</b></div></div>`;}).join('')
+    ||'<div class="empty"><h4>Sin pedidos</h4></div>';
+  $('cdPlan').innerHTML=`<div class="row2">
+    <div><div class="flabel">Plan</div><div>${planBadge(c.plan)}</div></div>
+    <div><div class="flabel">Mensualidad</div><div><b class="mono">$${c.monthly||0}</b>/mes</div></div></div>
+    <div class="row2"><div><div class="flabel">Modelo de cobro</div><div style="font-size:13px">${c.billingModel==='maintenance'?'Mantenimiento · el cliente pone sus cuentas':'Completo · Voxia maneja todo'}</div></div>
+    <div><div class="flabel">Cliente desde</div><div>${c.since||'—'}</div></div></div>`;
+}
 function openClientModal(id){
   const c=id?clients.find(x=>x.id==id):{id:'',name:'',country:'US',city:'',phone:'',plan:'Pro',monthly:249,installFee:550,billingModel:'full',status:'active',voice:'Luisa · ES amable'};
   if(id&&!c){toast('Cliente no encontrado: '+id,'warn');return;}
   try{
     $('modalTitle').textContent=id?'Editar cliente':'Nuevo cliente';
     $('fId').value=c.id||'';$('fName').value=c.name||'';$('fCountry').value=c.country||'US';$('fCity').value=c.city||'';
+    try{
+      const cs=$('clientConnSection'), fi=$('fConnInfo');
+      if(id&&c&&(c.crm||c.waUsage)){cs.style.display='';
+        const crm=c.crm?`🗂️ ${c.crm.provider||'CRM'} ••••${c.crm.keyLast4||''}`:'🗂️ CRM no conectado';
+        let wa='💬 WhatsApp sin uso registrado';
+        const w=waExtraCost(c);
+        if(w){
+          const bill=w.country==='CO'?'se cobra en su cuenta de Meta':(w.isMaint?'se cobra en sus cuentas':'Voxia lo incluye en factura');
+          wa=`💬 ${w.count.toLocaleString()} / 1.000 mensajes · extra: <b>${waCostText(w)}</b> <span style="color:var(--faint)">(${bill})</span>`;
+        }
+        fi.innerHTML=crm+'<br>'+wa;
+      } else if(cs){cs.style.display='none';}
+    }catch(e){}
     // Separar indicativo del número
     (function(){
       const ph=c.phone||'';
@@ -2260,50 +2502,62 @@ async function renderAssistants(){
     }
   }catch(e){ console.warn('Error cargando agente del cliente:', e.message); }
   
-  // Agregar agentes al selector
+  // Agregar agentes al selector:
+  // - Cliente (tiene clientId): SOLO su propio agente, nada más.
+  // - Staff/admin: TODOS los activos (en vivo de ElevenLabs + clientes + plantillas biz_agents).
   try{
+    const isClient = !!(window.VoxiaDB && VoxiaDB.clientId);
+    const isStaff = !isClient && me && (me.role==='admin'||me.role==='superadmin');
     const agentsToAdd = [];
-    // 1. Agente del cliente actual (SOLO su agente, nada más)
-    if(clientAgentId){
-      agentsToAdd.push({id: clientAgentId, name: '⭐ ' + clientAgentName, select: true});
+    const seen = {};
+    const pushAgent=(id,name,select)=>{
+      if(!id||String(id).indexOf('agent_')!==0||seen[id])return;
+      seen[id]=1; agentsToAdd.push({id:id,name:name,select:!!select});
+    };
+    // 1. Agente del cliente actual
+    if(clientAgentId){ pushAgent(clientAgentId,'⭐ '+clientAgentName,true); }
+    // 2. Solo staff: todos los demás
+    if(isStaff){
+      // 2a. Agentes en vivo de la cuenta ElevenLabs
+      try{ (typeof live!=='undefined'&&live.agents||[]).forEach(a=>{ if(a.agent_id) pushAgent(a.agent_id,'🎙️ '+(a.name||'Agente')); }); }catch(e){}
+      // 2b. Agentes asignados a clientes
+      try{
+        if(typeof clients!=='undefined'&&clients.length){
+          clients.forEach(c=>{ if(c.elevenlabsAgentId) pushAgent(c.elevenlabsAgentId,'🏪 '+c.name); });
+        }
+      }catch(e){}
+      // 2c. Plantillas por tipo de negocio (biz_agents)
+      try{
+        if(VoxiaDB&&VoxiaDB.db){
+          const snap=await VoxiaDB.db.collection('biz_agents').get();
+          const tipoNames={dental:'🦷 Dental',taller:'🔧 Taller',belleza:'💅 Belleza',hotel:'🏨 Hotel',abogado:'⚖️ Abogado',veterinaria:'🐾 Veterinaria',inmobiliaria:'🏠 Inmobiliaria'};
+          snap.forEach(doc=>{
+            const d=doc.data()||{};
+            const aid=d.agentId||d.agent_id||d.id;
+            pushAgent(aid,'📋 '+(tipoNames[doc.id]||doc.id)+' (plantilla)');
+          });
+        }
+      }catch(e){ console.warn('biz_agents:',e.message); }
     }
-    // 2. Para admin: agregar agentes de TODOS los clientes
-    try{
-      const isAdmin = me && (me.role==='admin'||me.role==='superadmin');
-      if(isAdmin && typeof clients !== 'undefined' && clients.length){
-        clients.forEach(c=>{
-          if(c.elevenlabsAgentId && c.id !== (currentClient&&currentClient.id)){
-            agentsToAdd.push({id: c.elevenlabsAgentId, name: '⭐ ' + c.name, select: false});
-          }
-        });
-      }
-    }catch(e){}
-    // Aplicar al selector
+    // Aplicar al selector (reconstruir para no dejar opciones viejas)
+    const sels=document.querySelectorAll('select[onchange^="switchDemoAgent"]');
     if(agentsToAdd.length){
-      document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
+      sels.forEach(sel=>{
+        sel.innerHTML='';
         agentsToAdd.forEach(a=>{
-          let exists = false;
-          [...sel.options].forEach(opt=>{ if(opt.value===a.id) exists=true; });
-          if(!exists){
-            const opt = document.createElement('option');
-            opt.value = a.id;
-            opt.textContent = a.name;
-            sel.insertBefore(opt, sel.firstChild);
-          }
+          const opt=document.createElement('option');
+          opt.value=a.id; opt.textContent=a.name;
+          sel.appendChild(opt);
         });
-        // Seleccionar el del cliente actual si aplica
-        const toSelect = agentsToAdd.find(a=>a.select);
-        if(toSelect) sel.value = toSelect.id;
       });
-      const toSelect = agentsToAdd.find(a=>a.select);
-      if(toSelect){
-        switchDemoAgent(toSelect.id);
-      } else {
-        // Sin agente configurado: mostrar mensaje claro
-        document.querySelectorAll('select[onchange^="switchDemoAgent"]').forEach(sel=>{
-          sel.innerHTML = '<option value="">⚠️ Tu asistente no está configurado. Contacta al administrador.</option>';
-        });
-      }
+      const toSelect=agentsToAdd.find(a=>a.select)||agentsToAdd[0];
+      sels.forEach(sel=>{ sel.value=toSelect.id; });
+      switchDemoAgent(toSelect.id);
+    }else{
+      const msg=isClient
+        ?'⚠️ Tu asistente no está configurado. Contacta al administrador.'
+        :'⚠️ No hay asistentes. Conecta ElevenLabs en Configuración.';
+      sels.forEach(sel=>{ sel.innerHTML='<option value="">'+msg+'</option>'; });
     }
   }catch(e){ console.warn('Selector agente:', e.message); }
   loadDemoWidget();
@@ -2536,7 +2790,8 @@ let me=null;
 let integrations=[
   {id:'eleven',icon:'🎙️',name:'ElevenLabs',desc:'Voces IA y agentes conversacionales',status:'on',detail:'Plan Free · API conectada'},
   {id:'twilio',icon:'📞',name:'Twilio',desc:'Telefonía, números y SMS',status:'on',detail:'Trial 30 días · ricomoralesjeremy@gmail.com'},
-  {id:'wa',icon:'💬',name:'WhatsApp Business',desc:'Confirmaciones y seguimiento por WhatsApp',status:'off',detail:'Requiere número aprobado por Meta'},
+  {id:'wa',icon:'💬',name:'WhatsApp Business',desc:'Confirmaciones y seguimiento por WhatsApp',status:'off',detail:'1.000 mensajes gratis al mes · ve tu consumo en Mi plan'},
+  {id:'crm',icon:'🗂️',name:'Mi CRM',desc:'Guarda clientes y citas en tu CRM automáticamente',status:'off',detail:'Elige el que ya usas: HubSpot, Salesforce, Zoho…'},
   {id:'stripe',icon:'💳',name:'Stripe',desc:'Cobros automáticos a tus clientes',status:'off',detail:'Conecta tu cuenta para facturar'},
   {id:'gcal',icon:'📅',name:'Google Calendar',desc:'Sincroniza citas agendadas por la IA',status:'off',detail:'OAuth con tu cuenta de Google'}
 ];
@@ -2733,17 +2988,17 @@ function hashPw(s){let h=5381;for(let i=0;i<s.length;i++){h=(((h<<5)+h)+s.charCo
 /* roles y permisos */
 const ROLES={
   superadmin:{label:'Superadmin',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   owner:{label:'Dueño',edit:false,manageUsers:false,
     views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','asistentes','voces','reportes','actividad','perfil']},
   admin:{label:'Administrador',edit:true,manageUsers:true,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','finanzas','facturacion','reportes','equipo','actividad','integraciones','config','perfil']},
   gerente:{label:'Gerente',edit:true,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','comparativa','asistentes','plantillas','voces','reportes','actividad','perfil']},
   agente:{label:'Agente',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','perfil']},
   viewer:{label:'Visualizador',edit:false,manageUsers:false,
-    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','perfil']},
+    views:['dashboard','llamadas','transcripciones','notifcenter','pedidos','miguia','clientes','clientdetail','perfil']},
 };
 const roleLabel=r=>(ROLES[r]||{}).label||r;
 const roleBadge=r=>r==='admin'?'<span class="badge b-adm">👑 Administrador</span>':r==='gerente'?'<span class="badge b-ger">🧭 Gerente</span>':'<span class="badge b-agt">🎧 Agente</span>';
@@ -2977,8 +3232,121 @@ async function loadMyPlan(){
     $('mpCountry').textContent=countryNames[country]||country||'–';
     const statusNames={active:'Activo',trial:'Prueba',off:'Pausado'};
     $('mpStatus').textContent=statusNames[c.status]||c.status||'–';
+    await renderWaCrm();
   }catch(e){ console.warn('loadMyPlan:', e.message); }
 }
+
+/* ---------- WhatsApp + CRM (Voxia) ---------- */
+const WA_FREE_MSGS=1000;
+// USD por mensaje extra · tarifas Meta oct-2026 POR CATEGORÍA.
+// Marketing (promociones) cuesta 7-15x más que utility; el país lo define el destinatario.
+const WA_RATES={
+  US:{marketing:0.0250,utility:0.0034,authentication:0.0034,service:0.0034},
+  CO:{marketing:0.0125,utility:0.0008,authentication:0.0008,service:0.0008},
+  OT:{marketing:0.0250,utility:0.0034,authentication:0.0034,service:0.0034}
+};
+const WA_CAT_LABEL={marketing:'marketing',utility:'utility',authentication:'autenticación',service:'servicio'};
+/* Costo extra de WhatsApp con tarifas por categoría.
+ * Los 1.000 gratis aplican al total del mes; el excedente se reparte
+ * entre categorías en proporción a su uso. byCat = {marketing,utility,
+ * authentication,service} del doc usage/{YYYY-MM}. Sin byCat (datos
+ * viejos) cae al comportamiento anterior: todo a tarifa utility. */
+function waCostByCat(byCat,total,country){
+  const R=WA_RATES[country]||WA_RATES.OT;
+  const cats=['marketing','utility','authentication','service'];
+  const counts=cats.map(k=>Math.max(0,+((byCat||{})[k]||0)));
+  const tot=counts.reduce((a,b)=>a+b,0);
+  const extra=Math.max(0,total-WA_FREE_MSGS);
+  const det={}; let cost=0;
+  for(let i=0;i<cats.length;i++){
+    const share=tot>0?counts[i]/tot:(cats[i]==='utility'?1:0);
+    const ex=extra*share, c=ex*R[cats[i]];
+    det[cats[i]]={n:counts[i],extra:ex,cost:c,rate:R[cats[i]]};
+    cost+=c;
+  }
+  return {extra:extra,costUSD:cost,det:det,blended:extra>0?cost/extra:R.utility};
+}
+const USD_COP_APROX=3180; // tasa aproximada solo para mostrar en pesos
+const CRM_PROVIDERS={hubspot:'HubSpot',salesforce:'Salesforce',zoho:'Zoho CRM',pipedrive:'Pipedrive',otro:'Otro'};
+
+function toggleWaDetail(){
+  const d=$('waDetail');if(!d)return;
+  d.style.display=d.style.display==='none'?'block':'none';
+}
+async function openCrmModal(){
+  try{
+    if(window.VoxiaDB&&VoxiaDB.clientId){
+      const cfg=await VoxiaDB.getClientConfig();
+      if(cfg&&cfg.crm&&cfg.crm.connected){
+        $('crmProvider').value=cfg.crm.provider||'hubspot';
+        $('crmStatus').textContent='Conectado: '+(CRM_PROVIDERS[cfg.crm.provider]||cfg.crm.provider)+' ••••'+(cfg.crm.keyLast4||'');
+      } else { $('crmStatus').textContent=''; }
+    }
+  }catch(e){}
+  $('crmKey').value='';
+  $('crmModal').classList.add('open');
+}
+async function saveCrm(){
+  const provider=$('crmProvider').value, key=$('crmKey').value.trim();
+  if(key.length<8){toast('Pega tu clave API del CRM (mínimo 8 caracteres)','warn');return;}
+  const keyLast4=key.slice(-4);
+  try{
+    if(!(window.VoxiaDB&&VoxiaDB.clientId))throw new Error('Sin sesión de cliente');
+    await VoxiaDB.saveClientConfig({crm:{provider:provider,keyLast4:keyLast4,connected:true,at:nowStr()}});
+  }catch(e){toast('⚠ No se pudo guardar: '+e.message,'warn');return;}
+  $('crmKey').value='';
+  const g=integrations.find(x=>x.id==='crm');
+  if(g){g.status='on';g.detail=(CRM_PROVIDERS[provider]||provider)+' ••••'+keyLast4+' · citas y clientes automáticos';renderIntegrations();}
+  await renderWaCrm();
+  closeModal('crmModal');
+  try{logActivity(me?me.name:'Cliente','🗂️','conectó su CRM ('+(CRM_PROVIDERS[provider]||provider)+')');}catch(e){}
+  toast('🗂️ CRM conectado: '+(CRM_PROVIDERS[provider]||provider));
+}
+async function renderWaCrm(){
+  try{
+    if(!(window.VoxiaDB&&VoxiaDB.clientId))return;
+    const c=await VoxiaDB.getClient(VoxiaDB.clientId);if(!c)return;
+    const cfg=await VoxiaDB.getClientConfig();
+    const country=c.country||'US', curr=country==='CO'?'COP':'USD';
+    const isMaint=c.billingModel==='maintenance';
+    const crm=cfg&&cfg.crm;
+    if(crm&&crm.connected){
+      $('mpCrm').textContent=(CRM_PROVIDERS[crm.provider]||crm.provider)+' ••••'+(crm.keyLast4||'');
+      $('crmBtn').textContent='Cambiar';
+      const g=integrations.find(x=>x.id==='crm');
+      if(g&&g.status!=='on'){g.status='on';g.detail=(CRM_PROVIDERS[crm.provider]||crm.provider)+' ••••'+(crm.keyLast4||'');renderIntegrations();}
+    } else { $('mpCrm').textContent='No conectado';$('crmBtn').textContent='Conectar'; }
+    // Contador REAL desde usage/{YYYY-MM} (el bot suma +1 en cada mensaje enviado)
+    const now=new Date(), ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    let count=0, byCat=null;
+    try{
+      const usnap=await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('usage').doc(ym).get();
+      if(usnap.exists&&usnap.data().waMessages!=null) count=+usnap.data().waMessages;
+      if(usnap.exists&&usnap.data().waByCat) byCat=usnap.data().waByCat;
+    }catch(e){}
+    if(!count){
+      const wu=(cfg&&cfg.waUsage)||{};
+      if(wu.month===ym) count=wu.count||0;
+    }
+    const wc=waCostByCat(byCat,count,country);
+    const extra=wc.extra, costUSD=wc.costUSD;
+    // El contador SIEMPRE cuenta; el cobro solo se activa después de los 1.000 gratis
+    $('mpWhatsapp').textContent=count.toLocaleString()+' mensajes';
+    $('waCount').textContent=count.toLocaleString()+' / '+WA_FREE_MSGS.toLocaleString()+' gratis este mes';
+    $('waBar').style.width=Math.min(100,count/WA_FREE_MSGS*100)+'%';
+    const costTxt=curr==='COP'
+      ? '≈ $'+Math.round(costUSD*USD_COP_APROX).toLocaleString()+' COP'
+      : '$'+costUSD.toFixed(2)+' USD';
+    $('waCost').textContent=extra>0?costTxt:(curr==='COP'?'$0 · dentro de tus 1.000 gratis':'$0.00 · dentro de tus 1.000 gratis');
+    const billNote=country==='CO'
+      ? '🇨🇴 Se cobra en tu cuenta de Meta (Voxia no toca cobranza).'
+      : (isMaint?'🇺🇸 Se cobra en tus cuentas.':'🇺🇸 Voxia lo incluye en tu factura.');
+    const R=WA_RATES[country]||WA_RATES.OT;
+    const detTxt=Object.keys(WA_CAT_LABEL).map(k=>wc.det[k].n.toLocaleString()+' '+WA_CAT_LABEL[k]).join(' · ');
+    $('waNote').innerHTML='Los primeros '+WA_FREE_MSGS.toLocaleString()+' mensajes de cada mes son gratis. Después, Meta cobra por categoría: marketing $'+R.marketing.toFixed(4)+' · utility/servicio $'+R.utility.toFixed(4)+' USD por mensaje.<br>Este mes: '+detTxt+'. '+billNote+'<br><span style="color:var(--faint)">Tasa COP aproximada · tarifas Meta oct-2026 · el país lo define el destinatario.</span>';
+  }catch(e){console.warn('renderWaCrm:',e.message);}
+}
+
 async function renderProfile(){
   if(!me)return;
   $('profAvatarPrev').innerHTML=uavatar(me,54);
@@ -2990,10 +3358,16 @@ async function renderProfile(){
   try{
     if(VoxiaDB&&VoxiaDB.clientId){
       const cfg=await VoxiaDB.getClientConfig();
-      if(cfg&&cfg.logo){
-        $('bizLogoPrev').innerHTML=`<img src="${cfg.logo}" style="width:100%;height:100%;object-fit:cover">`;
+      let logoUrl = cfg&&cfg.logo ? cfg.logo : null;
+      // También buscar en el documento principal del cliente (logoUrl)
+      if(!logoUrl && VoxiaDB.clientData && VoxiaDB.clientData.logoUrl){
+        logoUrl = VoxiaDB.clientData.logoUrl;
+      }
+      if(logoUrl){
+        $('bizLogoPrev').innerHTML=`<img src="${logoUrl}" style="width:100%;height:100%;object-fit:cover">`;
         // Mostrar logo también en el avatar del perfil
-        $('profAvatarPrev').innerHTML=`<img src="${cfg.logo}" style="width:54px;height:54px;border-radius:50%;object-fit:cover">`;
+        const pav=$('profAvatarPrev');
+        if(pav) pav.innerHTML=`<img src="${logoUrl}" style="width:54px;height:54px;border-radius:50%;object-fit:cover">`;
       }
     }
   }catch(e){}
@@ -3050,6 +3424,12 @@ function renderIntegrations(){
 }
 function toggleIntegration(id){
   const g=integrations.find(x=>x.id===id);
+  if(id==='crm'){openCrmModal();return;}
+  if(id==='wa'){
+    if(window.VoxiaDB&&VoxiaDB.clientId){go('perfil');setTimeout(toggleWaDetail,450);}
+    else toast('💬 WhatsApp · el consumo se ve en el portal de cada cliente','warn');
+    return;
+  }
   if(g.status==='on'){
     // Ir a Configuración donde está el campo de la API key
     if(id==='eleven'||id==='twilio'){
@@ -3337,6 +3717,7 @@ async function restoreConns(){
   }
   updateConnUI();
   if(okEl || okTw) toast('✓ Datos en vivo sincronizados');
+  if(okEl){ try{ await renderAssistants(); }catch(e){} }
 }
 /* ---------- Helpers de presentación para datos reales ---------- */
 function fmtTwDate(d){
