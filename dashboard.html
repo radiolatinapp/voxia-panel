@@ -2946,28 +2946,29 @@ async function createClientAgent(clientId, clientName, bizType, clientInfo){
     });
     const data = await r.json();
     if(data.agent_id){
-      // Verificar que este agent ID no esté vinculado a OTRO cliente
-      // (evita que un cliente se apropie del asistente de otro).
-      let dup = false;
+      // Vinculación vía backend: verifica propiedad real del agente en ElevenLabs
+      // y que ningún otro cliente lo tenga. El panel ya no escribe este campo.
       try{
-        if(window.VoxiaDB && VoxiaDB.db){
-          const q = await VoxiaDB.db.collection('clients')
-            .where('elevenlabsAgentId','==',data.agent_id).limit(2).get();
-          q.forEach(d=>{ if(d.id !== clientId) dup = true; });
+        const bu = await backendUrl();
+        const tok = await idToken();
+        if(bu && tok){
+          const lr = await fetch(bu + '/elevenlabs/link-agent', {method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({client_id: clientId, agent_id: data.agent_id,
+              id_token: tok, xi_api_key: key}), mode:'cors'});
+          const lj = await lr.json().catch(()=>({}));
+          if(!lr.ok || !lj.ok) throw new Error((lj && lj.error) || ('HTTP '+lr.status));
+          console.log('Agente vinculado vía backend para', clientName, ':', data.agent_id);
+        } else {
+          // Sin backend configurado: el admin lo vinculará después.
+          console.warn('Sin backend: agent_id pendiente de vincular', data.agent_id);
+          toast('⚠️ Agente creado; el admin lo vinculará cuando el servidor esté activo','warn');
         }
-      }catch(e){}
-      if(dup){
-        console.error('Agent ID ya vinculado a otro cliente:', data.agent_id);
-        toast('⚠️ Ese asistente ya pertenece a otro negocio','warn');
+      }catch(e){
+        console.error('No se pudo vincular:', e.message);
+        toast('⚠️ Agente creado pero no vinculado: '+e.message,'warn');
         return null;
       }
-      // Guardar el agent ID en el cliente
-      if(window.VoxiaDB && VoxiaDB.db){
-        await VoxiaDB.db.collection('clients').doc(clientId).update({
-          elevenlabsAgentId: data.agent_id,
-        });
-      }
-      console.log('Agente creado para', clientName, ':', data.agent_id);
       return data.agent_id;
     } else {
       console.error('Error creando agente:', data);
@@ -3536,22 +3537,27 @@ async function toggleGcal(){
   const g = integrations.find(x=>x.id==='gcal');
   if(_gcalState.connected){
     if(!confirm('¿Desconectar Google Calendar? Tu asistente dejará de agendar citas.')) return;
+    // El SERVIDOR es la autoridad: solo se muestra desconectado si confirma.
     try{
       const bu = await backendUrl();
       const tok = await idToken();
-      if(bu && window.VoxiaDB && VoxiaDB.clientId && tok){
-        await fetch(bu + '/gcal/disconnect', {method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({client_id: VoxiaDB.clientId, id_token: tok}), mode:'cors'});
-      }
-      try{ await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('config').doc('gcal').set({connected:false},{merge:true}); }catch(e){}
-    }catch(e){}
-    _gcalState = {connected:false, email:''};
-    g.status='off'; g.detail='OAuth con tu cuenta de Google';
-    renderIntegrations();
-    toast('📅 Google Calendar desconectado','warn');
+      if(!(bu && window.VoxiaDB && VoxiaDB.clientId && tok)) throw new Error('sin sesión');
+      const r = await fetch(bu + '/gcal/disconnect', {method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({client_id: VoxiaDB.clientId, id_token: tok}), mode:'cors'});
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok || !j.ok) throw new Error((j && j.error) || ('HTTP '+r.status));
+      _gcalState = {connected:false, email:''};
+      g.status='off'; g.detail='OAuth con tu cuenta de Google';
+      renderIntegrations();
+      toast('📅 Google Calendar desconectado','warn');
+    }catch(e){
+      toast('⚠ No se pudo desconectar: '+e.message+'. Intenta de nuevo.','warn');
+    }
     return;
   }
-  // Conectar
+  // Conectar: POST con el token en Authorization (nunca en la URL).
+  // El backend devuelve la URL de Google; el panel solo la abre.
   const bu = await backendUrl();
   if(!bu || !window.VoxiaDB || !VoxiaDB.clientId){
     toast('📅 El administrador aún no configura el servidor Voxia. Avísale.','warn');
@@ -3562,11 +3568,18 @@ async function toggleGcal(){
     toast('📅 No hay sesión activa. Recarga e inicia sesión de nuevo.','warn');
     return;
   }
-  window.open(bu + '/gcal/connect?client_id=' + encodeURIComponent(VoxiaDB.clientId)
-    + '&t=' + encodeURIComponent(tok), '_blank');
-  toast('📅 Autoriza en la ventana de Google y vuelve aquí','info');
-  // Re-verificar en unos segundos por si ya conectó
-  setTimeout(loadGcalStatus, 8000);
+  try{
+    const r = await fetch(bu + '/gcal/connect', {method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body: JSON.stringify({client_id: VoxiaDB.clientId}), mode:'cors'});
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok || !j.ok || !j.auth_url) throw new Error((j && j.error) || ('HTTP '+r.status));
+    window.open(j.auth_url, '_blank');
+    toast('📅 Autoriza en la ventana de Google y vuelve aquí','info');
+    setTimeout(loadGcalStatus, 8000);
+  }catch(e){
+    toast('⚠ No se pudo iniciar la conexión: '+e.message,'warn');
+  }
 }
 function toggleIntegration(id){
   const g=integrations.find(x=>x.id===id);
