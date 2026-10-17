@@ -475,15 +475,8 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
     <div class="login-err" id="loginErr"></div>
     <button class="btn btn-primary login-btn" id="loginBtn" onclick="login()">Entrar al panel</button>
     <button class="login-link" onclick="toast('📩 Contacta a tu administrador para restablecer tu contraseña','warn')">¿Olvidaste tu contraseña?</button>
-    <div class="login-demo">
-      <div class="ld-t">Cuentas demo · clic para autocompletar</div>
-      <div class="ld-row">
-        <button onclick="fillLogin('admin@voxia.ai','voxia2026')">👑 <b>admin@voxia.ai</b> — Administrador</button>
-        <button onclick="fillLogin('gerente@voxia.ai','gerente2026')">🧭 <b>gerente@voxia.ai</b> — Gerente</button>
-        <button onclick="fillLogin('agente@voxia.ai','agente2026')">🎧 <b>agente@voxia.ai</b> — Agente</button>
-      </div>
-    </div>
-    <div class="login-note">🔒 Demo local: las cuentas se guardan solo en tu navegador.</div>
+    <!-- Cuentas demo ELIMINADAS (seguridad 2026-10-17): la página es pública y mostraba claves reales -->
+    <div class="login-note">🔒 Acceso con tu cuenta asignada por el administrador.</div>
   </div>
 </div>
 
@@ -1451,9 +1444,9 @@ async function loadClientsFromFirebase(){
         city: d.city || '',
         phone: d.phone || '',
         plan: d.plan === 'basico' ? 'Básico' : (d.plan === 'pro' ? 'Pro' : (d.plan || '')),
-        monthly: d.plan === 'pro' ? 249 : (d.plan === 'premium' ? 399 : 149),
+        monthly: (d.monthly != null ? d.monthly : (function(){var pp=countryProfile(d.country||'US');var bm=d.billingModel||pp.billingDefault;return bm==='maintenance'?pp.monthlyMaint:pp.monthlyFull;})()),
         status: d.status || 'trial',
-        voice: 'Sofía · ES/EN',
+        voice: (typeof voiceLabelFor==='function' ? voiceLabelFor(d.country||'US') : 'Sofía · ES/EN'),
         lang: 'ES/EN',
         menu: 0,
         hours: '9:00 AM – 9:00 PM',
@@ -1464,6 +1457,7 @@ async function loadClientsFromFirebase(){
         billingModel: d.billingModel || 'full',
         bizType: d.bizType || 'restaurante',
         elevenlabsAgentId: d.elevenlabsAgentId || null,
+        twilioNumber: d.twilioNumber || '',
         crm: clientCrm,
         waUsage: clientWa,
         waCount: waCount,
@@ -1619,6 +1613,13 @@ function renderOrders(){
 /* ==================== UTILS ==================== */
 const $ = id => document.getElementById(id);
 const money = n => '$' + n.toLocaleString('en-US',{minimumFractionDigits:n<10?2:0, maximumFractionDigits:2});
+/* Dinero según país (country-profiles.js manda; money() legacy queda para vistas US) */
+function moneyFor(n, country){
+  const p = (typeof countryProfile==='function') ? countryProfile(country||'US') : {curr:'USD'};
+  n = +n || 0;
+  if(p.curr==='COP') return '$' + Math.round(n).toLocaleString('es-CO');
+  return '$' + n.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+}
 const cname = id => (clients.find(c=>c.id===id)||{}).name || '—';
 const avColor = name => { let h=0; for(const ch of name) h=(h*31+ch.charCodeAt(0))%997; return AVC[h%AVC.length]; };
 const initials = name => name.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
@@ -1732,6 +1733,7 @@ async function renderMinutesMeter(){
     let rows = '';
     for(const c of clients){
       const plan = (VoxiaDB.PLANS||{})[(c.plan||'basico').toLowerCase()] || {minutos:1000, precio:149};
+      const precioPlan = (c.monthly != null ? c.monthly : plan.precio); /* Firestore manda (C1) */
       // Uso real desde Firebase si está disponible
       let usado = 0, costoExtra = 0;
       try{
@@ -1749,9 +1751,9 @@ async function renderMinutesMeter(){
           <div style="height:100%;width:${pct}%;background:${color};transition:width .5s"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:#888">
-          <span>Plan: $${plan.precio}/mes</span>
-          <span>Extra: $${costoExtra.toFixed(2)}</span>
-          <span><strong>Total: $${(plan.precio+costoExtra).toFixed(2)}</strong></span>
+          <span>Plan: ${moneyFor(precioPlan, c.country)}/mes</span>
+          <span>Extra: ${moneyFor(costoExtra, c.country)}</span>
+          <span><strong>Total: ${moneyFor(precioPlan+costoExtra, c.country)}</strong></span>
         </div>
       </div>`;
     }
@@ -2428,6 +2430,16 @@ async function delClient(id){
 
 /* ==================== ASISTENTES ==================== */
 function vwaveHTML(){let s='';for(let i=0;i<26;i++){s+=`<i style="height:${18+Math.round(Math.abs(Math.sin(i*1.3))*70)}%"></i>`;}return s;}
+/* ¿El cliente actual usa Vox Cero? (entonces NO mostrar avisos de ElevenLabs) */
+function clientIsVoxZero(){
+  try{
+    const c=(typeof currentClient!=='undefined'&&currentClient)?currentClient
+      :(window.VoxiaDB&&VoxiaDB.clientData?VoxiaDB.clientData:null);
+    if(c&&c.voiceEngine) return c.voiceEngine==='vox-zero';
+    if(c&&c.country&&typeof voiceEngineFor==='function') return voiceEngineFor(c.country)==='vox-zero';
+  }catch(e){}
+  return false;
+}
 /* Widget demo ElevenLabs: carga el agente del cliente (o muestra mensaje si no hay) */
 function loadDemoWidget(){
   try{
@@ -2447,7 +2459,9 @@ function loadDemoWidget(){
       const el=document.getElementById(id);
       if(el && !el.querySelector('elevenlabs-convai')){
         if(!agentId){
-          el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">⚠️ Tu asistente de ElevenLabs todavía no está vinculado a esta cuenta.<br>Contacta al administrador.</div>';
+          el.innerHTML = clientIsVoxZero()
+            ? '<div style="padding:20px;text-align:center;color:var(--muted)">🎙️ Tu voz es <strong>Vox Cero</strong> (voz $0).<br>Se activa al aprovisionar tu número.</div>'
+            : '<div style="padding:20px;text-align:center;color:var(--muted)">⚠️ Tu asistente de ElevenLabs todavía no está vinculado a esta cuenta.<br>Contacta al administrador.</div>';
           return;
         }
         el.innerHTML=`<elevenlabs-convai agent-id="${agentId}" variant="expanded" action-text="Probar demo" start-call-text="¡Hablar ahora!" end-call-text="Terminar llamada" listening-text="Escuchando..." speaking-text="${agentName} está hablando..."></elevenlabs-convai>`;
@@ -2571,9 +2585,11 @@ async function renderAssistants(){
       sels.forEach(sel=>{ sel.value=toSelect.id; });
       switchDemoAgent(toSelect.id);
     }else{
-      const msg=isClient
-        ?'⚠️ Tu asistente no está configurado. Contacta al administrador.'
-        :'⚠️ No hay asistentes. Conecta ElevenLabs en Configuración.';
+      const msg=clientIsVoxZero()
+        ?'🎙️ Voz Vox Cero · se activa al aprovisionar tu número'
+        :(isClient
+          ?'⚠️ Tu asistente no está configurado. Contacta al administrador.'
+          :'⚠️ No hay asistentes. Conecta ElevenLabs en Configuración.');
       sels.forEach(sel=>{ sel.innerHTML='<option value="">'+msg+'</option>'; });
     }
   }catch(e){ console.warn('Selector agente:', e.message); }
@@ -3239,7 +3255,8 @@ async function loadMyPlan(){
       monthly=isMaint?_pp.monthlyMaint:_pp.monthlyFull;
     }
     if(!install){
-      install=_pp.install[c.plan]||(_pp.code==='CO'?1500000:700);
+      const planNames={basico:'Básico',pro:'Pro',premium:'Premium'};
+      install=_pp.install[planNames[c.plan]||c.plan]||(_pp.code==='CO'?1500000:700);
     }
     $('mpMonthly').textContent=monthly.toLocaleString()+' '+curr+'/mes';
     $('mpInstall').textContent=install.toLocaleString()+' '+curr+' (una vez)';
