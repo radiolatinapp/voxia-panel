@@ -1333,6 +1333,7 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#c3cede;border-col
           <div class="set-row"><div><div class="st">Motor de voz</div><div class="sd" id="mpVoiceEngine">–</div></div></div>
           <div class="set-row"><div><div class="st">Estado</div><div class="sd" id="mpStatus">–</div></div></div>
           <div class="set-row"><div><div class="st">💬 WhatsApp</div><div class="sd" id="mpWhatsapp">–</div></div><button class="btn btn-ghost btn-sm" onclick="toggleWaDetail()">Ver</button></div>
+          <div class="set-row"><div><div class="st">📞 Voz (llamadas)</div><div class="sd" id="mpVoice">–</div></div></div>
           <div id="waDetail" style="display:none;margin:2px 0 12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)">
             <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span>Mensajes este mes</span><b id="waCount">0 / 1.000 gratis</b></div>
             <div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden;margin-bottom:10px"><div id="waBar" style="height:100%;width:0%;background:var(--acc-grad);border-radius:6px"></div></div>
@@ -4081,6 +4082,7 @@ async function loadMyPlan(){
     const statusNames={active:'Activo',trial:'Prueba',off:'Pausado'};
     $('mpStatus').textContent=statusNames[c.status]||c.status||'–';
     await renderWaCrm();
+    if(typeof watchUsageLive==='function') watchUsageLive();
   }catch(e){ console.warn('loadMyPlan:', e.message); }
 }
 
@@ -4166,11 +4168,13 @@ async function renderWaCrm(){
     } else { $('mpCrm').textContent='No conectado';$('crmBtn').textContent='Conectar'; }
     // Contador REAL desde usage/{YYYY-MM} (el bot suma +1 en cada mensaje enviado, con su categoría)
     const now=new Date(), ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-    let count=0, byCat=null;
+    let count=0, byCat=null, vMin=0, vCalls=0;
     try{
       const usnap=await VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId).collection('usage').doc(ym).get();
       if(usnap.exists&&usnap.data().waMessages!=null) count=+usnap.data().waMessages;
       if(usnap.exists&&usnap.data().waByCat) byCat=usnap.data().waByCat;
+      if(usnap.exists&&usnap.data().voiceMinutes!=null) vMin=+usnap.data().voiceMinutes;
+      if(usnap.exists&&usnap.data().voiceCalls!=null) vCalls=+usnap.data().voiceCalls;
     }catch(e){}
     if(!count){
       const wu=(cfg&&cfg.waUsage)||{};
@@ -4180,6 +4184,11 @@ async function renderWaCrm(){
     const extra=wc.extra, costUSD=wc.costUSD;
     // El contador SIEMPRE cuenta; el cobro solo se activa después de los 1.000 gratis
     $('mpWhatsapp').textContent=count.toLocaleString()+' mensajes';
+    // Voz en vivo: minutos y llamadas del mes (Vox Cero los suma al colgar)
+    if($('mpVoice')) $('mpVoice').textContent=
+      vMin>0||vCalls>0
+        ? vMin.toLocaleString()+' min · '+vCalls.toLocaleString()+' llamadas este mes'
+        : 'Sin llamadas este mes';
     $('waCount').textContent=count.toLocaleString()+' / '+WA_FREE_MSGS.toLocaleString()+' gratis este mes';
     $('waBar').style.width=Math.min(100,count/WA_FREE_MSGS*100)+'%';
     const costTxt=curr==='COP'
@@ -4192,6 +4201,19 @@ async function renderWaCrm(){
     const detTxt=Object.keys(WA_CAT_LABEL).map(k=>wc.det[k].n.toLocaleString()+' '+WA_CAT_LABEL[k]).join(' · ');
     $('waNote').innerHTML='Los primeros '+WA_FREE_MSGS.toLocaleString()+' mensajes de cada mes son gratis. Después, Meta cobra por categoría: marketing $'+R.marketing.toFixed(4)+' · utility/servicio $'+R.utility.toFixed(4)+' USD por mensaje.<br>Este mes: '+detTxt+'. '+billNote+'<br><span style="color:var(--faint)">Tasa COP aproximada · tarifas Meta oct-2026 · el país lo define el destinatario.</span>';
   }catch(e){console.warn('renderWaCrm:',e.message);}
+}
+/* Consumo EN VIVO: si usage/{YYYY-MM} cambia (llamada o mensaje nuevo),
+   se re-renderiza solo. El cliente siempre ve lo que va consumiendo. */
+let _usageUnsub=null;
+function watchUsageLive(){
+  try{
+    if(_usageUnsub){_usageUnsub();_usageUnsub=null;}
+    if(!VoxiaDB||!VoxiaDB.db||!VoxiaDB.clientId) return;
+    const now=new Date(), ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    _usageUnsub=VoxiaDB.db.collection('clients').doc(VoxiaDB.clientId)
+      .collection('usage').doc(ym)
+      .onSnapshot(()=>{ if(typeof renderWaCrm==='function') renderWaCrm(); });
+  }catch(e){}
 }
 
 async function renderProfile(){
