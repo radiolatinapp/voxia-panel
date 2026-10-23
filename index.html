@@ -2662,31 +2662,21 @@ function updateDialCode(){
   dial.value=p.dial;
   updateVoiceEngineNote();
 }
-/* Muestra el motor de voz del país y permite ELEGIR el motor del cliente.
-   Por defecto manda el país (Automático); el selector permite fijar ElevenLabs
-   o Vox Cero para ESTE cliente. Para Colombia (Vox Cero) se mantiene además el
-   override rápido a ElevenLabs premium (M4) cuando el selector está en Automático. */
+/* Muestra el motor de voz DERIVADO del país (solo lectura: el país decide).
+   Para Colombia (Vox Cero) se ofrece override a ElevenLabs premium (M4). */
 function updateVoiceEngineNote(){
   const el=$('fVoiceEngine');
   if(!el) return;
-  const prevSel=$('fVoiceEngineSel')?$('fVoiceEngineSel').value:null;
   const cc=$('fCountry')?$('fCountry').value:'US';
   const p=countryProfile(cc);
-  let html='🔊 Por país: <b>'+p.voiceLabel+'</b>';
-  html+='<select id="fVoiceEngineSel" onchange="toggleVoiceRow()" style="display:block;margin-top:6px;width:100%;font-size:14px;padding:7px 9px;border-radius:8px;background:var(--panel2,#141b26);color:inherit;border:1px solid var(--line,#2a3648)">'
-      +'<option value="auto">Automático por país</option>'
-      +'<option value="elevenlabs">ElevenLabs</option>'
-      +'<option value="vox-zero">Vox Cero (local · $0)</option>'
-      +'</select>';
+  let html='🔊 Voz: <b>'+p.voiceLabel+'</b> <span style="color:var(--faint)">(automático por país)</span>';
   if(p.voiceEngine==='vox-zero'){
     html+='<label style="display:block;margin-top:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="fUseEleven" onchange="toggleVoiceRow()" style="margin-right:6px">Usar ElevenLabs premium en vez de Vox Cero <span style="color:var(--faint)">(el cliente asume el costo de voz)</span></label>';
   }
   el.innerHTML=html;
-  const sel=$('fVoiceEngineSel');
-  if(sel&&prevSel) sel.value=prevSel;
   // m6: el selector de voz ElevenLabs no tiene efecto en Vox Cero (salvo override)
   const vr=$('fVoiceRow');
-  if(vr) vr.style.display=(effectiveVoiceEngine()==='vox-zero')?'none':'';
+  if(vr) vr.style.display=(p.voiceEngine==='vox-zero')?'none':'';
 }
 /* ¿El admin pidió ElevenLabs para este cliente Colombia? */
 function wantsElevenOverride(){
@@ -2699,11 +2689,8 @@ function toggleVoiceRow(){
   if(!vr) return;
   vr.style.display=(effectiveVoiceEngine()==='vox-zero')?'none':'';
 }
-/* Motor efectivo: si el selector del formulario fija un motor, ese manda;
-   si está en Automático, decide el país, salvo override a ElevenLabs (M4) */
+/* Motor efectivo: país decide, salvo override explícito a ElevenLabs (M4) */
 function effectiveVoiceEngine(){
-  const sel=$('fVoiceEngineSel');
-  if(sel && sel.value && sel.value!=='auto') return sel.value;
   const cc=$('fCountry')?$('fCountry').value:'US';
   if(wantsElevenOverride() && voiceEngineFor(cc)==='vox-zero') return 'elevenlabs';
   return voiceEngineFor(cc);
@@ -3047,11 +3034,6 @@ function openClientModal(id){
     })();
     updatePlanOptions();
     updateVoiceEngineNote();
-    // Restaurar el motor elegido para este cliente (si difiere del de su país)
-    try{
-      const _sel=$('fVoiceEngineSel');
-      if(_sel){ _sel.value=(id&&c.voiceEngine&&c.voiceEngine!==voiceEngineFor(c.country||'US'))?c.voiceEngine:'auto'; toggleVoiceRow(); }
-    }catch(e){}
     let planVal = c.plan||'basico';
     if(typeof planVal==='string'){
       const pl=planVal.toLowerCase();
